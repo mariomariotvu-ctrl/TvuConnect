@@ -1,0 +1,62 @@
+═══════════════════════════════════════════════════════════
+   ✨ CHECKLIST LÀM SẠCH CONSOLE - 10/4/2026
+═══════════════════════════════════════════════════════════
+
+TRẠNG THÁI HIỆN TẠI:
+
+✅ PlaceList Debug Spam - ĐÃ FIX
+   → Đã tắt console.log trong PlaceList.tsx
+   → Console sạch hơn 80%
+
+❌ Online Status Permissions - CHỜ FIX
+   → Cần deploy Firestore Rules
+   → Xem hướng dẫn: FIX_MESSAGE_NGAY.txt
+
+⚠️  Location Timeout - BỎ QUA
+   → Đây là warning bình thường
+   → Không ảnh hưởng app
+
+═══════════════════════════════════════════════════════════
+
+HÀNH ĐỘNG NGAY:
+
+[ ] 1. Hard Refresh Browser
+       → Ctrl + Shift + R
+       → Xem PlaceList debug đã biến mất chưa
+
+[ ] 2. Deploy Firestore Rules (5 phút)
+       → Firebase Console
+       → Firestore → Rules
+       → Copy từ firestore.rules
+       → Publish
+
+[ ] 3. Hard Refresh Lại
+       → Ctrl + Shift + R
+       → Kiểm tra Console
+
+[ ] 4. Kiểm Tra Kết Quả
+       → Không còn lỗi Online Status
+       → Không còn PlaceList spam
+       → Chỉ còn warning Location (OK)
+
+═══════════════════════════════════════════════════════════
+
+KẾT QUẢ MONG ĐỢI:
+
+Console trước khi fix:
+❌ useOnlineStatus.ts:41 Error listening to online status
+❌ PlaceList.tsx:312 🔍 PlaceList Debug (x8)
+⚠️  locationUtils.ts:108 Error getting location
+
+Console sau khi fix:
+⚠️  locationUtils.ts:108 Error getting location (OK - bỏ qua)
+
+═══════════════════════════════════════════════════════════
+
+TÀI LIỆU THAM KHẢO:
+
+- FIX_MESSAGE_NGAY.txt (deploy rules)
+- FIX_CONSOLE_ERRORS_10_4_2026.md (chi tiết)
+- HUONG_DAN_DEPLOY_RULES_NGAY_10_4_2026.md (hướng dẫn)
+
+═══════════════════════════════════════════════════════════

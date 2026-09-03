@@ -1,0 +1,274 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+    
+    function isParticipant(participants) {
+      return isAuthenticated() && request.auth.uid in participants;
+    }
+    
+    // Kiểm tra isNotBlocked: dùng document ID dạng "blockerUid_blockedUid"
+    // Lưu ý: blocks collection dùng addDoc (auto ID), không dùng format này
+    // → Giữ nguyên logic cũ để tương thích với code hiện tại
+    function isNotBlocked(senderUid, receiverUid) {
+      return !exists(/databases/$(database)/documents/blocks/$(senderUid + '_' + receiverUid)) &&
+             !exists(/databases/$(database)/documents/blocks/$(receiverUid + '_' + senderUid));
+    }
+    
+    // ===============================================================
+    // Profiles Collection Rules
+    // ===============================================================
+    match /profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+    
+    // ===============================================================
+    // Users Collection Rules (for uploader profile info)
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+    
+    // ===============================================================
+    // Messages Collection Rules
+    // FIX: read chỉ cho participants của tin nhắn đó
+    // FIX: update mark-as-read cho cả receiver (để đánh dấu đã đọc)
+    // ===============================================================
+    match /messages/{messageId} {
+      // Chỉ sender hoặc receiver mới đọc được tin nhắn
+      allow read: if isAuthenticated() && 
+        (resource.data.senderUid == request.auth.uid || 
+         resource.data.receiverUid == request.auth.uid ||
+         request.auth.uid in resource.data.participants);
+      
+      // Tạo tin nhắn: phải là sender, không bị block
+      allow create: if isAuthenticated()
+        && request.resource.data.senderUid == request.auth.uid
+        && isNotBlocked(request.auth.uid, request.resource.data.receiverUid);
+      
+      // Update: sender sửa nội dung, hoặc receiver đánh dấu đã đọc (read=true)
+      allow update: if isAuthenticated() && 
+        (resource.data.senderUid == request.auth.uid || 
+         resource.data.senderId == request.auth.uid ||
+         // Cho phép receiver đánh dấu đã đọc
+         (resource.data.receiverUid == request.auth.uid && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])));
+      
+      // Xóa: chỉ sender
+      allow delete: if isAuthenticated() && 
+        (resource.data.senderUid == request.auth.uid || 
+         resource.data.senderId == request.auth.uid);
+    }
+    
+    // ===============================================================
+    // Conversations Collection Rules
+    // ===============================================================
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      allow update, delete: if isAuthenticated() && request.auth.uid in resource.data.participants;
+    }
+    
+    // ===============================================================
+    // Typing Collection Rules (for real-time typing indicators)
+    // ===============================================================
+    match /typing/{conversationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+        (request.resource.data.userId == request.auth.uid || 
+         request.resource.data.userId == null);
+    }
+    
+    // ===============================================================
+    // Posts Collection Rules
+    // FIX: update chỉ cho owner của bài đăng
+    // Ngoại lệ: reactions/likes có thể được update bởi bất kỳ user
+    // ===============================================================
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      
+      // Update: chỉ owner sửa nội dung, nhưng cho phép mọi user update reactions
+      allow update: if isAuthenticated() && (
+        // Owner có thể update tất cả fields
+        resource.data.userId == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid ||
+        // Bất kỳ user nào cũng có thể update reactions, likes, reactionCounts, commentCount
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['reactions', 'reactionCounts', 'likeCount', 'likes', 'commentCount'])
+      );
+      
+      // Xóa: chỉ owner
+      allow delete: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || 
+         resource.data.createdBy == request.auth.uid);
+    }
+    
+    // ===============================================================
+    // FCM Tokens Collection
+    // ===============================================================
+    match /fcmTokens/{tokenId} {
+      allow read: if isAuthenticated() && 
+        request.auth.uid == resource.data.userId;
+      allow write: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.userId;
+    }
+    
+    // ===============================================================
+    // Document Links Collection (Academic Document Repository)
+    // ===============================================================
+    match /documentLinks/{documentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                       request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() &&
+                       resource.data.createdBy == request.auth.uid;
+      allow delete: if isAuthenticated() &&
+                       resource.data.createdBy == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Blocks Collection Rules
+    // FIX: read chỉ cho người liên quan (người block hoặc bị block)
+    // ===============================================================
+    match /blocks/{blockId} {
+      // Chỉ người liên quan mới đọc được record block của họ
+      allow read: if isAuthenticated() && 
+        (resource.data.blockerUid == request.auth.uid || 
+         resource.data.blockedUid == request.auth.uid);
+      allow create: if isAuthenticated() && 
+        request.resource.data.blockerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+        resource.data.blockerUid == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Places Collection Rules
+    // FIX: update/delete chỉ cho người tạo địa điểm
+    // ===============================================================
+    match /places/{placeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Chỉ người tạo mới sửa/xóa địa điểm của mình
+      allow update, delete: if isAuthenticated() && 
+        resource.data.createdBy == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Matches Collection Rules
+    // FIX: đọc được nếu là userUid hoặc matchedUid
+    // ===============================================================
+    match /matches/{matchId} {
+      allow read: if isAuthenticated() && 
+        (request.auth.uid == resource.data.userUid || 
+         request.auth.uid == resource.data.matchedUid ||
+         // Tương thích với field cũ
+         request.auth.uid == resource.data.userId || 
+         request.auth.uid == resource.data.matchedUserId);
+      allow create: if isAuthenticated() && 
+        (request.auth.uid == request.resource.data.userUid ||
+         request.auth.uid == request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && 
+        (request.auth.uid == resource.data.userUid ||
+         request.auth.uid == resource.data.userId);
+    }
+    
+    // ===============================================================
+    // Match Feedback Collection Rules
+    // FIX: create phải verify userId là của chính user
+    // ===============================================================
+    match /matchFeedback/{feedbackId} {
+      allow read: if isAuthenticated();
+      // Phải set userId = uid của chính mình khi tạo
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Matching Analytics Collection Rules
+    // FIX: chỉ đọc analytics của chính mình
+    // ===============================================================
+    match /matching_analytics/{analyticsId} {
+      // Chỉ đọc analytics của chính mình
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if false; // Analytics events are immutable
+      allow delete: if false; // Analytics events should not be deleted
+    }
+    
+    // ===============================================================
+    // Check-ins Collection Rules (for MapView)
+    // ===============================================================
+    match /checkIns/{checkInId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Events Collection Rules (for MapView)
+    // ===============================================================
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+        resource.data.createdBy == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+        resource.data.createdBy == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Comments Collection Rules (for Posts)
+    // ===============================================================
+    match /comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        // Cho phép update reactions/likes
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['reactions', 'reactionCounts', 'likeCount', 'likes'])
+      );
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Rental Posts Collection Rules (Tìm Trọ)
+    // ===============================================================
+    match /rentalPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() && 
+        resource.data.createdBy == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+        resource.data.createdBy == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Default deny all other collections
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

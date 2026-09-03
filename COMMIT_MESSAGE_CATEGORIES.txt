@@ -1,0 +1,33 @@
+feat: Add 12 new place categories for students
+
+✅ Added Categories (11 → 23):
+- 🎮 entertainment (Vui chơi: Game, Karaoke, Billiards)
+- 🎬 cinema (Rạp phim)
+- 🏋️ gym (Phòng gym / Fitness)
+- 🏊 swimming (Hồ bơi)
+- 🎨 art_studio (Nghệ thuật)
+- 🏨 accommodation (Nhà trọ)
+- 🏦 banking (Ngân hàng / ATM)
+- 🚌 transport (Bến xe)
+- 🏥 hospital (Bệnh viện)
+- 🍵 bubble_tea (Trà sữa)
+- 🛵 repair (Sửa xe)
+- 📱 phone_shop (Điện thoại)
+
+📝 Changes:
+- Updated PlaceCategory type in src/types.ts
+- Added category labels in src/components/PlaceList.tsx
+- Added Vietnamese → English mapping
+- Added icon colors in src/components/MapView.tsx
+
+📚 Documentation:
+- DE_XUAT_DANH_MUC_DIA_DIEM_SINH_VIEN.md
+- HUONG_DAN_THEM_DIA_DIEM_MOI.md
+- TONG_KET_THEM_CATEGORIES_10_4_2026.md
+
+🎯 Impact:
+- +109% categories (11 → 23)
+- Better coverage of student needs
+- Ready for data entry
+
+⚡ No breaking changes - backward compatible

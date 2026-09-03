@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matching Analytics Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .auth-container {
+      max-width: 400px;
+      margin: 100px auto;
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    
+    .auth-title {
+      color: #667eea;
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    
+    .auth-subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .auth-input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .auth-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .auth-btn {
+      width: 100%;
+      padding: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .auth-btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .auth-error {
+      color: #ef4444;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .user-email {
+      flex: 1;
+      color: #333;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .logout-btn {
+      padding: 8px 16px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .logout-btn:hover {
+      background: #dc2626;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 12px;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .filter-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    .filter-group select:focus,
+    .filter-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-4px);
+    }
+    
+    .stat-number {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    .charts-section {
+      margin-bottom: 30px;
+    }
+    
+    .chart-container {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .chart-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+    }
+    
+    .events-stream {
+      margin-top: 30px;
+    }
+    
+    .stream-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .stream-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #10b981;
+      color: white;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .event {
+      border: 2px solid #e5e7eb;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 12px;
+      transition: all 0.3s;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .event:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    
+    .event.start_matching {
+      border-left: 4px solid #3b82f6;
+    }
+    
+    .event.profile_clicked {
+      border-left: 4px solid #10b981;
+    }
+    
+    .event.message_sent {
+      border-left: 4px solid #f59e0b;
+    }
+    
+    .event-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .event-type {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .event-icon {
+      font-size: 24px;
+    }
+    
+    .event-type-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .event-time {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .event-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    
+    .detail-item {
+      padding: 10px;
+      background: #f9fafb;
+      border-radius: 8px;
+    }
+    
+    .detail-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .detail-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      word-break: break-all;
+    }
+    
+    .metadata {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f3f4f6;
+      border-radius: 8px;
+    }
+    
+    .metadata-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    
+    .metadata-content {
+      font-size: 13px;
+      color: #333;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .refresh-btn {
+      background: #667eea;
+      color: white;
+    }
+    
+    .refresh-btn:hover {
+      background: #5568d3;
+    }
+    
+    .clear-btn {
+      background: #ef4444;
+      color: white;
+    }
+    
+    .clear-btn:hover {
+      background: #dc2626;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+    
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    
+    .top-users {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 12px;
+    }
+    
+    .top-users-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+    }
+    
+    .user-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      transition: transform 0.2s;
+    }
+    
+    .user-item:hover {
+      transform: translateX(5px);
+    }
+    
+    .user-id {
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .user-count {
+      background: #667eea;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .admin-nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .nav-link {
+      padding: 10px 20px;
+      background: white;
+      color: #667eea;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+      border: 2px solid #e5e7eb;
+    }
+    
+    .nav-link:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .nav-link.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      .filters {
+        grid-template-columns: 1fr;
+      }
+      
+      .stats {
+        grid-template-columns: 1fr;
+      }
+      
+      .event-details {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Authentication Screen -->
+  <div class="auth-container" id="authScreen">
+    <h1 class="auth-title">🔐 Đăng nhập Admin</h1>
+    <p class="auth-subtitle">Bảng điều khiển phân tích hệ thống ghép đôi</p>
+    
+    <input type="email" id="adminEmail" class="auth-input" placeholder="Email quản trị viên" />
+    <input type="password" id="adminPassword" class="auth-input" placeholder="Mật khẩu" />
+    
+    <button class="auth-btn" onclick="handleLogin()">Đăng nhập</button>
+    
+    <div id="authError" class="auth-error" style="display: none;"></div>
+  </div>
+
+  <!-- Dashboard Content (hidden until authenticated) -->
+  <div class="container" id="dashboardContent" style="display: none;">
+    <!-- User Info Bar -->
+    <div class="user-info">
+      <span class="user-email" id="userEmail"></span>
+      <button class="logout-btn" onclick="handleLogout()">Đăng xuất</button>
+    </div>
+    
+    <h1>📊 Bảng Phân Tích Ghép Đôi</h1>
+    <p class="subtitle">Phân tích thời gian thực cho hệ thống ghép đôi TVU Connect</p>
+    
+    <div class="admin-nav">
+      <a href="admin-violations.html" class="nav-link">🛡️ Vi phạm</a>
+      <a href="matching-analytics-dashboard.html" class="nav-link active">📊 Phân tích ghép đôi</a>
+      <a href="reset-all-bans.html" class="nav-link">🔓 Xóa cấm</a>
+      <a href="reset-violations.html" class="nav-link">🗑️ Xóa vi phạm</a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <label>Loại hoạt động</label>
+        <select id="filterEventType" onchange="applyFilters()">
+          <option value="">Tất cả hoạt động</option>
+          <option value="start_matching">Bắt đầu tìm kiếm</option>
+          <option value="profile_clicked">Xem hồ sơ</option>
+          <option value="message_sent">Gửi tin nhắn</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label>Mã người dùng</label>
+        <input type="text" id="filterUserId" placeholder="Nhập mã người dùng" onchange="applyFilters()">
+      </div>
+      
+      <div class="filter-group">
+        <label>Từ ngày</label>
+        <input type="date" id="filterFromDate" onchange="applyFilters()">
+      </div>
+      
+      <div class="filter-group">
+        <label>Đến ngày</label>
+        <input type="date" id="filterToDate" onchange="applyFilters()">
+      </div>
+      
+      <div class="filter-group" style="justify-content: flex-end;">
+        <button class="refresh-btn" onclick="loadAnalytics()">🔄 Làm mới</button>
+      </div>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-number" id="totalEvents">0</div>
+        <div class="stat-label">Tổng hoạt động</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="startMatchingCount">0</div>
+        <div class="stat-label">Bắt đầu tìm kiếm</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="profileClickedCount">0</div>
+        <div class="stat-label">Xem hồ sơ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="messageSentCount">0</div>
+        <div class="stat-label">Gửi tin nhắn</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="uniqueUsers">0</div>
+        <div class="stat-label">Người dùng</div>
+      </div>
+    </div>
+    
+    <!-- Charts -->
+    <div class="charts-section">
+      <div class="chart-container">
+        <div class="chart-title">📈 Hoạt động theo thời gian</div>
+        <canvas id="timelineChart" height="80"></canvas>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-title">🥧 Phân bổ hoạt động</div>
+        <canvas id="distributionChart" height="80"></canvas>
+      </div>
+    </div>
+    
+    <!-- Top Users -->
+    <div class="top-users">
+      <div class="top-users-title">👥 Người dùng tích cực nhất</div>
+      <div id="topUsersList"></div>
+    </div>
+    
+    <!-- Loading -->
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Đang tải dữ liệu phân tích...</p>
+    </div>
+    
+    <!-- Events Stream -->
+    <div class="events-stream" id="eventsStream" style="display: none;">
+      <div class="stream-header">
+        <div class="stream-title">🔴 Luồng hoạt động trực tiếp</div>
+        <div class="live-indicator">
+          <div class="live-dot"></div>
+          <span>TRỰC TIẾP</span>
+        </div>
+      </div>
+      <div id="eventsList"></div>
+    </div>
+    
+    <!-- Empty State -->
+    <div id="empty" class="empty" style="display: none;">
+      <div class="empty-icon">📊</div>
+      <h2>Chưa có dữ liệu phân tích</h2>
+      <p>Bắt đầu sử dụng hệ thống ghép đôi để xem phân tích tại đây</p>
+    </div>
+  </div>
+  
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyByuf-sL2MfEE2zE4reYHxqAGlDg5CcJ9w",
+      authDomain: "gen-lang-client-0050597412.firebaseapp.com",
+      projectId: "gen-lang-client-0050597412",
+      storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
+      messagingSenderId: "43871673395",
+      appId: "1:43871673395:web:00e950c3694f2a49291746"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(firebase.app(), "ai-studio-62bb52f6-b84d-407e-9909-54f7fb36c151");
+    const auth = firebase.auth();
+    
+    let allEvents = [];
+    let filteredEvents = [];
+    let unsubscribe = null;
+    let timelineChart = null;
+    let distributionChart = null;
+    
+    // Event type icons and labels
+    const eventConfig = {
+      start_matching: { icon: '🎯', label: 'Bắt đầu tìm kiếm' },
+      profile_clicked: { icon: '👤', label: 'Xem hồ sơ' },
+      message_sent: { icon: '💬', label: 'Gửi tin nhắn' }
+    };
+    
+    // Check authentication on page load
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+        document.getElementById('userEmail').textContent = user.email;
+        loadAnalytics();
+      } else {
+        // User is signed out
+        document.getElementById('authScreen').style.display = 'flex';
+        document.getElementById('dashboardContent').style.display = 'none';
+      }
+    });
+    
+    // Handle login
+    async function handleLogin() {
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      const errorDiv = document.getElementById('authError');
+      
+      if (!email || !password) {
+        errorDiv.textContent = 'Vui lòng nhập email và mật khẩu';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        errorDiv.style.display = 'none';
+      } catch (error) {
+        console.error('Login error:', error);
+        let errorMessage = 'Đăng nhập thất bại';
+        
+        if (error.code === 'auth/user-not-found') {
+          errorMessage = 'Không tìm thấy tài khoản này';
+        } else if (error.code === 'auth/wrong-password') {
+          errorMessage = 'Mật khẩu không đúng';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'Email không hợp lệ';
+        } else if (error.code === 'auth/too-many-requests') {
+          errorMessage = 'Quá nhiều lần thử. Vui lòng thử lại sau';
+        }
+        
+        errorDiv.textContent = errorMessage;
+        errorDiv.style.display = 'block';
+      }
+    }
+    
+    // Handle logout
+    async function handleLogout() {
+      try {
+        await auth.signOut();
+      } catch (error) {
+        console.error('Logout error:', error);
+        alert('Lỗi khi đăng xuất: ' + error.message);
+      }
+    }
+    
+    // Allow Enter key to submit login
+    document.addEventListener('DOMContentLoaded', () => {
+      const emailInput = document.getElementById('adminEmail');
+      const passwordInput = document.getElementById('adminPassword');
+      
+      if (emailInput && passwordInput) {
+        emailInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') handleLogin();
+        });
+        
+        passwordInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') handleLogin();
+        });
+      }
+    });
+    
+    // Load analytics with real-time updates
+    function loadAnalytics() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('eventsStream').style.display = 'none';
+      document.getElementById('empty').style.display = 'none';
+      
+      // Unsubscribe from previous listener
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      
+      // Real-time listener
+      unsubscribe = db.collection('matching_analytics')
+        .orderBy('timestamp', 'desc')
+        .limit(100)
+        .onSnapshot((snapshot) => {
+          allEvents = [];
+          
+          snapshot.forEach(doc => {
+            allEvents.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+          
+          applyFilters();
+          document.getElementById('loading').style.display = 'none';
+          
+          if (allEvents.length === 0) {
+            document.getElementById('empty').style.display = 'block';
+          } else {
+            document.getElementById('eventsStream').style.display = 'block';
+          }
+        }, (error) => {
+          console.error('Error loading analytics:', error);
+          document.getElementById('loading').style.display = 'none';
+          alert('Lỗi khi tải dữ liệu phân tích: ' + error.message);
+        });
+    }
+    
+    // Apply filters
+    function applyFilters() {
+      const eventType = document.getElementById('filterEventType').value;
+      const userId = document.getElementById('filterUserId').value.trim();
+      const fromDate = document.getElementById('filterFromDate').value;
+      const toDate = document.getElementById('filterToDate').value;
+      
+      filteredEvents = allEvents.filter(event => {
+        // Event type filter
+        if (eventType && event.eventType !== eventType) return false;
+        
+        // User ID filter
+        if (userId && event.userId !== userId) return false;
+        
+        // Date range filter
+        if (event.timestamp) {
+          const eventDate = event.timestamp.toDate();
+          
+          if (fromDate) {
+            const from = new Date(fromDate);
+            from.setHours(0, 0, 0, 0);
+            if (eventDate < from) return false;
+          }
+          
+          if (toDate) {
+            const to = new Date(toDate);
+            to.setHours(23, 59, 59, 999);
+            if (eventDate > to) return false;
+          }
+        }
+        
+        return true;
+      });
+      
+      updateStats();
+      updateCharts();
+      renderEvents();
+      renderTopUsers();
+    }
+    
+    // Update statistics
+    function updateStats() {
+      const stats = {
+        total: filteredEvents.length,
+        start_matching: 0,
+        profile_clicked: 0,
+        message_sent: 0,
+        uniqueUsers: new Set()
+      };
+      
+      filteredEvents.forEach(event => {
+        if (event.eventType === 'start_matching') stats.start_matching++;
+        if (event.eventType === 'profile_clicked') stats.profile_clicked++;
+        if (event.eventType === 'message_sent') stats.message_sent++;
+        if (event.userId) stats.uniqueUsers.add(event.userId);
+      });
+      
+      document.getElementById('totalEvents').textContent = stats.total;
+      document.getElementById('startMatchingCount').textContent = stats.start_matching;
+      document.getElementById('profileClickedCount').textContent = stats.profile_clicked;
+      document.getElementById('messageSentCount').textContent = stats.message_sent;
+      document.getElementById('uniqueUsers').textContent = stats.uniqueUsers.size;
+    }
+    
+    // Update charts
+    function updateCharts() {
+      updateTimelineChart();
+      updateDistributionChart();
+    }
+    
+    // Timeline chart
+    function updateTimelineChart() {
+      const ctx = document.getElementById('timelineChart').getContext('2d');
+      
+      // Group events by hour
+      const hourlyData = {};
+      filteredEvents.forEach(event => {
+        if (event.timestamp) {
+          const date = event.timestamp.toDate();
+          const hourKey = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:00`;
+          
+          if (!hourlyData[hourKey]) {
+            hourlyData[hourKey] = { start_matching: 0, profile_clicked: 0, message_sent: 0 };
+          }
+          
+          if (event.eventType) {
+            hourlyData[hourKey][event.eventType]++;
+          }
+        }
+      });
+      
+      const labels = Object.keys(hourlyData).sort();
+      const datasets = [
+        {
+          label: 'Bắt đầu tìm kiếm',
+          data: labels.map(label => hourlyData[label].start_matching),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.4
+        },
+        {
+          label: 'Xem hồ sơ',
+          data: labels.map(label => hourlyData[label].profile_clicked),
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          tension: 0.4
+        },
+        {
+          label: 'Gửi tin nhắn',
+          data: labels.map(label => hourlyData[label].message_sent),
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          tension: 0.4
+        }
+      ];
+      
+      if (timelineChart) {
+        timelineChart.destroy();
+      }
+      
+      timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'top',
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Distribution chart
+    function updateDistributionChart() {
+      const ctx = document.getElementById('distributionChart').getContext('2d');
+      
+      const counts = {
+        start_matching: 0,
+        profile_clicked: 0,
+        message_sent: 0
+      };
+      
+      filteredEvents.forEach(event => {
+        if (event.eventType && counts.hasOwnProperty(event.eventType)) {
+          counts[event.eventType]++;
+        }
+      });
+      
+      if (distributionChart) {
+        distributionChart.destroy();
+      }
+      
+      distributionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Bắt đầu tìm kiếm', 'Xem hồ sơ', 'Gửi tin nhắn'],
+          datasets: [{
+            data: [counts.start_matching, counts.profile_clicked, counts.message_sent],
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'right',
+            }
+          }
+        }
+      });
+    }
+    
+    // Render events
+    function renderEvents() {
+      const container = document.getElementById('eventsList');
+      container.innerHTML = '';
+      
+      filteredEvents.slice(0, 50).forEach(event => {
+        const config = eventConfig[event.eventType] || { icon: '📊', label: event.eventType };
+        const div = document.createElement('div');
+        div.className = `event ${event.eventType}`;
+        
+        const timestamp = event.timestamp ? 
+          event.timestamp.toDate().toLocaleString('vi-VN') : 
+          'Không rõ thời gian';
+        
+        let metadataHtml = '';
+        if (event.metadata && Object.keys(event.metadata).length > 0) {
+          metadataHtml = `
+            <div class="metadata">
+              <div class="metadata-title">Chi tiết:</div>
+              <div class="metadata-content">${JSON.stringify(event.metadata, null, 2)}</div>
+            </div>
+          `;
+        }
+        
+        div.innerHTML = `
+          <div class="event-header">
+            <div class="event-type">
+              <span class="event-icon">${config.icon}</span>
+              <span class="event-type-text">${config.label}</span>
+            </div>
+            <div class="event-time">${timestamp}</div>
+          </div>
+          
+          <div class="event-details">
+            <div class="detail-item">
+              <div class="detail-label">Mã người dùng</div>
+              <div class="detail-value">${event.userId || 'N/A'}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Mã phiên</div>
+              <div class="detail-value">${event.sessionId || 'N/A'}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Loại hoạt động</div>
+              <div class="detail-value">${event.eventType || 'N/A'}</div>
+            </div>
+          </div>
+          
+          ${metadataHtml}
+        `;
+        
+        container.appendChild(div);
+      });
+    }
+    
+    // Render top users
+    function renderTopUsers() {
+      const userCounts = {};
+      
+      filteredEvents.forEach(event => {
+        if (event.userId) {
+          userCounts[event.userId] = (userCounts[event.userId] || 0) + 1;
+        }
+      });
+      
+      const sortedUsers = Object.entries(userCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      
+      const container = document.getElementById('topUsersList');
+      container.innerHTML = '';
+      
+      if (sortedUsers.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #666;">Chưa có dữ liệu người dùng</p>';
+        return;
+      }
+      
+      sortedUsers.forEach(([userId, count]) => {
+        const div = document.createElement('div');
+        div.className = 'user-item';
+        div.innerHTML = `
+          <span class="user-id">${userId.substring(0, 20)}${userId.length > 20 ? '...' : ''}</span>
+          <span class="user-count">${count} hoạt động</span>
+        `;
+        container.appendChild(div);
+      });
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    });
+  </script>
+</body>
+</html>

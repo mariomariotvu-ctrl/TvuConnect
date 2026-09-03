@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Feedback Modal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .fade-in {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  
+  <div class="text-center">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">Test Feedback Modal</h1>
+    <button 
+      onclick="showModal()" 
+      class="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+    >
+      Mở Modal Đánh Giá
+    </button>
+  </div>
+
+  <!-- Feedback Modal -->
+  <div id="feedbackModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 fade-in">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold text-gray-900">
+          Đánh giá ghép cặp
+        </h3>
+        <button onclick="hideModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Matched User Info -->
+      <div class="mb-6 text-center">
+        <p class="text-gray-600">
+          Bạn đã ghép cặp với <span class="font-semibold text-gray-900">Nguyễn Văn A</span>
+        </p>
+        <p class="text-sm text-gray-500 mt-1">
+          Hãy cho chúng tôi biết trải nghiệm của bạn
+        </p>
+      </div>
+
+      <!-- Star Rating -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-3">
+          Mức độ hài lòng
+        </label>
+        <div class="flex justify-center gap-2" id="starRating">
+          <button type="button" onclick="setRating(1)" class="star-btn transition-transform hover:scale-110">
+            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+            </svg>
+          </button>
+          <button type="button" onclick="setRating(2)" class="star-btn transition-transform hover:scale-110">
+            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+            </svg>
+          </button>
+          <button type="button" onclick="setRating(3)" class="star-btn transition-transform hover:scale-110">
+            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+            </svg>
+          </button>
+          <button type="button" onclick="setRating(4)" class="star-btn transition-transform hover:scale-110">
+            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+            </svg>
+          </button>
+          <button type="button" onclick="setRating(5)" class="star-btn transition-transform hover:scale-110">
+            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+            </svg>
+          </button>
+        </div>
+        <p id="ratingText" class="text-center text-sm text-gray-600 mt-2 hidden"></p>
+      </div>
+
+      <!-- Categories -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-3">
+          Danh mục (tùy chọn)
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="toggleCategory(this)" class="category-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+            Tương thích tính cách
+          </button>
+          <button type="button" onclick="toggleCategory(this)" class="category-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+            Sở thích chung
+          </button>
+          <button type="button" onclick="toggleCategory(this)" class="category-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+            Giao tiếp tốt
+          </button>
+          <button type="button" onclick="toggleCategory(this)" class="category-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+            Mục tiêu học tập
+          </button>
+          <button type="button" onclick="toggleCategory(this)" class="category-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+            Khác
+          </button>
+        </div>
+      </div>
+
+      <!-- Comment -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Nhận xét (tùy chọn)
+        </label>
+        <textarea
+          id="comment"
+          placeholder="Chia sẻ trải nghiệm của bạn..."
+          class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          rows="4"
+          maxlength="500"
+          oninput="updateCharCount()"
+        ></textarea>
+        <p class="text-xs text-gray-500 mt-1 text-right">
+          <span id="charCount">0</span>/500 ký tự
+        </p>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-3">
+        <button
+          onclick="hideModal()"
+          class="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+        >
+          Để sau
+        </button>
+        <button
+          onclick="submitFeedback()"
+          class="flex-1 px-4 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+        >
+          Gửi đánh giá
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRating = 0;
+    const ratingTexts = {
+      1: 'Rất không hài lòng',
+      2: 'Không hài lòng',
+      3: 'Bình thường',
+      4: 'Hài lòng',
+      5: 'Rất hài lòng'
+    };
+
+    function showModal() {
+      document.getElementById('feedbackModal').classList.remove('hidden');
+    }
+
+    function hideModal() {
+      document.getElementById('feedbackModal').classList.add('hidden');
+    }
+
+    function setRating(rating) {
+      currentRating = rating;
+      const stars = document.querySelectorAll('.star-btn svg');
+      const ratingText = document.getElementById('ratingText');
+      
+      stars.forEach((star, index) => {
+        if (index < rating) {
+          star.classList.remove('text-gray-300');
+          star.classList.add('text-yellow-400');
+          star.setAttribute('fill', 'currentColor');
+        } else {
+          star.classList.remove('text-yellow-400');
+          star.classList.add('text-gray-300');
+          star.setAttribute('fill', 'none');
+        }
+      });
+
+      ratingText.textContent = ratingTexts[rating];
+      ratingText.classList.remove('hidden');
+    }
+
+    function toggleCategory(btn) {
+      if (btn.classList.contains('bg-indigo-600')) {
+        btn.classList.remove('bg-indigo-600', 'text-white');
+        btn.classList.add('bg-gray-100', 'text-gray-700');
+      } else {
+        btn.classList.remove('bg-gray-100', 'text-gray-700');
+        btn.classList.add('bg-indigo-600', 'text-white');
+      }
+    }
+
+    function updateCharCount() {
+      const comment = document.getElementById('comment');
+      const charCount = document.getElementById('charCount');
+      charCount.textContent = comment.value.length;
+    }
+
+    function submitFeedback() {
+      if (currentRating === 0) {
+        alert('Vui lòng chọn số sao đánh giá');
+        return;
+      }
+
+      const selectedCategories = Array.from(document.querySelectorAll('.category-btn.bg-indigo-600'))
+        .map(btn => btn.textContent.trim());
+      const comment = document.getElementById('comment').value;
+
+      console.log('Feedback submitted:', {
+        rating: currentRating,
+        categories: selectedCategories,
+        comment: comment
+      });
+
+      alert('Cảm ơn bạn đã đánh giá!');
+      hideModal();
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('feedbackModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        hideModal();
+      }
+    });
+  </script>
+
+</body>
+</html>

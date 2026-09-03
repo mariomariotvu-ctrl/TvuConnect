@@ -1,0 +1,5 @@
+{
+  "name": "TVU Student Connect",
+  "description": "Ứng dụng kết nối sinh viên Đại học Trà Vinh (TVU) dựa trên sở thích và mục đích học tập.",
+  "requestFramePermissions": ["microphone"]
+}

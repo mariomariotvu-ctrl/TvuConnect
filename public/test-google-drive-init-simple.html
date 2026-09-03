@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Google Drive API Init - Simple</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .config-section {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #667eea;
+    }
+    .config-item {
+      margin: 8px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    .config-label {
+      font-weight: bold;
+      color: #667eea;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: transform 0.2s;
+      margin-right: 10px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .log-container {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid transparent;
+    }
+    .log-info {
+      border-left-color: #4fc3f7;
+      color: #4fc3f7;
+    }
+    .log-success {
+      border-left-color: #66bb6a;
+      color: #66bb6a;
+    }
+    .log-error {
+      border-left-color: #ef5350;
+      color: #ef5350;
+    }
+    .log-warning {
+      border-left-color: #ffb74d;
+      color: #ffb74d;
+    }
+    .error-details {
+      background: #2d2d2d;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .instructions {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      color: #856404;
+    }
+    .instructions ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 8px 0;
+      color: #856404;
+    }
+    .instructions code {
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Test Google Drive API Initialization</h1>
+    <p class="subtitle">Debug tool để kiểm tra Google Drive API config</p>
+
+    <div class="config-section">
+      <div class="config-item">
+        <span class="config-label">API Key:</span> <span id="apiKeyDisplay">Loading...</span>
+      </div>
+      <div class="config-item">
+        <span class="config-label">Client ID:</span> <span id="clientIdDisplay">Loading...</span>
+      </div>
+      <div class="config-item">
+        <span class="config-label">Current Origin:</span> <span id="originDisplay">Loading...</span>
+      </div>
+    </div>
+
+    <button onclick="testInit()" id="testBtn">🚀 Test Initialization</button>
+    <button onclick="clearLogs()">🗑️ Clear Logs</button>
+
+    <div class="log-container" id="logContainer"></div>
+
+    <div class="instructions">
+      <h3>📋 Hướng dẫn fix lỗi:</h3>
+      <ol>
+        <li>Vào <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console - Credentials</a></li>
+        <li>Chọn OAuth Client ID của bạn</li>
+        <li>Trong <strong>Authorized JavaScript origins</strong>, thêm:
+          <ul>
+            <li><code id="originToAdd">http://localhost:3000</code></li>
+          </ul>
+        </li>
+        <li>Trong <strong>Authorized redirect URIs</strong>, thêm:
+          <ul>
+            <li><code id="redirectToAdd">http://localhost:3000</code></li>
+          </ul>
+        </li>
+        <li>Click <strong>Save</strong></li>
+        <li>Đợi 1-2 phút để Google cập nhật</li>
+        <li>Refresh trang này và test lại</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    // Get env vars from .env.local
+    const API_KEY = 'AIzaSyCtnoYUJKlFKoRh_wvCbzbesEX_35qLmPM';
+    const CLIENT_ID = '1009958335039-pbekot71qflkpk7tgg5jr2c59oat0oan.apps.googleusercontent.com';
+    const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+    // Display config
+    document.getElementById('apiKeyDisplay').textContent = API_KEY ? API_KEY.substring(0, 20) + '...' : 'NOT SET';
+    document.getElementById('clientIdDisplay').textContent = CLIENT_ID ? CLIENT_ID.substring(0, 30) + '...' : 'NOT SET';
+    document.getElementById('originDisplay').textContent = window.location.origin;
+    document.getElementById('originToAdd').textContent = window.location.origin;
+    document.getElementById('redirectToAdd').textContent = window.location.origin;
+
+    function log(message, type = 'info') {
+      const logContainer = document.getElementById('logContainer');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      
+      const timestamp = new Date().toLocaleTimeString();
+      entry.textContent = `[${timestamp}] ${message}`;
+      
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function logError(message, error) {
+      log(message, 'error');
+      
+      const logContainer = document.getElementById('logContainer');
+      const errorDetails = document.createElement('div');
+      errorDetails.className = 'error-details';
+      
+      let details = '';
+      
+      // Log all error properties
+      details += '=== ERROR OBJECT ===\n';
+      details += `Type: ${typeof error}\n`;
+      details += `Constructor: ${error?.constructor?.name}\n\n`;
+      
+      // Try to get message
+      if (error?.message) {
+        details += `Message: ${error.message}\n`;
+      }
+      
+      // Try to get nested error
+      if (error?.error) {
+        details += '\n=== NESTED ERROR ===\n';
+        details += JSON.stringify(error.error, null, 2) + '\n';
+      }
+      
+      // Try to get result
+      if (error?.result) {
+        details += '\n=== RESULT ===\n';
+        details += JSON.stringify(error.result, null, 2) + '\n';
+      }
+      
+      // Try to get details
+      if (error?.details) {
+        details += '\n=== DETAILS ===\n';
+        details += JSON.stringify(error.details, null, 2) + '\n';
+      }
+      
+      // Log all enumerable properties
+      details += '\n=== ALL PROPERTIES ===\n';
+      for (const key in error) {
+        try {
+          details += `${key}: ${JSON.stringify(error[key], null, 2)}\n`;
+        } catch (e) {
+          details += `${key}: [Cannot stringify]\n`;
+        }
+      }
+      
+      // Try to stringify entire error
+      try {
+        details += '\n=== FULL JSON ===\n';
+        details += JSON.stringify(error, null, 2);
+      } catch (e) {
+        details += '\n[Cannot stringify full error]';
+      }
+      
+      errorDetails.textContent = details;
+      logContainer.appendChild(errorDetails);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+      log('Logs cleared', 'info');
+    }
+
+    async function loadGapiScript() {
+      return new Promise((resolve, reject) => {
+        if (typeof gapi !== 'undefined') {
+          log('✅ gapi already loaded', 'success');
+          resolve();
+          return;
+        }
+
+        log('📥 Loading Google API script...', 'info');
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.onload = () => {
+          log('✅ Google API script loaded', 'success');
+          resolve();
+        };
+        script.onerror = () => {
+          log('❌ Failed to load Google API script', 'error');
+          reject(new Error('Failed to load Google API script'));
+        };
+        document.body.appendChild(script);
+      });
+    }
+
+    async function waitForGapi() {
+      return new Promise((resolve, reject) => {
+        if (typeof gapi !== 'undefined') {
+          resolve();
+          return;
+        }
+
+        log('⏳ Waiting for gapi to be available...', 'info');
+        const checkInterval = setInterval(() => {
+          if (typeof gapi !== 'undefined') {
+            clearInterval(checkInterval);
+            log('✅ gapi is now available', 'success');
+            resolve();
+          }
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          log('❌ Timeout waiting for gapi', 'error');
+          reject(new Error('Timeout waiting for gapi'));
+        }, 10000);
+      });
+    }
+
+    async function testInit() {
+      const btn = document.getElementById('testBtn');
+      btn.disabled = true;
+      clearLogs();
+
+      try {
+        log('🚀 Starting Google Drive API initialization test...', 'info');
+        
+        // Step 1: Load script
+        await loadGapiScript();
+        
+        // Step 2: Wait for gapi
+        await waitForGapi();
+        
+        // Step 3: Load client and auth2
+        log('📦 Loading gapi.client and gapi.auth2...', 'info');
+        await new Promise((resolve, reject) => {
+          gapi.load('client:auth2', () => {
+            log('✅ gapi.client and gapi.auth2 loaded', 'success');
+            resolve();
+          }, (error) => {
+            log('❌ Failed to load gapi.client:auth2', 'error');
+            logError('Load error:', error);
+            reject(error);
+          });
+        });
+        
+        // Step 4: Initialize client
+        log('🔧 Initializing gapi.client...', 'info');
+        log(`   API Key: ${API_KEY.substring(0, 20)}...`, 'info');
+        log(`   Client ID: ${CLIENT_ID.substring(0, 30)}...`, 'info');
+        log(`   Origin: ${window.location.origin}`, 'info');
+        
+        try {
+          await gapi.client.init({
+            apiKey: API_KEY,
+            clientId: CLIENT_ID,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+            scope: SCOPE,
+          });
+          
+          log('✅ ✅ ✅ SUCCESS! Google Drive API initialized successfully!', 'success');
+          log('🎉 Your configuration is correct!', 'success');
+          
+        } catch (initError) {
+          log('❌ gapi.client.init() failed', 'error');
+          logError('Initialization error:', initError);
+          
+          // Provide specific guidance
+          log('', 'warning');
+          log('💡 LIKELY CAUSE:', 'warning');
+          log('   OAuth Client ID chưa được config đúng Authorized JavaScript origins', 'warning');
+          log('', 'warning');
+          log('🔧 FIX:', 'warning');
+          log(`   1. Vào: https://console.cloud.google.com/apis/credentials`, 'warning');
+          log(`   2. Chọn OAuth Client ID: ${CLIENT_ID.substring(0, 30)}...`, 'warning');
+          log(`   3. Thêm vào Authorized JavaScript origins: ${window.location.origin}`, 'warning');
+          log(`   4. Save và đợi 1-2 phút`, 'warning');
+        }
+        
+      } catch (error) {
+        log('❌ Test failed', 'error');
+        logError('General error:', error);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Auto-run on load
+    log('🔍 Ready to test. Click "Test Initialization" button.', 'info');
+  </script>
+</body>
+</html>

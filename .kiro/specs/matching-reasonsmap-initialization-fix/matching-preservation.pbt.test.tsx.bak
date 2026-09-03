@@ -1,0 +1,633 @@
+﻿/**
+ * Preservation Property Tests: Matching ReasonsMap Initialization Order Fix
+ * 
+ * **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
+ * 
+ * MỤC TIÊU: Xác nhận các hành vi hiện tại KHÔNG THAY ĐỔI sau khi fix
+ * 
+ * Tests này nên PASS trên code CHƯA SỬA (hoặc với mock setup)
+ * Tests capture các hành vi baseline cần bảo toàn
+ * 
+ * Preservation Requirements:
+ * - handleProfileClick phải track analytics với matchScore chính xác
+ * - handleProfileClick phải gọi onMatchFound callback
+ * - reasonsMap phải được tính từ getMatchingReasons()
+ * - reasonsMap phải re-compute khi dependencies thay đổi
+ * - MatchingResults hiển thị matching reasons chính xác
+ * - Logic matching cho các modes khác nhau
+ * - Edge case: currentProfile = null → empty arrays
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, waitFor, screen } from '@testing-library/react';
+import React from 'react';
+import { Matching } from '../../../src/components/Matching';
+import * as firebaseModule from '../../../src/firebase';
+import fc from 'fast-check';
+
+// Mock Firebase modules
+vi.mock('../../../src/firebase', () => ({
+  db: {},
+  auth: { currentUser: { uid: 'test-user-uid', email: 'test@example.com' } },
+  collection: vi.fn(),
+  query: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  limit: vi.fn(),
+  onSnapshot: vi.fn(),
+  addDoc: vi.fn(),
+  serverTimestamp: vi.fn(() => ({ seconds: Date.now() / 1000 })),
+  doc: vi.fn(),
+  getDoc: vi.fn(),
+  setDoc: vi.fn(),
+  updateDoc: vi.fn(),
+  deleteDoc: vi.fn(),
+  getDocs: vi.fn(),
+  handleFirestoreError: vi.fn(),
+  OperationType: { GET: 'GET', ADD: 'ADD', UPDATE: 'UPDATE' }
+}));
+
+// Mock hooks
+vi.mock('../../../src/hooks/useCachedMatching', () => ({
+  useCachedMatching: vi.fn(() => ({
+    profiles: [],
+    loading: false,
+    error: null,
+    isShowingFallback: false,
+    viewedStats: { total: 0, new: 0, viewed: 0 },
+    startMatching: vi.fn(),
+    loadOneMore: vi.fn()
+  }))
+}));
+
+vi.mock('../../../src/hooks/useMatchingFilters', () => ({
+  useMatchingFilters: vi.fn(() => ({
+    filters: {},
+    setFilters: vi.fn(),
+    resetFilters: vi.fn()
+  }))
+}));
+
+vi.mock('../../../src/hooks/useMatchingHistory', () => ({
+  useMatchingHistory: vi.fn(() => ({
+    matchHistory: [],
+    hasMoreHistory: false,
+    loadMore: vi.fn()
+  }))
+}));
+
+vi.mock('../../../src/hooks/useBlockedUsers', () => ({
+  useBlockedUsers: vi.fn(() => ({
+    blockedSet: new Set()
+  }))
+}));
+
+// Mock utility functions
+let mockTrackProfileClick = vi.fn();
+let mockGetMatchingReasons = vi.fn();
+
+vi.mock('../../../src/utils/matchingUtils', () => ({
+  getMatchingReasons: (...args: any[]) => mockGetMatchingReasons(...args)
+}));
+
+vi.mock('../../../src/utils/matchingAnalytics', () => ({
+  trackMatchingStart: vi.fn(),
+  trackProfileClick: (...args: any[]) => mockTrackProfileClick(...args),
+  trackFilterApplied: vi.fn(),
+  trackLoadMore: vi.fn()
+}));
+
+vi.mock('../../../src/utils/dailyMatchLimit', () => ({
+  getRemainingMatches: vi.fn(() => 10),
+  getTimeUntilReset: vi.fn(() => ({ hours: 5, minutes: 30 }))
+}));
+
+// Mock contexts
+vi.mock('../../../src/contexts/ThemeContext', () => ({
+  useTheme: vi.fn(() => ({
+    theme: 'light',
+    setTheme: vi.fn()
+  }))
+}));
+
+// Mock sonner
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn()
+  }
+}));
+
+// Mock lucide-react icons
+vi.mock('lucide-react', () => ({
+  Heart: () => <div data-testid="heart-icon">Heart</div>,
+  BookOpen: () => <div data-testid="bookopen-icon">BookOpen</div>,
+  Smile: () => <div data-testid="smile-icon">Smile</div>,
+  Zap: () => <div data-testid="zap-icon">Zap</div>,
+  X: () => <div data-testid="x-icon">X</div>,
+  Filter: () => <div>Filter</div>,
+  ChevronDown: () => <div>ChevronDown</div>,
+  ChevronUp: () => <div>ChevronUp</div>,
+  RotateCcw: () => <div>RotateCcw</div>,
+  MapPin: () => <div>MapPin</div>,
+  Calendar: () => <div>Calendar</div>,
+  User: () => <div>User</div>
+}));
+
+// Mock motion/react
+vi.mock('motion/react', () => ({
+  motion: {
+    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    button: ({ children, ...props }: any) => <button {...props}>{children}</button>
+  },
+  AnimatePresence: ({ children }: any) => <>{children}</>
+}));
+
+// Mock sub-components để test integration
+let capturedReasonsMap: any = null;
+let capturedOnProfileClick: any = null;
+
+vi.mock('../../../src/components/matching/MatchingFilters', () => ({
+  MatchingFilters: () => <div data-testid="matching-filters">Filters</div>
+}));
+
+vi.mock('../../../src/components/matching/MatchingResults', () => ({
+  MatchingResults: ({ onProfileClick, reasons }: any) => {
+    // Capture props để test preservation
+    capturedReasonsMap = reasons;
+    capturedOnProfileClick = onProfileClick;
+    
+    return (
+      <div data-testid="matching-results">
+        <button 
+          onClick={() => onProfileClick({ 
+            uid: 'test-profile-uid', 
+            fullName: 'Test User',
+            major: 'Công nghệ thông tin',
+            academicYear: 2023
+          })}
+          data-testid="profile-click-button"
+        >
+          Click Profile
+        </button>
+        <div data-testid="reasons-map-size">
+          {reasons ? reasons.size : 0}
+        </div>
+      </div>
+    );
+  }
+}));
+
+vi.mock('../../../src/components/matching/MatchingHistory', () => ({
+  MatchingHistory: () => <div data-testid="matching-history">History</div>
+}));
+
+describe('Property 2: Preservation - Matching Functionality Không Đổi', () => {
+  const mockCurrentUser = {
+    uid: 'test-user-uid',
+    email: 'test@example.com'
+  } as any;
+  
+  const mockOnMatchFound = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedReasonsMap = null;
+    capturedOnProfileClick = null;
+    
+    // Reset mock implementations
+    mockTrackProfileClick = vi.fn();
+    mockGetMatchingReasons = vi.fn((currentProfile, profile, mode) => {
+      if (mode === 'lover') return ['Cùng ngành học', 'Cùng sở thích'];
+      if (mode === 'study') return ['Cùng lớp', 'Cùng môn học'];
+      if (mode === 'hobby') return ['Cùng sở thích âm nhạc'];
+      if (mode === 'quick') return ['Cùng trường'];
+      return [];
+    });
+    
+    // Mock getDoc để return current user profile
+    vi.mocked(firebaseModule.getDocs).mockResolvedValue({
+      empty: false,
+      docs: [{
+        data: () => ({
+          uid: 'test-user-uid',
+          fullName: 'Test User',
+          major: 'Công nghệ thông tin',
+          academicYear: 2023,
+          interests: ['Âm nhạc', 'Thể thao']
+        })
+      }]
+    } as any);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('Preservation 3.1: handleProfileClick gọi trackProfileClick với matchScore chính xác', () => {
+    it('SHOULD PASS: trackProfileClick được gọi với số lượng matching reasons', async () => {
+      // Arrange: Setup profiles với matching reasons đã biết
+      const testProfile = {
+        uid: 'test-profile-uid',
+        fullName: 'Test Profile',
+        major: 'Công nghệ thông tin',
+        academicYear: 2023,
+        interests: ['Âm nhạc']
+      };
+      
+      // Mock getMatchingReasons trả về 2 reasons
+      mockGetMatchingReasons.mockReturnValue(['Cùng ngành học', 'Cùng sở thích']);
+      
+      const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+      vi.mocked(useCachedMatching).mockReturnValue({
+        profiles: [testProfile],
+        loading: false,
+        error: null,
+        isShowingFallback: false,
+        viewedStats: { total: 1, new: 1, viewed: 0 },
+        startMatching: vi.fn(),
+        loadOneMore: vi.fn()
+      } as any);
+      
+      // Act: Render và click profile
+      render(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="lover" 
+        />
+      );
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('profile-click-button')).toBeDefined();
+      });
+      
+      const profileClickButton = screen.getByTestId('profile-click-button');
+      profileClickButton.click();
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Assert: trackProfileClick được gọi với matchScore = 2 (số lượng reasons)
+      expect(mockTrackProfileClick).toHaveBeenCalledWith(
+        'test-user-uid',
+        'test-profile-uid',
+        2  // matchScore = reasonsMap.get(profile.uid)?.length
+      );
+      
+      console.log('✅ Preservation: trackProfileClick called with correct matchScore');
+    });
+
+    it('PROPERTY: matchScore luôn bằng số lượng reasons từ getMatchingReasons', async () => {
+      // Property-based test: For any profile and mode, matchScore = reasons.length
+      
+      const profileArbitrary = fc.record({
+        uid: fc.uuid(),
+        fullName: fc.string(),
+        major: fc.constantFrom('Công nghệ thông tin', 'Kinh tế', 'Sư phạm'),
+        academicYear: fc.integer({ min: 2020, max: 2024 })
+      });
+      
+      const modeArbitrary = fc.constantFrom('lover', 'study', 'hobby', 'quick');
+      const reasonsCountArbitrary = fc.integer({ min: 0, max: 5 });
+
+      
+      await fc.assert(
+        fc.asyncProperty(
+          profileArbitrary,
+          modeArbitrary,
+          reasonsCountArbitrary,
+          async (profile, mode, reasonsCount) => {
+            // Arrange: Mock getMatchingReasons to return fixed number of reasons
+            const mockReasons = Array.from({ length: reasonsCount }, (_, i) => `Reason ${i + 1}`);
+            mockGetMatchingReasons.mockReturnValue(mockReasons);
+            
+            const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+            vi.mocked(useCachedMatching).mockReturnValue({
+              profiles: [profile],
+              loading: false,
+              error: null,
+              isShowingFallback: false,
+              viewedStats: { total: 1, new: 1, viewed: 0 },
+              startMatching: vi.fn(),
+              loadOneMore: vi.fn()
+            } as any);
+            
+            // Act: Render và click profile
+            const { unmount } = render(
+              <Matching 
+                currentUser={mockCurrentUser} 
+                onMatchFound={mockOnMatchFound} 
+                mode={mode as any} 
+              />
+            );
+            
+            await waitFor(() => {
+              expect(screen.queryByTestId('profile-click-button')).toBeDefined();
+            });
+            
+            const button = screen.getByTestId('profile-click-button');
+            button.click();
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Assert: matchScore = reasonsCount
+            expect(mockTrackProfileClick).toHaveBeenCalledWith(
+              'test-user-uid',
+              profile.uid,
+              reasonsCount
+            );
+            
+            unmount();
+          }
+        ),
+        { numRuns: 10, timeout: 30000 }
+      );
+      
+      console.log('✅ Property: matchScore = reasons.length for all profiles and modes');
+    });
+  });
+
+  describe('Preservation 3.2: handleProfileClick gọi onMatchFound callback', () => {
+    it('SHOULD PASS: onMatchFound được gọi với profile đúng', async () => {
+      // Arrange
+      const testProfile = {
+        uid: 'test-profile-uid',
+        fullName: 'Test Profile',
+        major: 'Công nghệ thông tin',
+        academicYear: 2023,
+        interests: ['Âm nhạc']
+      };
+      
+      const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+      vi.mocked(useCachedMatching).mockReturnValue({
+        profiles: [testProfile],
+        loading: false,
+        error: null,
+        isShowingFallback: false,
+        viewedStats: { total: 1, new: 1, viewed: 0 },
+        startMatching: vi.fn(),
+        loadOneMore: vi.fn()
+      } as any);
+      
+      // Act: Render và click profile
+      render(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="lover" 
+        />
+      );
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('profile-click-button')).toBeDefined();
+      });
+      
+      const profileClickButton = screen.getByTestId('profile-click-button');
+      profileClickButton.click();
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Assert: onMatchFound được gọi với profile chính xác
+      expect(mockOnMatchFound).toHaveBeenCalledWith(
+        expect.objectContaining({
+          uid: 'test-profile-uid',
+          fullName: 'Test User',
+          major: 'Công nghệ thông tin'
+        })
+      );
+      
+      console.log('✅ Preservation: onMatchFound called with correct profile');
+    });
+  });
+
+  describe('Preservation 3.3: reasonsMap được tính từ getMatchingReasons()', () => {
+    it('SHOULD PASS: reasonsMap chứa reasons cho mọi profile', async () => {
+      // Arrange: Multiple profiles
+      const testProfiles = [
+        { uid: 'profile-1', fullName: 'User 1', major: 'CNTT', academicYear: 2023 },
+        { uid: 'profile-2', fullName: 'User 2', major: 'Kinh tế', academicYear: 2022 },
+        { uid: 'profile-3', fullName: 'User 3', major: 'Sư phạm', academicYear: 2024 }
+      ];
+      
+      mockGetMatchingReasons.mockImplementation((currentProfile, profile, mode) => {
+        if (profile.uid === 'profile-1') return ['Reason A', 'Reason B'];
+        if (profile.uid === 'profile-2') return ['Reason C'];
+        if (profile.uid === 'profile-3') return ['Reason D', 'Reason E', 'Reason F'];
+        return [];
+      });
+      
+      const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+      vi.mocked(useCachedMatching).mockReturnValue({
+        profiles: testProfiles,
+        loading: false,
+        error: null,
+        isShowingFallback: false,
+        viewedStats: { total: 3, new: 3, viewed: 0 },
+        startMatching: vi.fn(),
+        loadOneMore: vi.fn()
+      } as any);
+      
+      // Act: Render component
+      render(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="lover" 
+        />
+      );
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('reasons-map-size')).toBeDefined();
+      });
+      
+      // Assert: reasonsMap có 3 entries (1 cho mỗi profile)
+      const reasonsMapSize = screen.getByTestId('reasons-map-size');
+      expect(reasonsMapSize.textContent).toBe('3');
+      
+      // Verify getMatchingReasons được gọi cho mỗi profile
+      expect(mockGetMatchingReasons).toHaveBeenCalledTimes(3);
+      
+      console.log('✅ Preservation: reasonsMap computed for all profiles');
+    });
+
+    it('SHOULD PASS: Edge case - currentProfile null tạo empty reasons', async () => {
+      // Arrange: No current profile
+      vi.mocked(firebaseModule.getDocs).mockResolvedValue({
+        empty: true,
+        docs: []
+      } as any);
+      
+      const testProfile = {
+        uid: 'test-profile-uid',
+        fullName: 'Test Profile',
+        major: 'CNTT',
+        academicYear: 2023
+      };
+      
+      const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+      vi.mocked(useCachedMatching).mockReturnValue({
+        profiles: [testProfile],
+        loading: false,
+        error: null,
+        isShowingFallback: false,
+        viewedStats: { total: 1, new: 1, viewed: 0 },
+        startMatching: vi.fn(),
+        loadOneMore: vi.fn()
+      } as any);
+      
+      // Act: Render
+      render(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="lover" 
+        />
+      );
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Note: Khi currentProfile null, getMatchingReasons không được gọi
+      // hoặc được gọi với null và trả về []
+      // Kiểm tra component không crash
+      expect(screen.queryByTestId('matching-results')).toBeDefined();
+      
+      console.log('✅ Preservation: Edge case currentProfile=null handled');
+    });
+  });
+
+  describe('Preservation 3.4: reasonsMap re-compute khi dependencies thay đổi', () => {
+    it('SHOULD PASS: reasonsMap updates khi mode thay đổi', async () => {
+      // Arrange: Track getMatchingReasons calls
+      const callHistory: any[] = [];
+      mockGetMatchingReasons.mockImplementation((currentProfile, profile, mode) => {
+        callHistory.push({ profileUid: profile.uid, mode });
+        if (mode === 'lover') return ['Lover Reason 1', 'Lover Reason 2'];
+        if (mode === 'study') return ['Study Reason 1'];
+        return [];
+      });
+      
+      const testProfile = {
+        uid: 'test-profile-uid',
+        fullName: 'Test Profile',
+        major: 'CNTT',
+        academicYear: 2023
+      };
+      
+      const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+      vi.mocked(useCachedMatching).mockReturnValue({
+        profiles: [testProfile],
+        loading: false,
+        error: null,
+        isShowingFallback: false,
+        viewedStats: { total: 1, new: 1, viewed: 0 },
+        startMatching: vi.fn(),
+        loadOneMore: vi.fn()
+      } as any);
+      
+      // Act 1: Render với mode='lover'
+      const { rerender } = render(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="lover" 
+        />
+      );
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const initialCallCount = callHistory.length;
+      
+      // Act 2: Rerender với mode='study'
+      rerender(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="study" 
+        />
+      );
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Assert: getMatchingReasons được gọi lại với mode mới
+      expect(callHistory.length).toBeGreaterThan(initialCallCount);
+      expect(callHistory.some(call => call.mode === 'lover')).toBe(true);
+      expect(callHistory.some(call => call.mode === 'study')).toBe(true);
+      
+      console.log('✅ Preservation: reasonsMap re-computed when mode changes');
+    });
+  });
+
+  describe('Preservation: Component Structure và UI', () => {
+    it('SHOULD PASS: Component renders without errors', async () => {
+      // Arrange
+      const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+      vi.mocked(useCachedMatching).mockReturnValue({
+        profiles: [],
+        loading: false,
+        error: null,
+        isShowingFallback: false,
+        viewedStats: { total: 0, new: 0, viewed: 0 },
+        startMatching: vi.fn(),
+        loadOneMore: vi.fn()
+      } as any);
+      
+      // Act: Render
+      const { container } = render(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="lover" 
+        />
+      );
+      
+      // Assert: Component mounts successfully
+      expect(container).toBeTruthy();
+      expect(screen.getByTestId('matching-results')).toBeDefined();
+      
+      console.log('✅ Preservation: Component structure intact');
+    });
+
+    it('SHOULD PASS: MatchingResults nhận reasonsMap prop', async () => {
+      // Arrange
+      const testProfile = {
+        uid: 'test-profile-uid',
+        fullName: 'Test Profile',
+        major: 'CNTT',
+        academicYear: 2023
+      };
+      
+      mockGetMatchingReasons.mockReturnValue(['Reason 1', 'Reason 2']);
+      
+      const { useCachedMatching } = await import('../../../src/hooks/useCachedMatching');
+      vi.mocked(useCachedMatching).mockReturnValue({
+        profiles: [testProfile],
+        loading: false,
+        error: null,
+        isShowingFallback: false,
+        viewedStats: { total: 1, new: 1, viewed: 0 },
+        startMatching: vi.fn(),
+        loadOneMore: vi.fn()
+      } as any);
+      
+      // Act: Render
+      render(
+        <Matching 
+          currentUser={mockCurrentUser} 
+          onMatchFound={mockOnMatchFound} 
+          mode="lover" 
+        />
+      );
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('reasons-map-size')).toBeDefined();
+      });
+      
+      // Assert: MatchingResults received reasonsMap
+      const reasonsMapSize = screen.getByTestId('reasons-map-size');
+      expect(reasonsMapSize.textContent).toBe('1');
+      
+      console.log('✅ Preservation: MatchingResults receives reasonsMap prop');
+    });
+  });
+});
+

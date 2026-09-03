@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test 8h/3 Ca Matching Limit - TVU Connect</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">🧪 Test 8h/3 Ca Matching Limit</h1>
+    
+    <!-- Current Status -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">Trạng thái hiện tại</h2>
+      <div class="space-y-3">
+        <div class="flex justify-between items-center p-3 bg-purple-50 rounded-xl">
+          <span class="font-medium text-gray-700">Ca hiện tại:</span>
+          <span id="currentPeriod" class="text-lg font-bold text-purple-600">-</span>
+        </div>
+        <div class="flex justify-between items-center p-3 bg-indigo-50 rounded-xl">
+          <span class="font-medium text-gray-700">Số lượt đã dùng ca này:</span>
+          <span id="usedCount" class="text-2xl font-bold text-indigo-600">0</span>
+        </div>
+        <div class="flex justify-between items-center p-3 bg-green-50 rounded-xl">
+          <span class="font-medium text-gray-700">Số lượt còn lại ca này:</span>
+          <span id="remainingCount" class="text-2xl font-bold text-green-600">10</span>
+        </div>
+        <div class="flex justify-between items-center p-3 bg-orange-50 rounded-xl">
+          <span class="font-medium text-gray-700">Reset sau:</span>
+          <span id="resetTime" class="text-lg font-semibold text-orange-600">-</span>
+        </div>
+        <div class="p-3 bg-blue-50 rounded-xl">
+          <p class="text-sm text-blue-700">
+            💡 <strong>3 ca/ngày:</strong><br>
+            • Ca 1: 00:00-08:00 (10 lượt)<br>
+            • Ca 2: 08:00-16:00 (10 lượt)<br>
+            • Ca 3: 16:00-00:00 (10 lượt)<br>
+            <strong>Tổng: 30 lượt/ngày</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">Hành động</h2>
+      <div class="space-y-3">
+        <button 
+          onclick="simulateMatch()" 
+          id="matchBtn"
+          class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors"
+        >
+          🎯 Giả lập ghép cặp (+1 lượt)
+        </button>
+        <button 
+          onclick="simulateMultiple()" 
+          class="w-full py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors"
+        >
+          ⚡ Giả lập 5 lượt ghép cặp
+        </button>
+        <button 
+          onclick="resetLimit()" 
+          class="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors"
+        >
+          🔄 Reset về 0 (Admin)
+        </button>
+        <button 
+          onclick="clearStorage()" 
+          class="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors"
+        >
+          🗑️ Xóa localStorage
+        </button>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">📋 Log</h2>
+      <div id="log" class="space-y-2 max-h-96 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <script>
+    const MATCHES_PER_PERIOD = 10;
+    const RESET_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
+    const TEST_USER_ID = 'test-user-123';
+    const STORAGE_KEY = `match_limit_8h_${TEST_USER_ID}`;
+
+    function getMatchLimitData() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const now = Date.now();
+      
+      if (!stored) {
+        return {
+          lastResetTime: now,
+          count: 0
+        };
+      }
+      
+      try {
+        const data = JSON.parse(stored);
+        const timeSinceReset = now - data.lastResetTime;
+        
+        if (timeSinceReset >= RESET_INTERVAL_MS) {
+          return {
+            lastResetTime: now,
+            count: 0
+          };
+        }
+        
+        return data;
+      } catch (error) {
+        return {
+          lastResetTime: now,
+          count: 0
+        };
+      }
+    }
+
+    function saveMatchLimitData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function getRemainingMatches() {
+      const data = getMatchLimitData();
+      return Math.max(0, MATCHES_PER_PERIOD - data.count);
+    }
+
+    function incrementMatchCount() {
+      const data = getMatchLimitData();
+      
+      if (data.count >= MATCHES_PER_PERIOD) {
+        return data.count;
+      }
+      
+      const newData = {
+        ...data,
+        count: data.count + 1
+      };
+      
+      saveMatchLimitData(newData);
+      return newData.count;
+    }
+
+    function getTimeUntilReset() {
+      const data = getMatchLimitData();
+      const now = Date.now();
+      const timeSinceReset = now - data.lastResetTime;
+      const timeUntilReset = RESET_INTERVAL_MS - timeSinceReset;
+      
+      if (timeUntilReset <= 0) {
+        return { hours: 0, minutes: 0 };
+      }
+      
+      const hours = Math.floor(timeUntilReset / (1000 * 60 * 60));
+      const minutes = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
+      
+      return { hours, minutes };
+    }
+
+    function getCurrentPeriodInfo() {
+      const now = new Date();
+      const currentHour = now.getHours();
+      
+      let periodNumber = 1;
+      let periodLabel = 'Ca 1 (00:00-08:00)';
+      
+      if (currentHour >= 0 && currentHour < 8) {
+        periodNumber = 1;
+        periodLabel = 'Ca 1 (00:00-08:00)';
+      } else if (currentHour >= 8 && currentHour < 16) {
+        periodNumber = 2;
+        periodLabel = 'Ca 2 (08:00-16:00)';
+      } else {
+        periodNumber = 3;
+        periodLabel = 'Ca 3 (16:00-00:00)';
+      }
+      
+      return { periodNumber, periodLabel };
+    }
+
+    function addLog(message, type = 'info') {
+      const log = document.getElementById('log');
+      const time = new Date().toLocaleTimeString('vi-VN');
+      const colors = {
+        info: 'bg-blue-50 text-blue-700 border-blue-200',
+        success: 'bg-green-50 text-green-700 border-green-200',
+        warning: 'bg-orange-50 text-orange-700 border-orange-200',
+        error: 'bg-red-50 text-red-700 border-red-200'
+      };
+      
+      const entry = document.createElement('div');
+      entry.className = `p-3 rounded-lg border ${colors[type]}`;
+      entry.innerHTML = `<span class="text-xs font-mono">${time}</span> - ${message}`;
+      log.insertBefore(entry, log.firstChild);
+    }
+
+    function updateDisplay() {
+      const data = getMatchLimitData();
+      const remaining = getRemainingMatches();
+      const { hours, minutes } = getTimeUntilReset();
+      const { periodLabel } = getCurrentPeriodInfo();
+      
+      document.getElementById('currentPeriod').textContent = periodLabel;
+      document.getElementById('usedCount').textContent = data.count;
+      document.getElementById('remainingCount').textContent = remaining;
+      document.getElementById('resetTime').textContent = `${hours}h ${minutes}p`;
+      
+      // Update button state
+      const matchBtn = document.getElementById('matchBtn');
+      if (remaining === 0) {
+        matchBtn.disabled = true;
+        matchBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        matchBtn.textContent = '🚫 Đã hết lượt ca này';
+      } else {
+        matchBtn.disabled = false;
+        matchBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        matchBtn.textContent = `🎯 Giả lập ghép cặp (+1 lượt)`;
+      }
+      
+      // Update remaining count color
+      const remainingEl = document.getElementById('remainingCount');
+      if (remaining <= 3) {
+        remainingEl.className = 'text-2xl font-bold text-red-600';
+      } else if (remaining <= 5) {
+        remainingEl.className = 'text-2xl font-bold text-orange-600';
+      } else {
+        remainingEl.className = 'text-2xl font-bold text-green-600';
+      }
+    }
+
+    function simulateMatch() {
+      const remaining = getRemainingMatches();
+      
+      if (remaining === 0) {
+        const { hours, minutes } = getTimeUntilReset();
+        addLog(`❌ Đã hết lượt ca này! Reset sau ${hours}h ${minutes}p`, 'error');
+        return;
+      }
+      
+      const newCount = incrementMatchCount();
+      const newRemaining = getRemainingMatches();
+      
+      addLog(`✅ Ghép cặp thành công! Đã dùng: ${newCount}/10, Còn lại: ${newRemaining}`, 'success');
+      
+      if (newRemaining <= 3 && newRemaining > 0) {
+        addLog(`⚠️ Cảnh báo: Chỉ còn ${newRemaining} lượt ca này!`, 'warning');
+      }
+      
+      if (newRemaining === 0) {
+        addLog(`🚫 Đã đạt giới hạn 10 lượt/ca!`, 'error');
+      }
+      
+      updateDisplay();
+    }
+
+    function simulateMultiple() {
+      for (let i = 0; i < 5; i++) {
+        const remaining = getRemainingMatches();
+        if (remaining === 0) {
+          addLog(`⚠️ Dừng sau ${i} lượt (đã hết quota ca này)`, 'warning');
+          break;
+        }
+        incrementMatchCount();
+      }
+      
+      const data = getMatchLimitData();
+      const remaining = getRemainingMatches();
+      addLog(`⚡ Đã thêm nhiều lượt! Tổng: ${data.count}/10, Còn: ${remaining}`, 'info');
+      updateDisplay();
+    }
+
+    function resetLimit() {
+      const data = {
+        lastResetTime: Date.now(),
+        count: 0
+      };
+      saveMatchLimitData(data);
+      addLog('🔄 Đã reset về 0 lượt', 'success');
+      updateDisplay();
+    }
+
+    function clearStorage() {
+      localStorage.removeItem(STORAGE_KEY);
+      addLog('🗑️ Đã xóa localStorage', 'info');
+      updateDisplay();
+    }
+
+    // Initialize
+    updateDisplay();
+    addLog('🚀 Hệ thống 8h/3 ca khởi động', 'info');
+    
+    // Auto-refresh every 10 seconds
+    setInterval(updateDisplay, 10000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+feat: Add places counter badge on map
+
+✅ Added:
+- Counter badge at top-left corner of map
+- Shows total number of places
+- Beautiful gradient background
+- Backdrop blur effect
+- Responsive design
+
+🎨 Design:
+- Position: Top-left corner (z-index 1000)
+- Color: Indigo gradient with transparency
+- Icon: MapPin from lucide-react
+- Text: "{number} địa điểm"
+
+📱 Features:
+- Real-time updates when places change
+- Works in both dark/light mode
+- Doesn't interfere with map controls
+- Mobile-friendly
+
+⚡ No breaking changes

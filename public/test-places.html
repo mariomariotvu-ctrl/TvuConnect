@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Places Data - TVU Connect</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        h1 {
+            color: #6366f1;
+        }
+        .place-card {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .place-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #6366f1;
+            margin-bottom: 10px;
+        }
+        .place-info {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #44ff44;
+            color: black;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+        .stats {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Places Data - TVU Connect</h1>
+    
+    <div class="stats">
+        <h2>📊 Thống kê</h2>
+        <div id="stats">Đang tải...</div>
+    </div>
+
+    <button onclick="loadPlaces()">🔄 Tải lại dữ liệu</button>
+    <button onclick="showRawData()">📄 Xem dữ liệu thô</button>
+    
+    <div id="status"></div>
+    <div id="places"></div>
+    <div id="rawData" style="display:none;">
+        <h2>Dữ liệu thô từ Firestore:</h2>
+        <pre id="rawDataContent"></pre>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, limit } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDSNmXt5BGSwbKROrI_oglLa-_OqKJXzYo",
+            authDomain: "gen-lang-client-0050597412.firebaseapp.com",
+            projectId: "gen-lang-client-0050597412",
+            storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
+            messagingSenderId: "1088364269512",
+            appId: "1:1088364269512:web:e157547c1e1f0b0a6bfb6c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let rawPlacesData = [];
+
+        window.loadPlaces = async function() {
+            const statusDiv = document.getElementById('status');
+            const placesDiv = document.getElementById('places');
+            const statsDiv = document.getElementById('stats');
+            
+            statusDiv.innerHTML = '<div class="loading">⏳ Đang tải dữ liệu từ Firestore...</div>';
+            placesDiv.innerHTML = '';
+            
+            try {
+                const q = query(collection(db, 'places'), limit(100));
+                const snapshot = await getDocs(q);
+                
+                rawPlacesData = [];
+                const places = [];
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    rawPlacesData.push({ id: doc.id, ...data });
+                    places.push({
+                        id: doc.id,
+                        ...data
+                    });
+                });
+                
+                console.log('✅ Loaded places:', places);
+                
+                // Stats
+                const totalPlaces = places.length;
+                const flowCoffee = places.find(p => 
+                    p.name && p.name.toLowerCase().includes('flow')
+                );
+                
+                statsDiv.innerHTML = `
+                    <div><strong>Tổng số địa điểm:</strong> ${totalPlaces}</div>
+                    <div><strong>FLOW Coffee:</strong> ${flowCoffee ? '✅ Tìm thấy' : '❌ Không tìm thấy'}</div>
+                `;
+                
+                if (totalPlaces === 0) {
+                    statusDiv.innerHTML = '<div class="error">❌ Không có dữ liệu nào trong collection "places"</div>';
+                    return;
+                }
+                
+                statusDiv.innerHTML = `<div class="success">✅ Đã tải ${totalPlaces} địa điểm</div>`;
+                
+                // Display places
+                places.forEach(place => {
+                    const card = document.createElement('div');
+                    card.className = 'place-card';
+                    
+                    const hasLocation = place.location && 
+                                       typeof place.location.lat === 'number' && 
+                                       typeof place.location.lng === 'number';
+                    
+                    card.innerHTML = `
+                        <div class="place-name">${place.name || '❌ Thiếu tên'}</div>
+                        <div class="place-info">📍 ID: ${place.id}</div>
+                        <div class="place-info">🏷️ Category: ${place.category || '❌ Thiếu category'}</div>
+                        <div class="place-info">⭐ Rating: ${place.rating || '❌ Thiếu rating'}</div>
+                        <div class="place-info">📍 Location: ${hasLocation ? 
+                            `✅ (${place.location.lat}, ${place.location.lng})` : 
+                            '❌ Thiếu hoặc không hợp lệ'}</div>
+                        <div class="place-info">🏠 Address: ${place.location?.address || '❌ Thiếu địa chỉ'}</div>
+                        <div class="place-info">🕐 Hours: ${place.opening_hours || place.opening_hours || 'Không có'}</div>
+                        <div class="place-info">💰 Price: ${place.priceRange || place.price_range || 'Không có'}</div>
+                        <div class="place-info">📝 Description: ${place.description ? '✅' : '❌'}</div>
+                    `;
+                    
+                    placesDiv.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Lỗi: ${error.message}<br>
+                        Code: ${error.code}<br>
+                        <br>
+                        <strong>Có thể do:</strong><br>
+                        1. Firestore Rules chưa cho phép đọc dữ liệu<br>
+                        2. Chưa đăng nhập (cần authentication)<br>
+                        3. Collection "places" không tồn tại
+                    </div>
+                `;
+            }
+        };
+
+        window.showRawData = function() {
+            const rawDataDiv = document.getElementById('rawData');
+            const rawDataContent = document.getElementById('rawDataContent');
+            
+            if (rawDataDiv.style.display === 'none') {
+                rawDataDiv.style.display = 'block';
+                rawDataContent.textContent = JSON.stringify(rawPlacesData, null, 2);
+            } else {
+                rawDataDiv.style.display = 'none';
+            }
+        };
+
+        // Auto load on page load
+        loadPlaces();
+    </script>
+</body>
+</html>

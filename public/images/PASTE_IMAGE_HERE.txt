@@ -1,0 +1,14 @@
+📸 HƯỚNG DẪN: Paste ảnh Mario vào đây
+
+1. Mở File Explorer (Windows Explorer)
+2. Tìm đến thư mục project: C:\Users\Admin\Documents\tvu-student-connect
+3. Vào thư mục: public\images\
+4. Copy ảnh Mario vào đây
+5. Đổi tên thành: mario.jpg (chữ thường)
+
+Hoặc:
+- Click chuột phải vào ảnh bạn đã gửi trong chat
+- Chọn "Save image as..."
+- Lưu vào: C:\Users\Admin\Documents\tvu-student-connect\public\images\mario.jpg
+
+Sau khi copy xong, xóa file này đi nhé!

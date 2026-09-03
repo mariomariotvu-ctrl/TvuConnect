@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Xóa Bài Viết - TVU Connect</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .section {
+      margin: 25px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border-left: 4px solid #667eea;
+    }
+    .section h3 {
+      margin-top: 0;
+      color: #333;
+      font-size: 18px;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      margin: 5px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    .info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+    .warning {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+    }
+    .post-item {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+    }
+    .post-item strong {
+      color: #667eea;
+    }
+    .field-check {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    .field-yes {
+      background: #d4edda;
+      color: #155724;
+    }
+    .field-no {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Debug Xóa Bài Viết</h1>
+    <p class="subtitle">Tool kiểm tra lỗi "Missing or insufficient permissions"</p>
+
+    <!-- Bước 1: Đăng nhập -->
+    <div class="section">
+      <h3>Bước 1: Đăng nhập</h3>
+      <button id="loginBtn" onclick="login()">Đăng nhập Google</button>
+      <div id="loginResult"></div>
+    </div>
+
+    <!-- Bước 2: Kiểm tra bài viết -->
+    <div class="section">
+      <h3>Bước 2: Kiểm tra bài viết của bạn</h3>
+      <button id="checkPostsBtn" onclick="checkMyPosts()" disabled>Kiểm tra bài viết</button>
+      <div id="postsResult"></div>
+    </div>
+
+    <!-- Bước 3: Test xóa -->
+    <div class="section">
+      <h3>Bước 3: Test xóa bài viết</h3>
+      <p style="color: #666; font-size: 13px;">Chọn 1 bài viết từ danh sách trên để test xóa</p>
+      <div id="deleteResult"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore, collection, query, where, getDocs, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCTJt6RvLlBda-5NECiuEYE7KhRCbEbWo",
+      authDomain: "tvu-connect.firebaseapp.com",
+      projectId: "tvu-connect",
+      storageBucket: "tvu-connect.firebasestorage.app",
+      messagingSenderId: "829359446363",
+      appId: "1:829359446363:web:e625cf9a4e0e0e0e0e0e0e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let myPosts = [];
+
+    window.login = async function() {
+      const btn = document.getElementById('loginBtn');
+      const result = document.getElementById('loginResult');
+      
+      btn.disabled = true;
+      btn.innerHTML = 'Đang đăng nhập... <span class="loading"></span>';
+      
+      try {
+        const provider = new GoogleAuthProvider();
+        const userCredential = await signInWithPopup(auth, provider);
+        currentUser = userCredential.user;
+        
+        result.innerHTML = `<div class="result success">
+✅ Đăng nhập thành công!
+User: ${currentUser.displayName}
+UID: ${currentUser.uid}
+Email: ${currentUser.email}
+        </div>`;
+        
+        btn.innerHTML = '✅ Đã đăng nhập';
+        document.getElementById('checkPostsBtn').disabled = false;
+        
+      } catch (error) {
+        result.innerHTML = `<div class="result error">
+❌ Lỗi đăng nhập:
+${error.message}
+        </div>`;
+        btn.disabled = false;
+        btn.innerHTML = 'Đăng nhập Google';
+      }
+    };
+
+    window.checkMyPosts = async function() {
+      const btn = document.getElementById('checkPostsBtn');
+      const result = document.getElementById('postsResult');
+      
+      if (!currentUser) {
+        result.innerHTML = '<div class="result error">❌ Vui lòng đăng nhập trước!</div>';
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.innerHTML = 'Đang kiểm tra... <span class="loading"></span>';
+      
+      try {
+        // Query bài viết của user
+        const postsRef = collection(db, 'posts');
+        const q = query(postsRef, where('userId', '==', currentUser.uid));
+        const snapshot = await getDocs(q);
+        
+        myPosts = [];
+        snapshot.forEach(doc => {
+          myPosts.push({
+            id: doc.id,
+            data: doc.data()
+          });
+        });
+        
+        if (myPosts.length === 0) {
+          result.innerHTML = `<div class="result warning">
+⚠️ Không tìm thấy bài viết nào của bạn!
+
+Có thể:
+1. Bạn chưa đăng bài viết nào
+2. Bài viết cũ thiếu field "userId"
+
+Hãy thử đăng 1 bài viết mới rồi test lại.
+          </div>`;
+          btn.innerHTML = 'Kiểm tra bài viết';
+          btn.disabled = false;
+          return;
+        }
+        
+        // Hiển thị danh sách bài viết
+        let html = `<div class="result success">
+✅ Tìm thấy ${myPosts.length} bài viết của bạn:
+</div>`;
+        
+        myPosts.forEach((post, index) => {
+          const hasUserId = post.data.userId ? true : false;
+          const hasCreatedBy = post.data.createdBy ? true : false;
+          
+          html += `<div class="post-item">
+<strong>Bài ${index + 1}:</strong> ${post.data.content?.substring(0, 50) || '(Không có nội dung)'}...
+<br><strong>Post ID:</strong> ${post.id}
+<br><strong>userId:</strong> ${post.data.userId || '❌ THIẾU'}
+<span class="field-check ${hasUserId ? 'field-yes' : 'field-no'}">${hasUserId ? '✅ CÓ' : '❌ THIẾU'}</span>
+<br><strong>createdBy:</strong> ${post.data.createdBy || '❌ THIẾU'}
+<span class="field-check ${hasCreatedBy ? 'field-yes' : 'field-no'}">${hasCreatedBy ? '✅ CÓ' : '❌ THIẾU'}</span>
+<br><strong>userName:</strong> ${post.data.userName || 'N/A'}
+<br><strong>createdAt:</strong> ${post.data.createdAt?.toDate?.()?.toLocaleString('vi-VN') || 'N/A'}
+<br><button onclick="testDelete('${post.id}')">🗑️ Test xóa bài này</button>
+          </div>`;
+        });
+        
+        result.innerHTML = html;
+        btn.innerHTML = '✅ Đã kiểm tra';
+        
+      } catch (error) {
+        result.innerHTML = `<div class="result error">
+❌ Lỗi khi kiểm tra:
+${error.message}
+
+Chi tiết: ${JSON.stringify(error, null, 2)}
+        </div>`;
+        btn.innerHTML = 'Kiểm tra bài viết';
+        btn.disabled = false;
+      }
+    };
+
+    window.testDelete = async function(postId) {
+      const result = document.getElementById('deleteResult');
+      
+      result.innerHTML = '<div class="result info">⏳ Đang thử xóa bài viết...</div>';
+      
+      try {
+        const postRef = doc(db, 'posts', postId);
+        await deleteDoc(postRef);
+        
+        result.innerHTML = `<div class="result success">
+✅ XÓA THÀNH CÔNG!
+
+Post ID: ${postId}
+
+🎉 Vấn đề đã được fix! Bạn có thể xóa bài viết bình thường.
+        </div>`;
+        
+        // Refresh danh sách
+        setTimeout(() => {
+          checkMyPosts();
+        }, 1000);
+        
+      } catch (error) {
+        result.innerHTML = `<div class="result error">
+❌ LỖI KHI XÓA!
+
+Post ID: ${postId}
+Error: ${error.message}
+Code: ${error.code}
+
+Chi tiết đầy đủ:
+${JSON.stringify(error, null, 2)}
+
+---
+
+🔍 PHÂN TÍCH:
+
+${error.code === 'permission-denied' ? `
+⚠️ Lỗi "permission-denied" = Firestore Rules chưa cho phép xóa!
+
+NGUYÊN NHÂN:
+1. Rules chưa được deploy lên Firebase Console
+2. Hoặc Rules đã deploy nhưng chưa đúng
+
+GIẢI PHÁP:
+1. Vào Firebase Console: https://console.firebase.google.com
+2. Chọn project: tvu-connect
+3. Firestore Database → Rules
+4. Kiểm tra có rule này không:
+
+match /posts/{postId} {
+  allow delete: if isAuthenticated() && 
+    (resource.data.userId == request.auth.uid || 
+     resource.data.createdBy == request.auth.uid);
+}
+
+5. Nếu chưa có → Copy từ file firestore.rules và Publish
+6. Nếu đã có → Đợi vài phút rồi thử lại (Rules cần thời gian để apply)
+` : ''}
+
+${error.message.includes('Missing or insufficient permissions') ? `
+⚠️ Lỗi "Missing or insufficient permissions"
+
+Có thể do:
+1. Firestore Rules chưa deploy
+2. Bài viết thiếu field userId hoặc createdBy
+3. userId không khớp với user hiện tại
+` : ''}
+        </div>`;
+      }
+    };
+  </script>
+</body>
+</html>

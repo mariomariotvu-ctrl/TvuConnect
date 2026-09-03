@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "StudentProfile": {
+      "title": "Student Profile",
+      "description": "Thông tin cá nhân của sinh viên TVU.",
+      "type": "object",
+      "properties": {
+        "mssv": { "type": "string", "description": "Mã số sinh viên" },
+        "fullName": { "type": "string", "description": "Họ và tên" },
+        "className": { "type": "string", "description": "Lớp" },
+        "phone": { "type": "string", "description": "Số điện thoại" },
+        "showPhone": { "type": "boolean", "description": "Hiển thị số điện thoại cho người khác" },
+        "hometown": { "type": "string", "description": "Quê quán" },
+        "showHometown": { "type": "boolean", "description": "Hiển thị quê quán cho người khác" },
+        "major": { "type": "string", "description": "Ngành học" },
+        "interests": { "type": "array", "items": { "type": "string" }, "description": "Sở thích" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"], "description": "Giới tính" },
+        "birthDate": { "type": "string", "format": "date", "description": "Ngày sinh" },
+        "age": { "type": "integer", "description": "Tuổi" },
+        "zodiac": { "type": "string", "description": "Cung hoàng đạo" },
+        "academicYear": { "type": "string", "description": "Niên Khóa (Ví dụ: 2022-2026)" },
+        "purpose": { "type": "string", "description": "Mục đích tham gia" },
+        "studyGoals": { "type": "array", "items": { "type": "string" }, "description": "Mục tiêu học tập" },
+        "description": { "type": "string", "description": "Mô tả bản thân" },
+        "uid": { "type": "string", "description": "User ID" },
+        "photoURL": { "type": "string", "description": "Ảnh đại diện" },
+        "email": { "type": "string", "description": "Email sinh viên" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["mssv", "fullName", "uid", "email"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Báo cáo người dùng vi phạm.",
+      "type": "object",
+      "properties": {
+        "reporterUid": { "type": "string", "description": "UID người báo cáo" },
+        "reportedUid": { "type": "string", "description": "UID người bị báo cáo" },
+        "reason": { "type": "string", "description": "Lý do báo cáo" },
+        "details": { "type": "string", "description": "Chi tiết báo cáo" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterUid", "reportedUid", "reason"]
+    },
+    "Block": {
+      "title": "Block",
+      "description": "Chặn người dùng.",
+      "type": "object",
+      "properties": {
+        "blockerUid": { "type": "string", "description": "UID người chặn" },
+        "blockedUid": { "type": "string", "description": "UID người bị chặn" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["blockerUid", "blockedUid"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Tin nhắn giữa hai sinh viên.",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string", "description": "UID người gửi" },
+        "receiverUid": { "type": "string", "description": "UID người nhận" },
+        "conversationId": { "type": "string", "description": "ID cuộc hội thoại (UID1_UID2 sorted)" },
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "Danh sách UID tham gia" },
+        "type": { "type": "string", "enum": ["text", "audio"], "description": "Loại tin nhắn" },
+        "text": { "type": "string", "description": "Nội dung tin nhắn văn bản" },
+        "audioUrl": { "type": "string", "description": "URL tin nhắn thoại" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderUid", "receiverUid", "participants", "type", "conversationId"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Cuộc hội thoại giữa hai sinh viên.",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "Danh sách UID tham gia" },
+        "lastMessage": { "type": "string", "description": "Tin nhắn cuối cùng" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadCount": { "type": "object", "description": "Số tin nhắn chưa đọc" }
+      },
+      "required": ["participants"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Hồ sơ sinh viên đã lưu.",
+      "type": "object",
+      "properties": {
+        "userUid": { "type": "string", "description": "UID người lưu" },
+        "favoriteUid": { "type": "string", "description": "UID người được lưu" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userUid", "favoriteUid"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Lịch sử ghép cặp.",
+      "type": "object",
+      "properties": {
+        "userUid": { "type": "string", "description": "UID người thực hiện ghép cặp" },
+        "matchedUid": { "type": "string", "description": "UID người được ghép cặp" },
+        "matchedProfile": { "type": "object", "description": "Thông tin hồ sơ người được ghép cặp tại thời điểm đó" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userUid", "matchedUid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "profiles": {
+      "schema": "StudentProfile",
+      "description": "Bộ sưu tập hồ sơ sinh viên."
+    },
+    "reports": {
+      "schema": "Report",
+      "description": "Bộ sưu tập báo cáo vi phạm."
+    },
+    "blocks": {
+      "schema": "Block",
+      "description": "Bộ sưu tập danh sách chặn."
+    },
+    "messages": {
+      "schema": "Message",
+      "description": "Bộ sưu tập tin nhắn."
+    },
+    "conversations": {
+      "schema": "Conversation",
+      "description": "Bộ sưu tập cuộc hội thoại."
+    },
+    "favorites": {
+      "schema": "Favorite",
+      "description": "Bộ sưu tập hồ sơ đã lưu."
+    },
+    "matches": {
+      "schema": "Match",
+      "description": "Bộ sưu tập lịch sử ghép cặp."
+    }
+  }
+}

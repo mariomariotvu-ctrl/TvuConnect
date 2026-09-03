@@ -1,0 +1,2132 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.4 [39m[90mC:/Users/Admin/Documents/tvu-student-connect[39m
+
+[90mstdout[2m | src/utils/cacheManager.test.ts[2m > [22m[2mCache Manager[2m > [22m[2mCache Invalidation[2m > [22m[2mshould invalidate cache entries matching pattern
+[22m[39mInvalidated 3 cache entries matching pattern: posts:*
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mInitial Load[2m > [22m[2mshould load conversations from Firestore on first call (cache miss)
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Cache Consistency[2m > [22m[2mshould return the same data that was stored (within TTL)
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+
+[90mstdout[2m | src/utils/cacheManager.test.ts[2m > [22m[2mCache Manager[2m > [22m[2mCache Invalidation[2m > [22m[2mshould clear all cache entries
+[22m[39mCleared all cache from sessionStorage
+
+ [31m❯[39m src/utils/cacheManager.test.ts [2m([22m[2m16 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 45[2mms[22m[39m
+       [32m✓[39m should store and retrieve data correctly[32m 9[2mms[22m[39m
+       [32m✓[39m should return null for non-existent key[32m 1[2mms[22m[39m
+       [32m✓[39m should work with both localStorage and sessionStorage[32m 1[2mms[22m[39m
+       [32m✓[39m should return data within TTL[32m 2[2mms[22m[39m
+       [32m✓[39m should return null after TTL expires[32m 1[2mms[22m[39m
+       [32m✓[39m should remove expired entry from storage[32m 2[2mms[22m[39m
+       [32m✓[39m should invalidate specific cache entry[32m 1[2mms[22m[39m
+       [32m✓[39m should invalidate cache entries matching pattern[32m 4[2mms[22m[39m
+       [32m✓[39m should clear all cache entries[32m 2[2mms[22m[39m
+       [32m✓[39m should track last access time[32m 2[2mms[22m[39m
+       [32m✓[39m should update last access time on get[32m 1[2mms[22m[39m
+[31m       [31m×[31m should handle storage quota exceeded gracefully[39m[32m 9[2mms[22m[39m
+       [32m✓[39m should return correct cache statistics[32m 1[2mms[22m[39m
+       [32m✓[39m should return empty stats for empty storage[32m 1[2mms[22m[39m
+       [32m✓[39m should handle arrays[32m 1[2mms[22m[39m
+       [32m✓[39m should handle nested objects[32m 1[2mms[22m[39m
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Cache Consistency[2m > [22m[2mshould return the same data that was stored (within TTL)
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: TTL Expiration[2m > [22m[2mshould return null after TTL expires
+[22m[39mCleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: TTL Expiration[2m > [22m[2mshould return null after TTL expires
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: TTL Expiration[2m > [22m[2mshould return data at any time before TTL expires
+[22m[39mCleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: TTL Expiration[2m > [22m[2mshould return data at any time before TTL expires
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Pattern Matching[2m > [22m[2mshould invalidate all entries matching pattern
+[22m[39mInvalidated 9 cache entries matching pattern: t:*
+Cleared all cache from localStorage
+Invalidated 4 cache entries matching pattern: m&%:*
+Cleared all cache from sessionStorage
+Invalidated 7 cache entries matching pattern:  :*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from localStorage
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mCache Behavior[2m > [22m[2mshould load conversations from cache on second call (cache hit)
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 1: Mobile iPhone 13 (390px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not found after 100ms
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Pattern Matching[2m > [22m[2mshould invalidate all entries matching pattern
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Pattern Matching[2m > [22m[2mshould not invalidate entries that do not match pattern
+[22m[39mInvalidated 1 cache entries matching pattern: |^USX6U*-76q:*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern: nametargum:*
+Invalidated 1 cache entries matching pattern: m:*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from sessionStorage
+Invalidated 1 cache entries matching pattern:  :*
+Invalidated 1 cache entries matching pattern:  :*
+Cleared all cache from localStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Pattern Matching[2m > [22m[2mshould not invalidate entries that do not match pattern
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Data Type Preservation[2m > [22m[2mshould preserve data types for primitives
+[22m[39mCleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Data Type Preservation[2m > [22m[2mshould preserve data types for primitives
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mCache Behavior[2m > [22m[2mshould load conversations from cache on second call (cache hit)
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mtrue[39m,
+  executionTime: [33m10[39m,
+  documentReads: [33m0[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Data Type Preservation[2m > [22m[2mshould preserve data types for complex objects
+[22m[39mCleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Data Type Preservation[2m > [22m[2mshould preserve data types for complex objects
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Multiple Concurrent Operations[2m > [22m[2mshould handle multiple set/get operations correctly
+[22m[39mCleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 1: Mobile iPhone 13 (390px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not found after 100ms
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mCache Behavior[2m > [22m[2mshould use correct cache key pattern
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: Multiple Concurrent Operations[2m > [22m[2mshould handle multiple set/get operations correctly
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mCache Behavior[2m > [22m[2mshould use 120 second TTL
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: TTL Monotonicity[2m > [22m[2mshould respect TTL ordering - shorter TTL expires first
+[22m[39mCleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from sessionStorage
+Cleared all cache from sessionStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+Cleared all cache from localStorage
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould check cache first before subscribing to Firestore
+[22m[39m[useCachedMessages] Cache hit: { conversationId: [32m'user123_user456'[39m, messageCount: [33m2[39m }
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould refresh conversations when refresh() is called
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/utils/cacheManager.pbt.test.ts[2m > [22m[2mCache Manager - Property-Based Tests[2m > [22m[2mProperty: TTL Monotonicity[2m > [22m[2mshould respect TTL ordering - shorter TTL expires first
+[22m[39mCleared all cache from localStorage
+Cleared all cache from sessionStorage
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 1: Mobile iPhone 13 (390px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not found after 100ms
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould check cache first before subscribing to Firestore
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould return empty array when cache is empty
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+ [31m❯[39m src/utils/cacheManager.pbt.test.ts [2m([22m[2m9 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 257[2mms[22m[39m
+[31m       [31m×[31m should return the same data that was stored (within TTL)[39m[32m 52[2mms[22m[39m
+[31m       [31m×[31m should return null after TTL expires[39m[32m 12[2mms[22m[39m
+[31m       [31m×[31m should return data at any time before TTL expires[39m[32m 23[2mms[22m[39m
+[31m       [31m×[31m should invalidate all entries matching pattern[39m[32m 22[2mms[22m[39m
+[31m       [31m×[31m should not invalidate entries that do not match pattern[39m[32m 31[2mms[22m[39m
+       [32m✓[39m should preserve data types for primitives[32m 25[2mms[22m[39m
+       [32m✓[39m should preserve data types for complex objects[32m 31[2mms[22m[39m
+[31m       [31m×[31m should handle multiple set/get operations correctly[39m[32m 32[2mms[22m[39m
+[31m       [31m×[31m should respect TTL ordering - shorter TTL expires first[39m[32m 23[2mms[22m[39m
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould return empty array when cache is empty
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould refresh conversations when refresh() is called
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m3[39m,
+  conversationCount: [33m3[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould use correct cache key pattern
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+ [31m❯[39m src/hooks/useMessages.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 103[2mms[22m[39m
+[31m     [31m×[31m should load messages with limit 30[39m[32m 45[2mms[22m[39m
+[31m     [31m×[31m should sort messages by createdAt ascending[39m[32m 31[2mms[22m[39m
+[31m     [31m×[31m should load older messages with pagination[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m should unsubscribe when conversation changes[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m should unsubscribe on unmount[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m should handle errors gracefully[39m[32m 5[2mms[22m[39m
+[31m     [31m×[31m should not load more when hasMore is false[39m[32m 4[2mms[22m[39m
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould use correct cache key pattern
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould use TTL of 120 seconds
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould reset state when refresh() is called
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould use TTL of 120 seconds
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould use sessionStorage for caching
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mCache-First Strategy[2m > [22m[2mshould use sessionStorage for caching
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould maintain only 1 active listener per conversation
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould maintain only 1 active listener per conversation
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould unsubscribe when conversation changes
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould unsubscribe when conversation changes
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould unsubscribe on unmount
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould unsubscribe on unmount
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould cleanup all listeners on unsubscribeAll
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mListener Management[2m > [22m[2mshould cleanup all listeners on unsubscribeAll
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mError Handling[2m > [22m[2mshould handle cache read errors gracefully
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mError Handling[2m > [22m[2mshould set error state when listener fails
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mError Handling[2m > [22m[2mshould handle cache write errors gracefully
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mError Handling[2m > [22m[2mshould handle cache write errors gracefully
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould clear messages and reload on refresh
+[22m[39m[useCachedMessages] Cache hit: { conversationId: [32m'user123_user456'[39m, messageCount: [33m1[39m }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould clear messages and reload on refresh
+[22m[39m[useCachedMessages] Cache hit: { conversationId: [32m'user123_user456'[39m, messageCount: [33m1[39m }
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould reset state when refresh() is called
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts
+[22m[39m✅ Firebase config loaded from environment variables
+✅ Firebase initialized
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mError Handling[2m > [22m[2mshould clear error on successful refresh
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mQuery Configuration[2m > [22m[2mshould limit conversations to 20
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mQuery Configuration[2m > [22m[2mshould order by lastMessageAt desc
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedConversations.test.ts[2m > [22m[2museCachedConversations[2m > [22m[2mQuery Configuration[2m > [22m[2mshould filter by current user in participants
+[22m[39m[useCachedConversations] Load completed: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m500[39m,
+  documentReads: [33m2[39m,
+  conversationCount: [33m2[39m
+}
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-bottom-spacing.pbt.test.tsx
+[22m[39m✅ Firebase config loaded from environment variables
+✅ Firebase initialized
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx
+[22m[39m✅ Firebase config loaded from environment variables
+✅ Firebase initialized
+
+ [32m✓[39m src/hooks/useCachedConversations.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 676[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 1: Mobile iPhone 13 (390px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not found after 100ms
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 1: Mobile iPhone 13 (390px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not found after 100ms
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 1: Mobile iPhone 13 (390px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not found after 100ms
+[22m[39m🐛 iPhone 13 - Elements found: [33m7[39m /7
+🐛 iPhone 13 - Tour running: [33mtrue[39m
+
+[90mstdout[2m | src/components/DocumentRepository.mobile-light-mode.pbt.test.tsx
+[22m[39m✅ Firebase config loaded from environment variables
+✅ Firebase initialized
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 2: Mobile Samsung Galaxy (360px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not ready
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 2: Mobile Samsung Galaxy (360px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not ready
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m360[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 2: Mobile Samsung Galaxy (360px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not ready
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mstartMatching[2m > [22m[2mshould fetch profiles and update state
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mstartMatching[2m > [22m[2mshould add shown UIDs to session Set
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mstartMatching[2m > [22m[2mshould clear session UIDs when starting new matching
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mstartMatching[2m > [22m[2mshould clear session UIDs when starting new matching
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 2: Mobile Samsung Galaxy (360px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not ready
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 2: Mobile Samsung Galaxy (360px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not ready
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mloadOneMore[2m > [22m[2mshould load one more profile and add to list
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 2: Mobile Samsung Galaxy (360px) - Tour từ Settings[2m > [22m[2mFAIL ON UNFIXED CODE: Tour should start but elements not ready
+[22m[39m🐛 Samsung Galaxy - Elements found: [33m7[39m /7
+🐛 Samsung Galaxy - Tour running: [33mtrue[39m
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mloadOneMore[2m > [22m[2mshould load one more profile and add to list
+[22m[39m[useCachedMatching] Loaded one more profile: { profileUid: [32m'profile1'[39m, totalShown: [33m1[39m, shownInSession: [33m2[39m }
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mloadOneMore[2m > [22m[2mshould add new profile UID to session Set
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 3: Timing Test - Elements Render Time[2m > [22m[2mFAIL ON UNFIXED CODE: 100ms is insufficient for mobile element rendering
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mloadOneMore[2m > [22m[2mshould add new profile UID to session Set
+[22m[39m[useCachedMatching] Loaded one more profile: { profileUid: [32m'profile1'[39m, totalShown: [33m3[39m, shownInSession: [33m2[39m }
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mloadOneMore[2m > [22m[2mshould handle null response from loadOneMoreProfile
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mclearViewedCache[2m > [22m[2mshould clear viewed cache and session UIDs
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mclearViewedCache[2m > [22m[2mshould clear viewed cache and session UIDs
+[22m[39m[useCachedMatching] Cleared viewed cache
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2minvalidateOnBlock[2m > [22m[2mshould remove blocked user from profiles and session UIDs
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2minvalidateOnBlock[2m > [22m[2mshould remove blocked user from profiles and session UIDs
+[22m[39m[useCachedMatching] Invalidated cache for blocked user: profile1
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2minvalidateOnBlock[2m > [22m[2mshould handle blocking non-existent user gracefully
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2minvalidateOnBlock[2m > [22m[2mshould handle blocking non-existent user gracefully
+[22m[39m[useCachedMatching] Invalidated cache for blocked user: nonexistent
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2mviewedStats[2m > [22m[2mshould update viewed stats after matching
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mfalse[39m,
+  viewedStats: { total: [33m2[39m, inCooldown: [33m2[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedMatching.test.ts[2m > [22m[2museCachedMatching[2m > [22m[2misShowingFallback[2m > [22m[2mshould set isShowingFallback when service returns fallback profiles
+[22m[39m[useCachedMatching] Matching completed: {
+  profileCount: [33m2[39m,
+  isShowingFallback: [33mtrue[39m,
+  viewedStats: { total: [33m10[39m, inCooldown: [33m10[39m, available: [33m0[39m },
+  shownInSession: [33m2[39m
+}
+
+ [31m❯[39m src/hooks/useCachedMatching.test.ts [2m([22m[2m12 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 171[2mms[22m[39m
+[31m       [31m×[31m should fetch profiles and update state[39m[32m 56[2mms[22m[39m
+       [32m✓[39m should add shown UIDs to session Set[32m 9[2mms[22m[39m
+       [32m✓[39m should clear session UIDs when starting new matching[32m 11[2mms[22m[39m
+       [32m✓[39m should handle errors gracefully[32m 21[2mms[22m[39m
+[31m       [31m×[31m should load one more profile and add to list[39m[32m 12[2mms[22m[39m
+[31m       [31m×[31m should add new profile UID to session Set[39m[32m 10[2mms[22m[39m
+[31m       [31m×[31m should handle null response from loadOneMoreProfile[39m[32m 9[2mms[22m[39m
+       [32m✓[39m should clear viewed cache and session UIDs[32m 8[2mms[22m[39m
+[31m       [31m×[31m should remove blocked user from profiles and session UIDs[39m[32m 7[2mms[22m[39m
+       [32m✓[39m should handle blocking non-existent user gracefully[32m 6[2mms[22m[39m
+[31m       [31m×[31m should update viewed stats after matching[39m[32m 6[2mms[22m[39m
+[31m       [31m×[31m should set isShowingFallback when service returns fallback profiles[39m[32m 10[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.1: Mobile Padding Preservation (Requirement 3.1)[2m > [22m[2mPASS ON UNFIXED CODE: Mobile (375px) should have padding-bottom 120px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-bottom-spacing.pbt.test.tsx[2m > [22m[2mBug Condition Exploration: PlaceList Desktop Bottom Spacing[2m > [22m[2mProperty 1: Bug Condition - Desktop Padding Bottom[2m > [22m[2mFAIL ON UNFIXED CODE: Desktop (1920px) should have padding-bottom 24px, but has 96px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 3: Timing Test - Elements Render Time[2m > [22m[2mFAIL ON UNFIXED CODE: 100ms is insufficient for mobile element rendering
+[22m[39m🐛 Elements at 100ms: [33m0[39m /7
+🐛 Actual render time: [33m115[39m ms
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.1: Mobile Padding Preservation (Requirement 3.1)[2m > [22m[2mPASS ON UNFIXED CODE: Mobile (414px) should have padding-bottom 120px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-bottom-spacing.pbt.test.tsx[2m > [22m[2mBug Condition Exploration: PlaceList Desktop Bottom Spacing[2m > [22m[2mProperty 1: Bug Condition - Desktop Padding Bottom[2m > [22m[2mFAIL ON UNFIXED CODE: Desktop (1366px) should have padding-bottom 24px, but has 96px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 3: Timing Test - Elements Render Time[2m > [22m[2mFAIL ON UNFIXED CODE: 100ms is insufficient for mobile element rendering
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-bottom-spacing.pbt.test.tsx[2m > [22m[2mBug Condition Exploration: PlaceList Desktop Bottom Spacing[2m > [22m[2mProperty 1: Bug Condition - Desktop Padding Bottom[2m > [22m[2mFAIL ON UNFIXED CODE: Tablet landscape (1024px) should have padding-bottom 24px, but has 96px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/components/DocumentRepository.mobile-light-mode.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Mobile Light Mode Display Failure[2m > [22m[2mDocumentCard should display white background and black text on mobile light mode
+[22m[39m[UploaderProfile] Fetching profile for: user123
+[UploaderProfile] Fetching profile for: user123
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.1: Mobile Padding Preservation (Requirement 3.1)[2m > [22m[2mPASS ON UNFIXED CODE: Mobile (767px) should have padding-bottom 120px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 3: Timing Test - Elements Render Time[2m > [22m[2mFAIL ON UNFIXED CODE: 100ms is insufficient for mobile element rendering
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+ [31m❯[39m src/components/DocumentCard.uploader-alignment.pbt.test.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[33m 936[2mms[22m[39m
+[31m     [31m×[31m Desktop layout: uploader info container should have consistent left alignment with description (both major and subject tags)[39m[32m 106[2mms[22m[39m
+[31m     [31m×[31m Mobile layout: uploader info container should have consistent left alignment with description (both major and subject tags)[39m[32m 19[2mms[22m[39m
+[31m     [31m×[31m Desktop layout: uploader info container should have consistent left alignment with description (only major tag, no subject)[39m[32m 33[2mms[22m[39m
+[31m     [31m×[31m Mobile layout: uploader info container should have consistent left alignment with description (only major tag, no subject)[39m[32m 22[2mms[22m[39m
+[31m     [31m×[31m Property: Uploader info container has consistent left alignment with description across all viewport sizes and document configurations[39m[33m 752[2mms[22m[39m
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould clear messages and reload on refresh
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.2: Search Functionality Preservation (Requirement 3.2)[2m > [22m[2mPASS ON UNFIXED CODE: Search should filter places correctly
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-bottom-spacing.pbt.test.tsx[2m > [22m[2mBug Condition Exploration: PlaceList Desktop Bottom Spacing[2m > [22m[2mProperty 1: Bug Condition - Desktop Padding Bottom[2m > [22m[2mFAIL ON UNFIXED CODE: Boundary case (768px) should have padding-bottom 24px, but has 96px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mMessage Sorting[2m > [22m[2mshould sort messages by createdAt ascending (oldest first)
+[22m[39m[useCachedMessages] Cache hit: { conversationId: [32m'user123_user456'[39m, messageCount: [33m1[39m }
+
+[90mstdout[2m | src/components/DocumentRepository.mobile-light-mode.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Mobile Light Mode Display Failure[2m > [22m[2mProperty: All components display white backgrounds and black text on mobile light mode
+[22m[39m[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-bottom-spacing.pbt.test.tsx[2m > [22m[2mBug Condition Exploration: PlaceList Desktop Bottom Spacing[2m > [22m[2mVisual Space Test[2m > [22m[2mFAIL ON UNFIXED CODE: Desktop should have 24px space after last item, but has 96px
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 3: Timing Test - Elements Render Time[2m > [22m[2mFAIL ON UNFIXED CODE: 100ms is insufficient for mobile element rendering
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.2: Search Functionality Preservation (Requirement 3.2)[2m > [22m[2mPASS ON UNFIXED CODE: Clear search button should work
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mMessage Sorting[2m > [22m[2mshould sort messages by createdAt ascending (oldest first)
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.3: Category Filter Preservation (Requirement 3.2)[2m > [22m[2mPASS ON UNFIXED CODE: Category filter should work
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mLoading State[2m > [22m[2mshould start with loading=true
+[22m[39m[useCachedMessages] Cache hit: { conversationId: [32m'user123_user456'[39m, messageCount: [33m1[39m }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 4: Race Condition Test[2m > [22m[2mFAIL ON UNFIXED CODE: Tour triggers before Home view fully renders
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.3: Category Filter Preservation (Requirement 3.2)[2m > [22m[2mPASS ON UNFIXED CODE: "Tất cả" category should show all places
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mLoading State[2m > [22m[2mshould start with loading=true
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.4: Card Interaction Preservation (Requirement 3.3)[2m > [22m[2mPASS ON UNFIXED CODE: Place cards should be clickable
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+ [31m❯[39m .kiro/specs/explore-placelist-bottom-spacing/placelist-bottom-spacing.pbt.test.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[33m 453[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: Desktop (1920px) should have padding-bottom 24px, but has 96px[39m[32m 201[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: Desktop (1366px) should have padding-bottom 24px, but has 96px[39m[32m 78[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: Tablet landscape (1024px) should have padding-bottom 24px, but has 96px[39m[32m 57[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: Boundary case (768px) should have padding-bottom 24px, but has 96px[39m[32m 60[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: Desktop should have 24px space after last item, but has 96px[39m[32m 50[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 4: Race Condition Test[2m > [22m[2mFAIL ON UNFIXED CODE: Tour triggers before Home view fully renders
+[22m[39m🐛 Elements when tour starts (100ms): [33m0[39m /7
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mLoading State[2m > [22m[2mshould set loading=false after cache hit
+[22m[39m[useCachedMessages] Cache hit: { conversationId: [32m'user123_user456'[39m, messageCount: [33m1[39m }
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.4: Card Interaction Preservation (Requirement 3.3)[2m > [22m[2mPASS ON UNFIXED CODE: Place cards should display correctly
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 4: Race Condition Test[2m > [22m[2mFAIL ON UNFIXED CODE: Tour triggers before Home view fully renders
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mLoading State[2m > [22m[2mshould set loading=false after cache hit
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.5: Scroll Behavior Preservation (Requirement 3.4)[2m > [22m[2mPASS ON UNFIXED CODE: Scroll container should be scrollable
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 4: Race Condition Test[2m > [22m[2mFAIL ON UNFIXED CODE: Tour triggers before Home view fully renders
+[22m[39m🐛 Elements after render (150ms): [33m7[39m /7
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mLoading State[2m > [22m[2mshould set loading=false after listener receives data
+[22m[39m[useCachedMessages] Cache miss, subscribing to Firestore
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.6: Responsive Behavior Preservation (Requirement 3.7)[2m > [22m[2mPASS ON UNFIXED CODE: Resize from desktop to mobile should update padding
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+ [31m❯[39m src/components/DocumentRepository.mobile-light-mode.pbt.test.tsx [2m([22m[2m4 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[33m 604[2mms[22m[39m
+[31m     [31m×[31m SearchBar should display white background and black text on mobile light mode[39m[33m 334[2mms[22m[39m
+[31m     [31m×[31m FilterPanel should display white background and black text on mobile light mode[39m[32m 70[2mms[22m[39m
+[31m     [31m×[31m DocumentCard should display white background and black text on mobile light mode[39m[32m 43[2mms[22m[39m
+[31m     [31m×[31m Property: All components display white backgrounds and black text on mobile light mode[39m[32m 152[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.6: Responsive Behavior Preservation (Requirement 3.7)[2m > [22m[2mPASS ON UNFIXED CODE: Resize from mobile to desktop should update padding
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1920[39m
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mLoading State[2m > [22m[2mshould set loading=false after listener receives data
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.7: Component Structure Preservation[2m > [22m[2mPASS ON UNFIXED CODE: Component should render without errors
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2museCachedMessages[2m > [22m[2mAuth Guard[2m > [22m[2mshould not load messages when user is not authenticated
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.7: Component Structure Preservation[2m > [22m[2mPASS ON UNFIXED CODE: Search bar should exist
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould be a singleton
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould be a singleton
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.7: Component Structure Preservation[2m > [22m[2mPASS ON UNFIXED CODE: Category pills should exist
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould track active listener count
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx[2m > [22m[2mPreservation Property Tests: PlaceList Bottom Spacing[2m > [22m[2mProperty 2.7: Component Structure Preservation[2m > [22m[2mPASS ON UNFIXED CODE: Results counter should exist
+[22m[39m[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould track active listener count
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould replace existing listener for same conversation
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m✅ Desktop - Elements: [33m7[39m /7, Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould replace existing listener for same conversation
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould unsubscribe all listeners
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+ [31m❯[39m .kiro/specs/explore-placelist-bottom-spacing/placelist-preservation.pbt.test.tsx [2m([22m[2m16 tests[22m[2m | [22m[31m16 failed[39m[2m)[22m[33m 1045[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Mobile (375px) should have padding-bottom 120px[39m[32m 207[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Mobile (414px) should have padding-bottom 120px[39m[32m 106[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Mobile (767px) should have padding-bottom 120px[39m[32m 70[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Search should filter places correctly[39m[32m 69[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Clear search button should work[39m[32m 57[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Category filter should work[39m[32m 48[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: "Tất cả" category should show all places[39m[32m 45[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Place cards should be clickable[39m[32m 47[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Place cards should display correctly[39m[32m 63[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Scroll container should be scrollable[39m[32m 52[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Resize from desktop to mobile should update padding[39m[32m 60[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Resize from mobile to desktop should update padding[39m[32m 55[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Component should render without errors[39m[32m 35[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Search bar should exist[39m[32m 46[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Category pills should exist[39m[32m 38[2mms[22m[39m
+[31m       [31m×[31m PASS ON UNFIXED CODE: Results counter should exist[39m[32m 41[2mms[22m[39m
+[90mstdout[2m | src/hooks/useCachedMessages.test.ts[2m > [22m[2mMessageListenerManager[2m > [22m[2mshould unsubscribe all listeners
+[22m[39m[MessageListenerManager] All listeners unsubscribed
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m✅ Tour started
+
+ [31m❯[39m src/hooks/useCachedMessages.test.ts [2m([22m[2m22 tests[22m[2m | [22m[31m17 failed[39m[2m)[22m[33m 1443[2mms[22m[39m
+[31m       [31m×[31m should check cache first before subscribing to Firestore[39m[32m 77[2mms[22m[39m
+[31m       [31m×[31m should return empty array when cache is empty[39m[32m 6[2mms[22m[39m
+[31m       [31m×[31m should use correct cache key pattern[39m[32m 5[2mms[22m[39m
+[31m       [31m×[31m should use TTL of 120 seconds[39m[32m 5[2mms[22m[39m
+[31m       [31m×[31m should use sessionStorage for caching[39m[32m 7[2mms[22m[39m
+[31m       [31m×[31m should maintain only 1 active listener per conversation[39m[32m 5[2mms[22m[39m
+[31m       [31m×[31m should unsubscribe when conversation changes[39m[32m 4[2mms[22m[39m
+[31m       [31m×[31m should unsubscribe on unmount[39m[32m 4[2mms[22m[39m
+[31m       [31m×[31m should cleanup all listeners on unsubscribeAll[39m[32m 4[2mms[22m[39m
+[31m       [31m×[31m should handle cache read errors gracefully[39m[32m 15[2mms[22m[39m
+[31m       [31m×[31m should set error state when listener fails[39m[32m 5[2mms[22m[39m
+       [32m✓[39m should handle cache write errors gracefully[32m 10[2mms[22m[39m
+[31m       [31m×[31m should clear messages and reload on refresh[39m[33m 1075[2mms[22m[39m
+[31m       [31m×[31m should sort messages by createdAt ascending (oldest first)[39m[32m 25[2mms[22m[39m
+[31m       [31m×[31m should start with loading=true[39m[32m 7[2mms[22m[39m
+       [32m✓[39m should set loading=false after cache hit[32m 21[2mms[22m[39m
+       [32m✓[39m should set loading=false after listener receives data[32m 134[2mms[22m[39m
+       [32m✓[39m should not load messages when user is not authenticated[32m 16[2mms[22m[39m
+     [32m✓[39m should be a singleton[32m 1[2mms[22m[39m
+[31m     [31m×[31m should track active listener count[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m should replace existing listener for same conversation[39m[32m 2[2mms[22m[39m
+[31m     [31m×[31m should unsubscribe all listeners[39m[32m 1[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 5: Mobile vs Desktop Comparison[2m > [22m[2mFAIL ON UNFIXED CODE: Mobile needs more time than desktop
+[22m[39m🐛 Mobile - Elements: [33m7[39m /7, Tour running: [33mtrue[39m
+🐛 Counterexample: Mobile needs longer delay than desktop
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 6: Element Verification Test[2m > [22m[2mFAIL ON UNFIXED CODE: No verification logic before starting tour
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 6: Element Verification Test[2m > [22m[2mFAIL ON UNFIXED CODE: No verification logic before starting tour
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 6: Element Verification Test[2m > [22m[2mFAIL ON UNFIXED CODE: No verification logic before starting tour
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 6: Element Verification Test[2m > [22m[2mFAIL ON UNFIXED CODE: No verification logic before starting tour
+[22m[39m🎯 Event: tour:start | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 6: Element Verification Test[2m > [22m[2mFAIL ON UNFIXED CODE: No verification logic before starting tour
+[22m[39m✅ Elements: 0/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx[2m > [22m[2mProperty 1: Bug Condition - Tour Không Khởi Động Trên Mobile Từ Settings[2m > [22m[2mScenario 6: Element Verification Test[2m > [22m[2mFAIL ON UNFIXED CODE: No verification logic before starting tour
+[22m[39m🐛 Elements found: [33m0[39m /7
+
+ [31m❯[39m .kiro/specs/onboarding-tour-mobile-trigger/tour-mobile-trigger.pbt.test.tsx [2m([22m[2m6 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 2323[2mms[22m[39m
+       [33m[2m✓[22m[39m FAIL ON UNFIXED CODE: Tour should start but elements not found after 100ms [33m 727[2mms[22m[39m
+       [32m✓[39m FAIL ON UNFIXED CODE: Tour should start but elements not ready[32m 280[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: 100ms is insufficient for mobile element rendering[39m[32m 281[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: Tour triggers before Home view fully renders[39m[32m 176[2mms[22m[39m
+       [33m[2m✓[22m[39m FAIL ON UNFIXED CODE: Mobile needs more time than desktop [33m 586[2mms[22m[39m
+[31m       [31m×[31m FAIL ON UNFIXED CODE: No verification logic before starting tour[39m[32m 269[2mms[22m[39m
+ [31m❯[39m src/utils/imageOptimization.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 70[2mms[22m[39m
+[31m       [31m×[31m should generate multiple responsive sizes[39m[32m 25[2mms[22m[39m
+[31m       [31m×[31m should maintain aspect ratio when resizing[39m[32m 6[2mms[22m[39m
+[31m       [31m×[31m should detect WebP support[39m[32m 4[2mms[22m[39m
+[31m       [31m×[31m should use JPEG when WebP not specified[39m[32m 4[2mms[22m[39m
+[31m       [31m×[31m should generate blur placeholder[39m[32m 4[2mms[22m[39m
+[31m       [31m×[31m should compress image while maintaining quality[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should respect quality parameter[39m[32m 3[2mms[22m[39m
+       [32m✓[39m should generate srcset string[32m 10[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour should work normally from Settings
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+ [31m❯[39m src/hooks/useConversations.test.ts [2m([22m[2m5 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[32m 128[2mms[22m[39m
+[31m     [31m×[31m should load conversations with limit 20[39m[32m 87[2mms[22m[39m
+[31m     [31m×[31m should filter out blocked users[39m[32m 8[2mms[22m[39m
+[31m     [31m×[31m should unsubscribe on unmount[39m[32m 6[2mms[22m[39m
+[31m     [31m×[31m should handle errors gracefully[39m[32m 3[2mms[22m[39m
+[31m     [31m×[31m should batch fetch profiles efficiently[39m[32m 3[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour should work normally from Settings
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1440[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour should work normally from Settings
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/components/DocumentRepository.preservation.pbt.test.tsx
+[22m[39m✅ Firebase config loaded from environment variables
+✅ Firebase initialized
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour should work normally from Settings
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour should work normally from Settings
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour should work normally from Settings
+[22m[39m✅ Desktop - Elements found: [33m7[39m /7
+✅ Desktop - Tour running: [33mtrue[39m
+✅ Desktop - First step visible: [33mtrue[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+ [32m✓[39m src/hooks/usePosts.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 864[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1024[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | src/components/DocumentRepository.preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Non-Mobile-Light-Mode Behavior[2m > [22m[2mDesktop Light Mode Preservation (1920x1080, light mode)[2m > [22m[2mDocumentCard should have light mode classes on desktop
+[22m[39m[UploaderProfile] Fetching profile for: user123
+[UploaderProfile] Fetching profile for: user123
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Desktop 1024px - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/components/DocumentRepository.preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Non-Mobile-Light-Mode Behavior[2m > [22m[2mDesktop Dark Mode Preservation (1920x1080, dark mode)[2m > [22m[2mDocumentCard should have dark mode classes on desktop
+[22m[39m[UploaderProfile] Fetching profile for: user123
+[UploaderProfile] Fetching profile for: user123
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1280[39m
+
+[90mstdout[2m | src/components/DocumentRepository.preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Non-Mobile-Light-Mode Behavior[2m > [22m[2mMobile Dark Mode Preservation (375px, dark mode)[2m > [22m[2mDocumentCard should have dark mode classes on mobile
+[22m[39m[UploaderProfile] Fetching profile for: user123
+[UploaderProfile] Fetching profile for: user123
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Desktop 1280px - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1440[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Desktop 1440px - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1920[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Desktop 1920px - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m2560[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | src/components/DocumentRepository.preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Non-Mobile-Light-Mode Behavior[2m > [22m[2mProperty-Based: All components preserve styling across scenarios[2m > [22m[2mAll components maintain correct classes for non-mobile-light-mode scenarios
+[22m[39m[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+[UploaderProfile] Fetching profile for: user
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Elements: 7/7
+
+ [32m✓[39m src/components/DocumentRepository.preservation.pbt.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1644[2mms[22m[39m
+       [33m[2m✓[22m[39m All components maintain correct classes for non-mobile-light-mode scenarios [33m 968[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.1: Desktop Tour từ Settings[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour with various screen sizes
+[22m[39m✅ Desktop 2560px - Tour running: [33mtrue[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login should work
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login should work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login should work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login should work
+[22m[39m✅ Mobile First-Login - Elements found: [33m7[39m /7
+✅ Mobile First-Login - Tour running: [33mtrue[39m
+✅ Mobile First-Login - First step visible: [33mtrue[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m360[39m
+
+ [32m✓[39m src/utils/queryOptimizer.pbt.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1217[2mms[22m[39m
+       [33m[2m✓[22m[39m should fetch all documents exactly once [33m 619[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Mobile 360px First-Login - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m375[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Mobile 375px First-Login - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts
+[22m[39m✅ Firebase config loaded from environment variables
+✅ Firebase initialized
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Mobile 390px First-Login - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m414[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Mobile 414px First-Login - Tour running: [33mtrue[39m
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould load initial posts with cache miss
+[22m[39m[useCachedPosts] Initial load: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  postCount: [33m2[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m428[39m
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould load initial posts with cache hit
+[22m[39m[useCachedPosts] Initial load: { fromCache: [33mtrue[39m, executionTime: [33m5[39m, documentReads: [33m0[39m, postCount: [33m1[39m }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mBasic Functionality[2m > [22m[2mshould load places on mount
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould load more posts with pagination
+[22m[39m[useCachedPosts] Initial load: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  postCount: [33m2[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mBasic Functionality[2m > [22m[2mshould call optimizeQuery with correct config
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.2: Mobile Tour từ First-Login Flow[2m > [22m[2mPASS ON UNFIXED CODE: Mobile tour from first-login on various devices
+[22m[39m✅ Mobile 428px First-Login - Tour running: [33mtrue[39m
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mAdaptive Limits (Task 6.3)[2m > [22m[2mshould use limit 100 on mobile
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m100[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mAdaptive Limits (Task 6.3)[2m > [22m[2mshould use limit 200 on desktop
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould load more posts with pagination
+[22m[39m[useCachedPosts] Load more: {
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  newPostCount: [33m2[39m,
+  totalPostCount: [33m4[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCategory Filtering (Task 6.4)[2m > [22m[2mshould filter by category at database level
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'cafe'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Tour should start immediately when already on Home
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCategory Filtering (Task 6.4)[2m > [22m[2mshould not filter when category is "all"
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCategory Filtering (Task 6.4)[2m > [22m[2mshould use correct cache key for category
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'restaurant'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCategory Filtering (Task 6.4)[2m > [22m[2mshould use "places:all" cache key when category is "all"
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+ [32m✓[39m src/utils/firestoreBatchProcessor.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 229[2mms[22m[39m
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Configuration (Task 6.2)[2m > [22m[2mshould use 300 second TTL
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Configuration (Task 6.2)[2m > [22m[2mshould use sessionStorage
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Tour should start immediately when already on Home
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Configuration (Task 6.2)[2m > [22m[2mshould return cached data when fromCache is true
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mtrue[39m,
+  executionTime: [33m5[39m,
+  documentReads: [33m0[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould not load more when hasMore is false
+[22m[39m[useCachedPosts] Initial load: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m1[39m,
+  postCount: [33m1[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Invalidation (Task 6.7)[2m > [22m[2mshould provide invalidateCache function
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Tour should start immediately when already on Home
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Tour should start immediately when already on Home
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Tour should start immediately when already on Home
+[22m[39m✅ Already on Home - Tour running: [33mtrue[39m
+✅ Already on Home - Elements found: [33m7[39m /7
+
+ [32m✓[39m src/utils/queryOptimizer.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 170[2mms[22m[39m
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould refresh posts and invalidate cache
+[22m[39m[useCachedPosts] Initial load: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m1[39m,
+  postCount: [33m1[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Invalidation (Task 6.7)[2m > [22m[2mshould invalidate cache when invalidateCache is called
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour when already on Home
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1440[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour when already on Home
+[22m[39m✅ Tour started
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Invalidation (Task 6.7)[2m > [22m[2mshould invalidate cache when invalidateCache is called
+[22m[39m[useCachedPlaces] Cache invalidated
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Invalidation (Task 6.7)[2m > [22m[2mshould invalidate cache with external function
+[22m[39m[useCachedPlaces] Cache invalidated (external call)
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould provide refresh function
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould refresh posts and invalidate cache
+[22m[39m[useCachedPosts] Cache invalidated
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould refresh posts and invalidate cache
+[22m[39m[useCachedPosts] Initial load: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m1[39m,
+  postCount: [33m1[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould use correct cache configuration
+[22m[39m[useCachedPosts] Initial load: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m0[39m,
+  postCount: [33m0[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould disable cache for pagination
+[22m[39m[useCachedPosts] Initial load: {
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m1[39m,
+  postCount: [33m1[39m
+}
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould reload data when refresh is called
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour when already on Home
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour when already on Home
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.3: Tour Khi Đã Ở Home View[2m > [22m[2mPASS ON UNFIXED CODE: Desktop tour when already on Home
+[22m[39m✅ Desktop Already on Home - Tour running: [33mtrue[39m
+
+[90mstdout[2m | src/hooks/useCachedPosts.test.ts[2m > [22m[2museCachedPosts[2m > [22m[2mshould disable cache for pagination
+[22m[39m[useCachedPosts] Load more: {
+  executionTime: [33m100[39m,
+  documentReads: [33m0[39m,
+  newPostCount: [33m0[39m,
+  totalPostCount: [33m1[39m
+}
+
+ [31m❯[39m src/hooks/useCachedPosts.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 696[2mms[22m[39m
+     [32m✓[39m should load initial posts with cache miss[32m 103[2mms[22m[39m
+     [32m✓[39m should load initial posts with cache hit[32m 74[2mms[22m[39m
+     [32m✓[39m should load more posts with pagination[32m 152[2mms[22m[39m
+     [32m✓[39m should not load more when hasMore is false[32m 75[2mms[22m[39m
+     [32m✓[39m should handle errors gracefully[32m 70[2mms[22m[39m
+[31m     [31m×[31m should refresh posts and invalidate cache[39m[32m 109[2mms[22m[39m
+     [32m✓[39m should use correct cache configuration[32m 10[2mms[22m[39m
+     [32m✓[39m should disable cache for pagination[32m 97[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should accept onComplete callback
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould reload data when refresh is called
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should accept onComplete callback
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should accept onComplete callback
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | src/hooks/useCachedPlaces.test.ts[2m > [22m[2museCachedPlaces[2m > [22m[2mCache Disable Option[2m > [22m[2mshould disable cache when enableCache is false
+[22m[39m[useCachedPlaces] Load places: {
+  category: [32m'all'[39m,
+  fromCache: [33mfalse[39m,
+  executionTime: [33m100[39m,
+  documentReads: [33m2[39m,
+  placeCount: [33m2[39m,
+  queryLimit: [33m200[39m
+}
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should accept onComplete callback
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should accept onComplete callback
+[22m[39m✅ Tour with onComplete callback - Running: [33mtrue[39m
+✅ onComplete callback preserved
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should stop when run prop changes to false
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+ [32m✓[39m src/hooks/useCachedPlaces.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 816[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should stop when run prop changes to false
+[22m[39m✅ Tour started
+
+ [32m✓[39m src/components/DocumentCard.preservation.pbt.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 419[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should stop when run prop changes to false
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+ [32m✓[39m src/utils/firestoreCacheManager.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should stop when run prop changes to false
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should stop when run prop changes to false
+[22m[39m✅ Tour started
+🎯 Tour trigger: [33mfalse[39m
+🎯 Event: tour:status | Status: paused
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.4: Tour Skip/Close Behavior[2m > [22m[2mPASS ON UNFIXED CODE: Tour should stop when run prop changes to false
+[22m[39m✅ Tour stopped: [33mtrue[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should support Next/Back/Skip buttons
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should support Next/Back/Skip buttons
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should support Next/Back/Skip buttons
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should support Next/Back/Skip buttons
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should support Next/Back/Skip buttons
+[22m[39m✅ Tour navigation buttons present: { hasNextButton: [33mfalse[39m, hasSkipButton: [33mtrue[39m }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should handle missing elements gracefully
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should handle missing elements gracefully
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should handle missing elements gracefully
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should handle missing elements gracefully
+[22m[39m✅ Elements: 3/7
+
+[90mstdout[2m | src/utils/firestoreQueryMonitor.test.ts[2m > [22m[2mQueryMonitor[2m > [22m[2mresetDailyReads[2m > [22m[2mshould reset daily reads to zero
+[22m[39m[QueryMonitor] Resetting daily reads. Previous: 1000, Cost: $0.0004
+
+ [32m✓[39m src/utils/firestoreQueryMonitor.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 101[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mRequirement 3.5: Tour Step Navigation[2m > [22m[2mPASS ON UNFIXED CODE: Tour should handle missing elements gracefully
+[22m[39m✅ Partial elements - Found: [33m3[39m /7
+✅ Tour handles missing elements gracefully
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m768[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 768px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m800[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 800px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1024[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 1024px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1200[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 1200px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1366[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 1366px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1440[39m
+
+ [32m✓[39m .kiro/specs/chat-permission-errors-fix/chat-permissions-preservation.pbt.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 1440px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+ [32m✓[39m .kiro/specs/chat-permission-errors-fix/chat-permissions.pbt.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1600[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 1600px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m1920[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 1920px - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m2560[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Tour started
+
+ [32m✓[39m src/utils/firestoreQueryOptimizer.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Desktop widths (768px+) should always work
+[22m[39m✅ Desktop 2560px - Preserved
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m320[39m
+
+ [32m✓[39m src/components/MapView.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Elements: 7/7
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Mobile 320px with elements ready - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m360[39m
+
+ [32m✓[39m src/hooks/useBlockedUsersBatch.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Mobile 360px with elements ready - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m375[39m
+
+ [32m✓[39m src/hooks/useUserProfile.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/utils/zigzagLayout.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Mobile 375px with elements ready - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m390[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Mobile 390px with elements ready - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m414[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Mobile 414px with elements ready - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m428[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Mobile 428px with elements ready - Preserved
+🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mtrue[39m | Width: [33m480[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Mobile with elements ready should work
+[22m[39m✅ Mobile 480px with elements ready - Preserved
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Edge case at breakpoint (768px)
+[22m[39m🎯 Tour trigger: [33mfalse[39m
+[Theme Applied] { theme: [32m'light'[39m, hasDarkClass: [33mfalse[39m, classList: [] }
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Edge case at breakpoint (768px)
+[22m[39m🎯 Tour trigger: [33mtrue[39m
+📱 Mobile: [33mfalse[39m | Width: [33m768[39m
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Edge case at breakpoint (768px)
+[22m[39m✅ Tour started
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Edge case at breakpoint (768px)
+[22m[39m🎯 Event: tour:start | Status: running
+🎯 Event: step:before | Status: running
+🎯 Event: tooltip | Status: running
+
+[90mstdout[2m | .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx[2m > [22m[2mProperty 2: Preservation - Tour Hoạt Động Bình Thường Ở Các Trường Hợp Khác[2m > [22m[2mProperty-Based: Preservation Across Input Space[2m > [22m[2mPASS ON UNFIXED CODE: Edge case at breakpoint (768px)
+[22m[39m✅ Breakpoint 768px - Preserved
+
+ [32m✓[39m .kiro/specs/onboarding-tour-mobile-trigger/tour-preservation.pbt.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 8858[2mms[22m[39m
+       [33m[2m✓[22m[39m PASS ON UNFIXED CODE: Desktop tour should work normally from Settings [33m 879[2mms[22m[39m
+       [33m[2m✓[22m[39m PASS ON UNFIXED CODE: Desktop tour with various screen sizes [33m 1709[2mms[22m[39m
+       [33m[2m✓[22m[39m PASS ON UNFIXED CODE: Mobile tour from first-login on various devices [33m 1276[2mms[22m[39m
+       [33m[2m✓[22m[39m PASS ON UNFIXED CODE: Tour should stop when run prop changes to false [33m 439[2mms[22m[39m
+       [33m[2m✓[22m[39m PASS ON UNFIXED CODE: Tour should handle missing elements gracefully [33m 531[2mms[22m[39m
+       [33m[2m✓[22m[39m PASS ON UNFIXED CODE: Desktop widths (768px+) should always work [33m 2145[2mms[22m[39m
+       [33m[2m✓[22m[39m PASS ON UNFIXED CODE: Mobile with elements ready should work [33m 688[2mms[22m[39m
+ [32m✓[39m src/utils/firestoreListenerManager.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 10872[2mms[22m[39m
+       [33m[2m✓[22m[39m should cleanup listener when no subscribers remain [33m 5118[2mms[22m[39m
+       [33m[2m✓[22m[39m should not cleanup listener if new subscriber added during grace period [33m 5560[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m13 failed[39m[22m[2m | [22m[1m[32m19 passed[39m[22m[90m (32)[39m
+[2m      Tests [22m [1m[31m85 failed[39m[22m[2m | [22m[1m[32m328 passed[39m[22m[90m (413)[39m
+[2m   Start at [22m 13:54:23
+[2m   Duration [22m 17.90s[2m (transform 3.52s, setup 17.07s, import 11.84s, tests 34.38s, environment 77.12s)[22m
+

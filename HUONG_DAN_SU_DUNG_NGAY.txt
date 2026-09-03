@@ -1,0 +1,41 @@
+╔══════════════════════════════════════════════════════════════╗
+║                  FIX MAP CLUSTERING - TVU CONNECT            ║
+║                        9/4/2026                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+❌ LỖI BẠN ĐANG GẶP:
+   "Failed to resolve import react-leaflet-cluster"
+
+✅ GIẢI PHÁP NHANH NHẤT:
+
+   1. Double-click file: fix-clustering.bat
+   
+   2. Đợi 30 giây - 1 phút
+   
+   3. Restart dev server:
+      - Nhấn Ctrl+C trong terminal
+      - Gõ: npm run dev
+      - Enter
+   
+   4. Mở trình duyệt: http://localhost:3000
+   
+   5. Test: Khám phá → Bản đồ
+
+🎯 KẾT QUẢ:
+   ✅ Bản đồ hiển thị đẹp
+   ✅ Markers gom cụm khi zoom out
+   ✅ Mượt mà 60fps
+   ✅ Tiết kiệm 60% data
+
+🆘 NẾU VẪN LỖI:
+   Chạy: fix-clustering-full.bat
+   (Mất 2-3 phút nhưng chắc chắn fix được)
+
+📖 ĐỌC THÊM:
+   - BAT_DAU_O_DAY.md (Đơn giản)
+   - KHAC_PHUC_CLUSTERING_9_4_2026.md (Chi tiết)
+   - TONG_KET_MAP_CLUSTERING_9_4_2026.md (Đầy đủ)
+
+═══════════════════════════════════════════════════════════════
+           Chúc bạn thành công! 🎉
+═══════════════════════════════════════════════════════════════

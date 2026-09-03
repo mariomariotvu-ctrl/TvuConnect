@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Key Mới - TVU Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        
+        .info-box strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .info-box code {
+            background: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #333;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        
+        .loading {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .result-content {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Test API Key Mới</h1>
+        <p class="subtitle">Kiểm tra API key mới có hoạt động không</p>
+        
+        <div class="info-box">
+            <strong>📋 Thông tin API Key:</strong>
+            <code id="apiKeyDisplay">AIzaSyBDDuJ7_qSwmFf2drvdll4XqDL2nXBRAq0</code>
+        </div>
+        
+        <div class="info-box">
+            <strong>🎯 Model:</strong>
+            <code>gemini-2.5-flash</code>
+        </div>
+        
+        <button id="testBtn" onclick="testAPI()">
+            🚀 Test API Key Ngay
+        </button>
+        
+        <div id="result"></div>
+        
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-value" id="statusCode">-</div>
+                <div class="stat-label">Status Code</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="responseTime">-</div>
+                <div class="stat-label">Response Time</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'AIzaSyBDDuJ7_qSwmFf2drvdll4XqDL2nXBRAq0';
+        const MODEL = 'gemini-2.5-flash';
+        
+        async function testAPI() {
+            const btn = document.getElementById('testBtn');
+            const result = document.getElementById('result');
+            const stats = document.getElementById('stats');
+            
+            // Disable button
+            btn.disabled = true;
+            btn.textContent = '⏳ Đang test...';
+            
+            // Show loading
+            result.style.display = 'block';
+            result.className = 'loading';
+            result.innerHTML = `
+                <div class="result-title">⏳ Đang gửi request...</div>
+                <div class="result-content">Vui lòng đợi...</div>
+            `;
+            
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            contents: [
+                                {
+                                    role: 'user',
+                                    parts: [{ text: 'Xin chào! Bạn là ai?' }]
+                                }
+                            ],
+                            generationConfig: {
+                                temperature: 0.9,
+                                maxOutputTokens: 100,
+                            }
+                        })
+                    }
+                );
+                
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                // Update stats
+                document.getElementById('statusCode').textContent = response.status;
+                document.getElementById('responseTime').textContent = responseTime + 'ms';
+                stats.style.display = 'grid';
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Không có response';
+                    
+                    result.className = 'success';
+                    result.innerHTML = `
+                        <div class="result-title">✅ API Key hoạt động tốt!</div>
+                        <div class="result-content">
+<strong>AI Response:</strong>
+${aiResponse}
+
+<strong>Status:</strong> ${response.status} OK
+<strong>Response Time:</strong> ${responseTime}ms
+<strong>Model:</strong> ${MODEL}
+
+🎉 API key mới đã sẵn sàng sử dụng!
+                        </div>
+                    `;
+                    
+                    btn.textContent = '✅ Test thành công!';
+                    btn.style.background = '#28a745';
+                } else {
+                    const errorData = await response.json();
+                    
+                    result.className = 'error';
+                    result.innerHTML = `
+                        <div class="result-title">❌ API Key có vấn đề!</div>
+                        <div class="result-content">
+<strong>Status:</strong> ${response.status}
+<strong>Error:</strong> ${JSON.stringify(errorData, null, 2)}
+
+${response.status === 429 ? '⚠️ Quota đã hết! Cần đợi hoặc tạo key mới.' : ''}
+${response.status === 403 ? '⚠️ API key không hợp lệ hoặc bị vô hiệu hóa.' : ''}
+${response.status === 404 ? '⚠️ Model không tồn tại hoặc không được hỗ trợ.' : ''}
+                        </div>
+                    `;
+                    
+                    btn.textContent = '❌ Test thất bại';
+                    btn.style.background = '#dc3545';
+                }
+            } catch (error) {
+                result.className = 'error';
+                result.innerHTML = `
+                    <div class="result-title">❌ Lỗi kết nối!</div>
+                    <div class="result-content">
+<strong>Error:</strong> ${error.message}
+
+Có thể do:
+• Không có kết nối internet
+• API endpoint bị chặn
+• CORS policy
+                    </div>
+                `;
+                
+                btn.textContent = '❌ Lỗi kết nối';
+                btn.style.background = '#dc3545';
+            }
+            
+            // Re-enable button after 3 seconds
+            setTimeout(() => {
+                btn.disabled = false;
+                if (btn.textContent.includes('thành công')) {
+                    btn.textContent = '🔄 Test lại';
+                    btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

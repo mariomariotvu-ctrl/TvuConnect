@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Venues Database - TVU Connect</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    .warning {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .success {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .error {
+      background: #f8d7da;
+      border-left: 4px solid #dc3545;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin: 10px 5px;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .venue-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+      background: #f9f9f9;
+    }
+    .venue-card h3 {
+      margin: 0 0 10px 0;
+      color: #667eea;
+    }
+    .venue-info {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .venue-info strong {
+      color: #555;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-card h3 {
+      margin: 0;
+      font-size: 32px;
+    }
+    .stat-card p {
+      margin: 5px 0 0 0;
+      opacity: 0.9;
+    }
+    #loading {
+      text-align: center;
+      padding: 40px;
+      display: none;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Test Venues Database</h1>
+    <p>Kiểm tra dữ liệu địa điểm thực tế trong Firestore</p>
+
+    <div class="warning">
+      <strong>⚠️ Mục đích:</strong> Xác minh AI chỉ sử dụng dữ liệu thực từ database, không tự bịa thông tin.
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div style="margin: 20px 0;">
+      <button onclick="testAllVenues()">📋 Xem Tất Cả Địa Điểm</button>
+      <button onclick="testCafeVenues()">☕ Xem Quán Cafe</button>
+      <button onclick="testRestaurantVenues()">🍽️ Xem Nhà Hàng</button>
+      <button onclick="testSearchKeyword()">🔍 Test Search "yên tĩnh"</button>
+    </div>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <p>Đang tải dữ liệu...</p>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBB1ulUF5F7iScd1vm4xOfQamFlT5pbP9M",
+      authDomain: "gen-lang-client-0050597412.firebaseapp.com",
+      projectId: "gen-lang-client-0050597412",
+      storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
+      messagingSenderId: "488617450428",
+      appId: "1:488617450428:web:2e4e3b22bb59c8e7f0c482"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.showLoading = function(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+    };
+
+    window.showResults = function(html) {
+      document.getElementById('results').innerHTML = html;
+    };
+
+    window.showStats = function(total, byCategory) {
+      const statsHtml = `
+        <div class="stat-card">
+          <h3>${total}</h3>
+          <p>Tổng địa điểm</p>
+        </div>
+        ${Object.entries(byCategory).map(([cat, count]) => `
+          <div class="stat-card">
+            <h3>${count}</h3>
+            <p>${getCategoryName(cat)}</p>
+          </div>
+        `).join('')}
+      `;
+      document.getElementById('stats').innerHTML = statsHtml;
+    };
+
+    function getCategoryName(category) {
+      const names = {
+        cafe: 'Quán Cafe',
+        restaurant: 'Nhà Hàng',
+        study: 'Chỗ Học',
+        entertainment: 'Giải Trí',
+        vegetarian: 'Quán Chay',
+        pharmacy: 'Nhà Thuốc',
+        flower: 'Tiệm Hoa',
+        printing: 'In Ấn',
+        clothing: 'Quần Áo',
+        shop: 'Cửa Hàng',
+        bookstore: 'Nhà Sách',
+        sport: 'Thể Thao'
+      };
+      return names[category] || category;
+    }
+
+    window.testAllVenues = async function() {
+      showLoading(true);
+      try {
+        const placesRef = collection(db, 'places');
+        const q = query(placesRef, orderBy('rating', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        const venues = [];
+        const byCategory = {};
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          venues.push({ id: doc.id, ...data });
+          
+          const cat = data.category || 'other';
+          byCategory[cat] = (byCategory[cat] || 0) + 1;
+        });
+
+        showStats(venues.length, byCategory);
+
+        if (venues.length === 0) {
+          showResults(`
+            <div class="error">
+              <strong>❌ Không có dữ liệu!</strong>
+              <p>Database 'places' trống. AI sẽ không thể gợi ý địa điểm.</p>
+            </div>
+          `);
+        } else {
+          const html = `
+            <div class="success">
+              <strong>✅ Tìm thấy ${venues.length} địa điểm</strong>
+            </div>
+            ${venues.map(v => `
+              <div class="venue-card">
+                <h3>${v.name || 'Chưa có tên'}</h3>
+                <div class="venue-info">
+                  <strong>ID:</strong><span>${v.id}</span>
+                  <strong>Category:</strong><span>${getCategoryName(v.category)}</span>
+                  <strong>Địa chỉ:</strong><span>${v.location?.address || 'Chưa có địa chỉ'}</span>
+                  <strong>Đánh giá:</strong><span>${v.rating || 0} ⭐</span>
+                  <strong>Giờ mở cửa:</strong><span>${v.openHours || v.opening_hours || 'Chưa có thông tin'}</span>
+                  <strong>Giá:</strong><span>${v.priceRange || v.price_range || 'Chưa có thông tin'}</span>
+                  <strong>Mô tả:</strong><span>${v.description || 'Chưa có mô tả'}</span>
+                </div>
+              </div>
+            `).join('')}
+          `;
+          showResults(html);
+        }
+      } catch (error) {
+        showResults(`
+          <div class="error">
+            <strong>❌ Lỗi:</strong>
+            <p>${error.message}</p>
+          </div>
+        `);
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    window.testCafeVenues = async function() {
+      showLoading(true);
+      try {
+        const placesRef = collection(db, 'places');
+        const q = query(placesRef, where('category', '==', 'cafe'), orderBy('rating', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        const venues = [];
+        snapshot.forEach((doc) => {
+          venues.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (venues.length === 0) {
+          showResults(`
+            <div class="error">
+              <strong>❌ Không có quán cafe!</strong>
+              <p>Khi user hỏi "Tìm quán cafe", AI sẽ trả về "Hiện chưa có dữ liệu"</p>
+            </div>
+          `);
+        } else {
+          const html = `
+            <div class="success">
+              <strong>✅ Tìm thấy ${venues.length} quán cafe</strong>
+              <p>Đây là dữ liệu AI sẽ sử dụng khi user hỏi về cafe</p>
+            </div>
+            ${venues.map(v => `
+              <div class="venue-card">
+                <h3>${v.name}</h3>
+                <div class="venue-info">
+                  <strong>Địa chỉ:</strong><span>${v.location?.address || 'N/A'}</span>
+                  <strong>Rating:</strong><span>${v.rating || 0} ⭐</span>
+                  <strong>Giá:</strong><span>${v.priceRange || v.price_range || 'N/A'}</span>
+                </div>
+              </div>
+            `).join('')}
+          `;
+          showResults(html);
+        }
+      } catch (error) {
+        showResults(`<div class="error"><strong>❌ Lỗi:</strong> ${error.message}</div>`);
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    window.testRestaurantVenues = async function() {
+      showLoading(true);
+      try {
+        const placesRef = collection(db, 'places');
+        const q = query(placesRef, where('category', '==', 'restaurant'), orderBy('rating', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        const venues = [];
+        snapshot.forEach((doc) => {
+          venues.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (venues.length === 0) {
+          showResults(`
+            <div class="error">
+              <strong>❌ Không có nhà hàng!</strong>
+              <p>Khi user hỏi "Tìm nhà hàng", AI sẽ trả về "Hiện chưa có dữ liệu"</p>
+            </div>
+          `);
+        } else {
+          const html = `
+            <div class="success">
+              <strong>✅ Tìm thấy ${venues.length} nhà hàng</strong>
+            </div>
+            ${venues.map(v => `
+              <div class="venue-card">
+                <h3>${v.name}</h3>
+                <div class="venue-info">
+                  <strong>Địa chỉ:</strong><span>${v.location?.address || 'N/A'}</span>
+                  <strong>Rating:</strong><span>${v.rating || 0} ⭐</span>
+                </div>
+              </div>
+            `).join('')}
+          `;
+          showResults(html);
+        }
+      } catch (error) {
+        showResults(`<div class="error"><strong>❌ Lỗi:</strong> ${error.message}</div>`);
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    window.testSearchKeyword = async function() {
+      showLoading(true);
+      try {
+        const placesRef = collection(db, 'places');
+        const q = query(placesRef, orderBy('rating', 'desc'), limit(50));
+        const snapshot = await getDocs(q);
+        
+        const keyword = 'yên tĩnh';
+        const venues = [];
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const searchText = `${data.name} ${data.description} ${data.location?.address}`.toLowerCase();
+          if (searchText.includes(keyword.toLowerCase())) {
+            venues.push({ id: doc.id, ...data });
+          }
+        });
+
+        if (venues.length === 0) {
+          showResults(`
+            <div class="error">
+              <strong>❌ Không tìm thấy địa điểm có từ khóa "${keyword}"</strong>
+              <p>AI sẽ trả về "Hiện chưa có dữ liệu"</p>
+            </div>
+          `);
+        } else {
+          const html = `
+            <div class="success">
+              <strong>✅ Tìm thấy ${venues.length} địa điểm có từ khóa "${keyword}"</strong>
+            </div>
+            ${venues.map(v => `
+              <div class="venue-card">
+                <h3>${v.name}</h3>
+                <div class="venue-info">
+                  <strong>Địa chỉ:</strong><span>${v.location?.address || 'N/A'}</span>
+                  <strong>Mô tả:</strong><span>${v.description || 'N/A'}</span>
+                </div>
+              </div>
+            `).join('')}
+          `;
+          showResults(html);
+        }
+      } catch (error) {
+        showResults(`<div class="error"><strong>❌ Lỗi:</strong> ${error.message}</div>`);
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    // Auto load on page load
+    window.addEventListener('load', () => {
+      testAllVenues();
+    });
+  </script>
+</body>
+</html>

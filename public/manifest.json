@@ -1,0 +1,68 @@
+{
+  "name": "TVU Connect - Kết nối sinh viên Trà Vinh",
+  "short_name": "TVU Connect",
+  "description": "Nền tảng kết nối sinh viên Đại học Trà Vinh - Tìm bạn học, bạn đời, chia sẻ bài viết",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4F46E5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "education"],
+  "lang": "vi",
+  "dir": "ltr",
+  "scope": "/",
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tìm bạn",
+      "short_name": "Matching",
+      "description": "Tìm bạn học hoặc bạn đời",
+      "url": "/?view=matching",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tin nhắn",
+      "short_name": "Chat",
+      "description": "Xem tin nhắn",
+      "url": "/?view=conversations",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bảng tin",
+      "short_name": "Posts",
+      "description": "Xem bảng tin",
+      "url": "/?view=posts",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "gcm_sender_id": "239699222039"
+}

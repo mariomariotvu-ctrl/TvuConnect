@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chính sách bảo mật - TVU Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #3B82F6 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #3B82F6 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        h2 {
+            color: #4F46E5;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #4F46E5;
+        }
+        
+        h2::first-letter {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #4F46E5;
+        }
+
+        h3 {
+            color: #7C3AED;
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            color: #4b5563;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: #374151;
+            font-size: 1rem;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        strong {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .highlight-box {
+            background: #f3f4f6;
+            border-left: 4px solid #4F46E5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .warning-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .success-box {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .footer {
+            background: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer p {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .back-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #3B82F6 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.4);
+        }
+
+        .meta-info {
+            background: #f9fafb;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            h2 {
+                font-size: 1.6rem;
+            }
+            
+            h2::first-letter {
+                font-size: 2rem;
+            }
+
+            h3 {
+                font-size: 1.2rem;
+            }
+        }
+
+        .emoji {
+            font-style: normal;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #f3f4f6;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #4F46E5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Chính sách bảo mật</h1>
+            <p>TVU Connect - Nền tảng kết nối sinh viên Đại học Trà Vinh</p>
+        </div>
+
+        <div class="content">
+            <div class="meta-info">
+                <strong>Ngày có hiệu lực:</strong> 3 tháng 4, 2026<br>
+                <strong>Phiên bản:</strong> 1.1 (Cập nhật: 30 tháng 6, 2026 — Bổ sung tính năng Tìm Trọ)
+            </div>
+
+            <h2>1. GIỚI THIỆU</h2>
+            <p>Chào mừng bạn đến với TVU Connect - nền tảng kết nối sinh viên Đại học Trà Vinh.</p>
+            <p>Chúng tôi cam kết bảo vệ quyền riêng tư và thông tin cá nhân của bạn. Chính sách bảo mật này giải thích cách chúng tôi thu thập, sử dụng, lưu trữ và bảo vệ thông tin của bạn khi sử dụng dịch vụ TVU Connect.</p>
+            <div class="warning-box">
+                <strong>⚠️ Quan trọng:</strong> Bằng việc sử dụng TVU Connect, bạn đồng ý với các điều khoản trong chính sách bảo mật này.
+            </div>
+
+            <h2>2. THÔNG TIN CHÚNG TÔI THU THẬP</h2>
+            
+            <h3>2.1. Thông Tin Bạn Cung Cấp</h3>
+            <p>Khi đăng ký và sử dụng TVU Connect, chúng tôi thu thập các thông tin sau:</p>
+            
+            <div class="highlight-box">
+                <h4>Thông tin bắt buộc:</h4>
+                <ul>
+                    <li>Mã số sinh viên (MSSV)</li>
+                    <li>Họ và tên đầy đủ</li>
+                    <li>Số điện thoại</li>
+                    <li>Lớp học</li>
+                    <li>Quê quán</li>
+                    <li>Ngành học</li>
+                    <li>Niên khóa</li>
+                    <li>Giới tính</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <h4>Thông tin tùy chọn:</h4>
+                <ul>
+                    <li>Biệt danh</li>
+                    <li>Sở thích</li>
+                    <li>Ảnh đại diện (từ Google)</li>
+                    <li>Tin nhắn văn bản</li>
+                    <li>Tin nhắn thoại</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <h4>Thông tin từ tính năng Tìm Trọ:</h4>
+                <ul>
+                    <li>Tiêu đề tin đăng</li>
+                    <li>Loại phòng (nhà trọ, ở ghép, nhà nghỉ...)</li>
+                    <li>Giá thuê (VND/tháng)</li>
+                    <li>Diện tích phòng (m²)</li>
+                    <li>Địa chỉ phòng trọ</li>
+                    <li>Mô tả và tiện ích</li>
+                    <li>Thông tin liên hệ (số điện thoại/Zalo)</li>
+                    <li>ID người đăng tin và thời gian đăng</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <h4>Thông tin từ tính năng Kho Tài Liệu:</h4>
+                <ul>
+                    <li>Tiêu đề tài liệu</li>
+                    <li>Link URL tài liệu</li>
+                    <li>Ngành học, môn học, loại tài liệu</li>
+                    <li>Mô tả tài liệu</li>
+                    <li>Thời gian đóng góp</li>
+                    <li>ID người đóng góp</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <h4>Thông tin từ tính năng Bảng Tin:</h4>
+                <ul>
+                    <li>Nội dung bài viết (tối đa 250 ký tự)</li>
+                    <li>Ảnh đính kèm (tối đa 3 ảnh/bài, được nén và lưu dạng base64)</li>
+                    <li>Thời gian đăng bài</li>
+                    <li>Cảm xúc (reactions) từ người dùng khác</li>
+                    <li>Bình luận và phản hồi</li>
+                    <li>Số lượng tương tác (likes, reactions, comments)</li>
+                </ul>
+            </div>
+
+            <h3>2.2. Thông Tin Tự Động Thu Thập</h3>
+            <p><strong>Thông tin đăng nhập:</strong></p>
+            <ul>
+                <li>Email Google (để xác thực)</li>
+                <li>Ảnh đại diện Google</li>
+                <li>Thời gian đăng nhập/đăng xuất</li>
+                <li>Trạng thái online/offline</li>
+            </ul>
+
+            <p><strong>Thông tin kỹ thuật:</strong></p>
+            <ul>
+                <li>Địa chỉ IP</li>
+                <li>Loại thiết bị và trình duyệt</li>
+                <li>Hệ điều hành</li>
+                <li>Thời gian sử dụng dịch vụ</li>
+                <li>Lịch sử hoạt động trên nền tảng</li>
+            </ul>
+
+            <h3>2.3. Thông Tin Từ Bên Thứ Ba</h3>
+            <div class="highlight-box">
+                <p><strong>Google Authentication:</strong></p>
+                <ul>
+                    <li>Chúng tôi sử dụng Google OAuth để xác thực người dùng</li>
+                    <li>Chúng tôi chỉ nhận: Email, Tên, Ảnh đại diện</li>
+                    <li>Chúng tôi KHÔNG truy cập: Gmail, Google Drive, hoặc dữ liệu Google khác</li>
+                </ul>
+            </div>
+
+            <h2>3. CÁCH CHÚNG TÔI SỬ DỤNG THÔNG TIN</h2>
+            
+            <h3>3.1. Mục Đích Sử Dụng</h3>
+            <p>Chúng tôi sử dụng thông tin của bạn để:</p>
+
+            <h4>Cung cấp dịch vụ:</h4>
+            <ul>
+                <li>Tạo và quản lý tài khoản của bạn</li>
+                <li>Ghép cặp bạn với sinh viên khác phù hợp</li>
+                <li>Cho phép bạn nhắn tin với người khác</li>
+                <li>Hiển thị hồ sơ của bạn cho người dùng khác</li>
+                <li>Lưu trữ và hiển thị tài liệu bạn đóng góp</li>
+                <li>Hiển thị bài viết, ảnh, và tương tác của bạn</li>
+                <li>Cho phép người dùng khác thả cảm xúc và bình luận</li>
+                <li>Hiển thị tin đăng tìm trọ của bạn cho sinh viên khác tìm kiếm</li>
+            </ul>
+
+            <h4>Cải thiện dịch vụ:</h4>
+            <ul>
+                <li>Phân tích cách người dùng sử dụng nền tảng</li>
+                <li>Tối ưu hóa thuật toán ghép cặp</li>
+                <li>Phát triển tính năng mới</li>
+                <li>Khắc phục lỗi và cải thiện hiệu suất</li>
+                <li>Phân tích xu hướng tài liệu được quan tâm</li>
+                <li>Cải thiện chất lượng nội dung bảng tin</li>
+            </ul>
+
+            <h4>Bảo mật và an toàn:</h4>
+            <ul>
+                <li>Phát hiện và ngăn chặn hành vi vi phạm</li>
+                <li>Kiểm duyệt nội dung không phù hợp (văn bản và ảnh)</li>
+                <li>Bảo vệ người dùng khỏi spam và lạm dụng</li>
+                <li>Tuân thủ pháp luật Việt Nam</li>
+                <li>Phát hiện link tài liệu nguy hiểm (phishing, malware)</li>
+                <li>Chặn ảnh vi phạm (hash-based blocking)</li>
+                <li>Ghi log vi phạm để xem xét và áp dụng hình phạt</li>
+            </ul>
+
+            <h3>3.2. Chúng Tôi KHÔNG Sử Dụng Thông Tin Để</h3>
+            <div class="warning-box">
+                <ul>
+                    <li>❌ Bán hoặc cho thuê thông tin cá nhân của bạn</li>
+                    <li>❌ Gửi quảng cáo từ bên thứ ba</li>
+                    <li>❌ Chia sẻ thông tin với bên thứ ba không liên quan</li>
+                    <li>❌ Sử dụng cho mục đích thương mại ngoài dịch vụ</li>
+                </ul>
+            </div>
+
+            <h2>4. CHIA SẺ THÔNG TIN</h2>
+            
+            <h3>4.1. Thông Tin Công Khai</h3>
+            <p>Các thông tin sau sẽ hiển thị công khai cho người dùng khác:</p>
+            <ul>
+                <li>Họ và tên</li>
+                <li>Biệt danh (nếu có)</li>
+                <li>Ảnh đại diện</li>
+                <li>Lớp học</li>
+                <li>Ngành học</li>
+                <li>Niên khóa</li>
+                <li>Giới tính</li>
+                <li>Sở thích (nếu có)</li>
+                <li>Trạng thái online/offline</li>
+                <li>Tài liệu bạn đóng góp (tiêu đề, link, mô tả)</li>
+                <li>Bài viết trên bảng tin (nội dung, ảnh)</li>
+                <li>Cảm xúc (reactions) bạn thả cho bài viết</li>
+                <li>Bình luận của bạn</li>
+                <li>Tin đăng tìm trọ (tiêu đề, loại phòng, giá, địa chỉ, mô tả, liên hệ)</li>
+            </ul>
+
+            <div class="success-box">
+                <p><strong>✅ Lưu ý về hiển thị thông tin cá nhân:</strong></p>
+                <ul>
+                    <li><strong>Mã số sinh viên (MSSV):</strong> Bắt buộc hiển thị công khai</li>
+                    <li><strong>Quê quán:</strong> Có thể hiển thị hoặc không hiển thị (tùy chọn người dùng)</li>
+                    <li><strong>Số điện thoại:</strong> Có thể hiển thị hoặc không hiển thị (tùy chọn người dùng)</li>
+                </ul>
+            </div>
+
+            <h3>4.2. Chia Sẻ Với Bên Thứ Ba</h3>
+            <p>Chúng tôi chỉ chia sẻ thông tin của bạn với:</p>
+
+            <div class="highlight-box">
+                <p><strong>Firebase/Google Cloud (Nhà cung cấp dịch vụ):</strong></p>
+                <ul>
+                    <li>Lưu trữ dữ liệu và xác thực người dùng</li>
+                    <li>Tuân thủ chính sách bảo mật của Google</li>
+                    <li>Máy chủ đặt tại: Singapore (Asia-Southeast1)</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <p><strong>Cơ quan pháp luật:</strong></p>
+                <ul>
+                    <li>Khi có yêu cầu hợp pháp từ cơ quan chức năng</li>
+                    <li>Để tuân thủ pháp luật Việt Nam</li>
+                    <li>Để bảo vệ quyền lợi và an toàn của người dùng</li>
+                </ul>
+            </div>
+
+            <h2>5. BẢO VỆ THÔNG TIN</h2>
+            
+            <h3>5.1. Biện Pháp Kỹ Thuật</h3>
+            
+            <h4>Mã hóa:</h4>
+            <ul>
+                <li>Tất cả dữ liệu được mã hóa khi truyền tải (HTTPS/TLS)</li>
+                <li>Dữ liệu nhạy cảm được mã hóa khi lưu trữ</li>
+                <li>Mật khẩu không được lưu trữ (sử dụng Google OAuth)</li>
+            </ul>
+
+            <h4>Firestore Security Rules:</h4>
+            <ul>
+                <li>Kiểm soát truy cập dựa trên quyền người dùng</li>
+                <li>Ngăn chặn truy cập trái phép</li>
+                <li>Xác thực mọi yêu cầu đọc/ghi dữ liệu</li>
+            </ul>
+
+            <h4>Content Moderation:</h4>
+            <ul>
+                <li>Tự động phát hiện nội dung không phù hợp</li>
+                <li>80+ từ khóa vi phạm được giám sát</li>
+                <li>3 mức độ vi phạm: Cao, Trung bình, Thấp</li>
+                <li>Ghi log vi phạm để xem xét</li>
+            </ul>
+
+            <h4>Rate Limiting:</h4>
+            <ul>
+                <li>Giới hạn 10 tin nhắn/phút</li>
+                <li>Giới hạn tìm kiếm 1 lần/3 giây</li>
+                <li>Ngăn chặn spam và lạm dụng</li>
+            </ul>
+
+            <h2>6. QUYỀN CỦA BẠN</h2>
+            
+            <h3>6.1. Quyền Truy Cập và Chỉnh Sửa</h3>
+            <div class="success-box">
+                <p>Bạn có quyền:</p>
+                <ul>
+                    <li>✅ Xem thông tin cá nhân của bạn bất kỳ lúc nào</li>
+                    <li>✅ Chỉnh sửa thông tin hồ sơ (trừ MSSV)</li>
+                    <li>✅ Cập nhật ảnh đại diện</li>
+                    <li>✅ Thay đổi sở thích và biệt danh</li>
+                </ul>
+                <p><strong>Cách thực hiện:</strong> Vào "Hồ sơ" → Chỉnh sửa thông tin</p>
+            </div>
+
+            <h3>6.2. Quyền Xóa Dữ Liệu</h3>
+            <div class="success-box">
+                <p>Bạn có quyền:</p>
+                <ul>
+                    <li>✅ Xóa tin nhắn đã gửi (giữ phím trên mobile)</li>
+                    <li>✅ Xóa tài khoản và toàn bộ dữ liệu</li>
+                    <li>✅ Yêu cầu xóa dữ liệu cụ thể</li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <p><strong>⚠️ Lưu ý:</strong> Sau khi xóa, dữ liệu KHÔNG THỂ khôi phục.</p>
+            </div>
+
+            <h2>7. LƯU TRỮ VÀ XÓA DỮ LIỆU</h2>
+            
+            <h3>7.1. Thời Gian Lưu Trữ</h3>
+            
+            <table>
+                <tr>
+                    <th>Loại dữ liệu</th>
+                    <th>Thời gian lưu trữ</th>
+                </tr>
+                <tr>
+                    <td>Dữ liệu tài khoản</td>
+                    <td>Cho đến khi bạn xóa tài khoản</td>
+                </tr>
+                <tr>
+                    <td>Tin nhắn</td>
+                    <td>Vô thời hạn (trừ khi bạn xóa)</td>
+                </tr>
+                <tr>
+                    <td>Tin đăng tìm trọ</td>
+                    <td>Vô thời hạn (trừ khi bạn xóa hoặc vi phạm)</td>
+                </tr>
+                <tr>
+                    <td>Tài liệu học thuật</td>
+                    <td>Vô thời hạn (trừ khi bạn xóa hoặc vi phạm)<br><small>Chỉ lưu link và metadata, không lưu file gốc</small></td>
+                </tr>
+                <tr>
+                    <td>Bài viết và ảnh</td>
+                    <td>Vô thời hạn (trừ khi bạn xóa hoặc vi phạm)<br><small>Ảnh vi phạm: Hash được lưu vĩnh viễn để chặn tái đăng</small></td>
+                </tr>
+                <tr>
+                    <td>Cảm xúc và bình luận</td>
+                    <td>Vô thời hạn (trừ khi bạn xóa)</td>
+                </tr>
+                <tr>
+                    <td>Nhật ký hoạt động</td>
+                    <td>90 ngày</td>
+                </tr>
+                <tr>
+                    <td>Vi phạm nội dung</td>
+                    <td>1 năm</td>
+                </tr>
+            </table>
+
+            <h3>7.2. Vị Trí Lưu Trữ</h3>
+            <div class="highlight-box">
+                <p><strong>Máy chủ chính:</strong></p>
+                <ul>
+                    <li>Firebase Firestore</li>
+                    <li>Khu vực: Asia-Southeast1 (Singapore)</li>
+                    <li>Sao lưu: Multi-region (Asia)</li>
+                </ul>
+                <p><strong>Tuân thủ:</strong></p>
+                <ul>
+                    <li>GDPR (General Data Protection Regulation)</li>
+                    <li>Luật An ninh mạng Việt Nam</li>
+                    <li>Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân</li>
+                </ul>
+            </div>
+
+            <h2>8. LIÊN HỆ</h2>
+            
+            <div class="highlight-box">
+                <p><strong>Về chính sách bảo mật:</strong></p>
+                <ul>
+                    <li><strong>Email:</strong> [mariomariotvu@gmail.com]</li>
+                    <li><strong>Hotline:</strong> </li>
+                    <li><strong>Địa chỉ:</strong> Đại học Trà Vinh, Trà Vinh, Việt Nam</li>
+                </ul>
+                <p><strong>Giờ làm việc:</strong></p>
+                <ul>
+                    <li>Thứ 2 - Thứ 6: 8:00 - 17:00</li>
+                    <li>Thứ 7: 8:00 - 12:00</li>
+                    <li>Chủ nhật: Nghỉ</li>
+                </ul>
+            </div>
+
+            <h2>9. CAM KẾT CỦA CHÚNG TÔI</h2>
+            
+            <div class="success-box">
+                <p>TVU Connect cam kết:</p>
+                <ul>
+                    <li>✅ <strong>Minh bạch:</strong> Luôn rõ ràng về cách sử dụng dữ liệu</li>
+                    <li>✅ <strong>Bảo mật:</strong> Bảo vệ thông tin của bạn bằng công nghệ tốt nhất</li>
+                    <li>✅ <strong>Tôn trọng:</strong> Tôn trọng quyền riêng tư và lựa chọn của bạn</li>
+                    <li>✅ <strong>Trách nhiệm:</strong> Chịu trách nhiệm về dữ liệu chúng tôi thu thập</li>
+                    <li>✅ <strong>Cải thiện:</strong> Liên tục cải thiện bảo mật và quyền riêng tư</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="javascript:window.close()" class="back-button">← Quay lại</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Cảm ơn bạn đã tin tưởng TVU Connect!</strong></p>
+            <p>Nếu có câu hỏi về chính sách bảo mật, vui lòng liên hệ chúng tôi.</p>
+            <p style="margin-top: 20px; font-size: 0.85rem;">
+                Tài liệu này được tạo ngày 3 tháng 4, 2026 • Phiên bản 1.0<br>
+                © 2026 TVU Connect. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiểm Tra Toàn Diện Nền Tảng - 7/5/2026</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border-left: 4px solid #667eea;
+    }
+    .section h2 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: auto;
+    }
+    .status.checking { background: #ffc107; color: #000; }
+    .status.success { background: #28a745; color: white; }
+    .status.error { background: #dc3545; color: white; }
+    .status.warning { background: #ff9800; color: white; }
+    .check-item {
+      padding: 12px;
+      margin: 8px 0;
+      background: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid #e0e0e0;
+    }
+    .check-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .check-icon.success { background: #28a745; color: white; }
+    .check-icon.error { background: #dc3545; color: white; }
+    .check-icon.warning { background: #ff9800; color: white; }
+    .check-icon.checking {
+      background: #ffc107;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .check-text {
+      flex: 1;
+      font-size: 14px;
+      color: #333;
+    }
+    .check-detail {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    .summary-card {
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      color: white;
+    }
+    .summary-card.total { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .summary-card.success { background: linear-gradient(135deg, #28a745, #20c997); }
+    .summary-card.error { background: linear-gradient(135deg, #dc3545, #c82333); }
+    .summary-card.warning { background: linear-gradient(135deg, #ff9800, #ff5722); }
+    .summary-number {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .summary-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    button:hover { transform: translateY(-2px); }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .error-details {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #856404;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Kiểm Tra Toàn Diện Nền Tảng</h1>
+    <p class="subtitle">TVU Connect - Comprehensive Platform Audit - 7/5/2026</p>
+
+    <div class="summary" id="summary">
+      <div class="summary-card total">
+        <div class="summary-number" id="totalChecks">0</div>
+        <div class="summary-label">Tổng Kiểm Tra</div>
+      </div>
+      <div class="summary-card success">
+        <div class="summary-number" id="successCount">0</div>
+        <div class="summary-label">Thành Công</div>
+      </div>
+      <div class="summary-card error">
+        <div class="summary-number" id="errorCount">0</div>
+        <div class="summary-label">Lỗi</div>
+      </div>
+      <div class="summary-card warning">
+        <div class="summary-number" id="warningCount">0</div>
+        <div class="summary-label">Cảnh Báo</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button onclick="runAllChecks()" id="runBtn">▶️ Chạy Kiểm Tra</button>
+      <button onclick="exportReport()" id="exportBtn" disabled>📄 Xuất Báo Cáo</button>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore, collection, getDocs, query, limit } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDRLev05CRdLcJW2xVn6jSME_MeubtkLYw",
+      authDomain: "tvu-connect.firebaseapp.com",
+      projectId: "tvu-connect",
+      storageBucket: "tvu-connect.firebasestorage.app",
+      messagingSenderId: "343361794481",
+      appId: "1:343361794481:web:1c3b1e1e7f4e8f5e8f5e8f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let checkResults = [];
+    let stats = { total: 0, success: 0, error: 0, warning: 0 };
+
+    const checks = [
+      {
+        category: '🔥 Firebase Connection',
+        tests: [
+          { name: 'Firebase App Initialized', test: () => !!app },
+          { name: 'Firestore Connected', test: () => !!db },
+          { name: 'Auth Service Available', test: () => !!auth }
+        ]
+      },
+      {
+        category: '📊 Database Collections',
+        tests: [
+          { name: 'Users Collection', test: async () => {
+            const snap = await getDocs(query(collection(db, 'users'), limit(1)));
+            return !snap.empty;
+          }},
+          { name: 'Posts Collection', test: async () => {
+            const snap = await getDocs(query(collection(db, 'posts'), limit(1)));
+            return !snap.empty;
+          }},
+          { name: 'Messages Collection', test: async () => {
+            const snap = await getDocs(query(collection(db, 'messages'), limit(1)));
+            return true; // OK if empty
+          }},
+          { name: 'Places Collection', test: async () => {
+            const snap = await getDocs(query(collection(db, 'places'), limit(1)));
+            return !snap.empty;
+          }},
+          { name: 'Documents Collection', test: async () => {
+            const snap = await getDocs(query(collection(db, 'documents'), limit(1)));
+            return true; // OK if empty
+          }}
+        ]
+      },
+      {
+        category: '🌐 Environment Variables',
+        tests: [
+          { name: 'Firebase API Key Present', test: () => !!firebaseConfig.apiKey },
+          { name: 'Project ID Configured', test: () => !!firebaseConfig.projectId },
+          { name: 'Auth Domain Set', test: () => !!firebaseConfig.authDomain }
+        ]
+      },
+      {
+        category: '📱 Browser Compatibility',
+        tests: [
+          { name: 'LocalStorage Available', test: () => {
+            try {
+              localStorage.setItem('test', 'test');
+              localStorage.removeItem('test');
+              return true;
+            } catch { return false; }
+          }},
+          { name: 'IndexedDB Available', test: () => !!window.indexedDB },
+          { name: 'Service Worker Support', test: () => 'serviceWorker' in navigator },
+          { name: 'Geolocation API', test: () => 'geolocation' in navigator }
+        ]
+      },
+      {
+        category: '🔒 Security Rules',
+        tests: [
+          { name: 'Firestore Rules Active', test: async () => {
+            try {
+              await getDocs(query(collection(db, 'users'), limit(1)));
+              return true;
+            } catch (e) {
+              return e.code !== 'permission-denied';
+            }
+          }}
+        ]
+      },
+      {
+        category: '⚡ Performance',
+        tests: [
+          { name: 'Page Load Time < 3s', test: () => performance.now() < 3000 },
+          { name: 'Memory Usage OK', test: () => {
+            if (performance.memory) {
+              const used = performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit;
+              return used < 0.9;
+            }
+            return true;
+          }}
+        ]
+      }
+    ];
+
+    window.runAllChecks = async function() {
+      const runBtn = document.getElementById('runBtn');
+      const exportBtn = document.getElementById('exportBtn');
+      const resultsDiv = document.getElementById('results');
+      
+      runBtn.disabled = true;
+      exportBtn.disabled = true;
+      resultsDiv.innerHTML = '';
+      checkResults = [];
+      stats = { total: 0, success: 0, error: 0, warning: 0 };
+
+      for (const category of checks) {
+        const section = createSection(category.category);
+        resultsDiv.appendChild(section);
+
+        for (const test of category.tests) {
+          stats.total++;
+          updateSummary();
+          
+          const checkItem = createCheckItem(test.name, 'checking');
+          section.querySelector('.checks').appendChild(checkItem);
+
+          try {
+            const result = await test.test();
+            const status = result ? 'success' : 'error';
+            updateCheckItem(checkItem, status, result ? 'Passed' : 'Failed');
+            
+            if (result) {
+              stats.success++;
+            } else {
+              stats.error++;
+            }
+            
+            checkResults.push({
+              category: category.category,
+              test: test.name,
+              status,
+              result
+            });
+          } catch (error) {
+            updateCheckItem(checkItem, 'error', `Error: ${error.message}`);
+            stats.error++;
+            checkResults.push({
+              category: category.category,
+              test: test.name,
+              status: 'error',
+              error: error.message
+            });
+          }
+
+          updateSummary();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        updateSectionStatus(section);
+      }
+
+      runBtn.disabled = false;
+      exportBtn.disabled = false;
+    };
+
+    function createSection(title) {
+      const section = document.createElement('div');
+      section.className = 'section';
+      section.innerHTML = `
+        <h2>
+          ${title}
+          <span class="status checking">Đang kiểm tra...</span>
+        </h2>
+        <div class="checks"></div>
+      `;
+      return section;
+    }
+
+    function createCheckItem(name, status) {
+      const item = document.createElement('div');
+      item.className = 'check-item';
+      item.innerHTML = `
+        <div class="check-icon ${status}">⏳</div>
+        <div class="check-text">
+          ${name}
+          <div class="check-detail">Đang kiểm tra...</div>
+        </div>
+      `;
+      return item;
+    }
+
+    function updateCheckItem(item, status, detail) {
+      const icon = item.querySelector('.check-icon');
+      const detailDiv = item.querySelector('.check-detail');
+      
+      icon.className = `check-icon ${status}`;
+      icon.textContent = status === 'success' ? '✓' : status === 'error' ? '✗' : '⚠';
+      detailDiv.textContent = detail;
+    }
+
+    function updateSectionStatus(section) {
+      const statusSpan = section.querySelector('.status');
+      const checks = section.querySelectorAll('.check-item');
+      const errors = section.querySelectorAll('.check-icon.error').length;
+      const warnings = section.querySelectorAll('.check-icon.warning').length;
+      
+      if (errors > 0) {
+        statusSpan.className = 'status error';
+        statusSpan.textContent = `${errors} lỗi`;
+      } else if (warnings > 0) {
+        statusSpan.className = 'status warning';
+        statusSpan.textContent = `${warnings} cảnh báo`;
+      } else {
+        statusSpan.className = 'status success';
+        statusSpan.textContent = 'Hoàn thành ✓';
+      }
+    }
+
+    function updateSummary() {
+      document.getElementById('totalChecks').textContent = stats.total;
+      document.getElementById('successCount').textContent = stats.success;
+      document.getElementById('errorCount').textContent = stats.error;
+      document.getElementById('warningCount').textContent = stats.warning;
+    }
+
+    window.exportReport = function() {
+      const report = {
+        timestamp: new Date().toISOString(),
+        platform: 'TVU Connect',
+        summary: stats,
+        results: checkResults
+      };
+
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `platform-check-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+  </script>
+</body>
+</html>

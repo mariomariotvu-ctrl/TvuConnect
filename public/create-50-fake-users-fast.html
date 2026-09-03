@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tạo 50 Fake Users NHANH - TVU Connect</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 800px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+    
+    .info-box {
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    
+    .info-box h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    
+    .info-box p {
+      color: #555;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    
+    .warning-box h3 {
+      color: #856404;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    
+    .input-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 600;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .progress {
+      margin-top: 20px;
+      display: none;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 15px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 0%;
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+    }
+    
+    .log {
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .log-item {
+      margin-bottom: 5px;
+      padding: 5px;
+      border-radius: 4px;
+    }
+    
+    .log-success {
+      color: #10b981;
+    }
+    
+    .log-error {
+      color: #ef4444;
+      background: #fee;
+    }
+    
+    .log-info {
+      color: #3b82f6;
+    }
+    
+    .summary {
+      margin-top: 20px;
+      padding: 20px;
+      background: #f0fdf4;
+      border-radius: 10px;
+      border: 2px solid #10b981;
+      display: none;
+    }
+    
+    .summary h3 {
+      color: #10b981;
+      margin-bottom: 15px;
+    }
+    
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    
+    .stat {
+      text-align: center;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #667eea;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚡ Tạo 50 Fake Users NHANH</h1>
+    <p class="subtitle">Version tối ưu - Tạo song song, không delay</p>
+    
+    <div class="warning-box">
+      <h3>⚠️ Lưu ý:</h3>
+      <p>• Version này tạo NHANH (10-20 giây) nhưng có thể bị Firebase rate limit</p>
+      <p>• Nếu bị lỗi, giảm số lượng xuống 10-20 users</p>
+      <p>• Hoặc dùng version chậm (create-50-fake-users.html)</p>
+    </div>
+    
+    <div class="info-box">
+      <h3>📋 Thông tin:</h3>
+      <p>• Email: fakeuser1@tvu.edu.vn → fakeuser50@tvu.edu.vn</p>
+      <p>• Password: Test123456 (cho tất cả)</p>
+      <p>• Profiles đầy đủ: MSSV, Họ tên, Lớp, SĐT, v.v.</p>
+      <p>• Thời gian: ~10-20 giây (tạo song song)</p>
+    </div>
+    
+    <div class="input-group">
+      <label for="startIndex">Bắt đầu từ số:</label>
+      <input type="number" id="startIndex" value="4" min="1" max="100">
+    </div>
+    
+    <div class="input-group">
+      <label for="count">Số lượng users:</label>
+      <input type="number" id="count" value="47" min="1" max="50">
+    </div>
+    
+    <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+      💡 Ví dụ: Bắt đầu từ 4, tạo 47 users → fakeuser4 đến fakeuser50
+    </p>
+    
+    <button id="startBtn" onclick="startCreating()">⚡ Tạo nhanh</button>
+    
+    <div class="progress" id="progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill">0%</div>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+    
+    <div class="summary" id="summary">
+      <h3>✅ Hoàn thành!</h3>
+      <div class="summary-stats">
+        <div class="stat">
+          <div class="stat-value" id="successCount">0</div>
+          <div class="stat-label">Thành công</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="failCount">0</div>
+          <div class="stat-label">Thất bại</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="totalCount">0</div>
+          <div class="stat-label">Tổng cộng</div>
+        </div>
+      </div>
+      <p style="color: #666; text-align: center;">Bây giờ bạn có thể test matching với tài khoản thật!</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyByuf-sL2MfEE2zE4reYHxqAGlDg5CcJ9w",
+      authDomain: "gen-lang-client-0050597412.firebaseapp.com",
+      projectId: "gen-lang-client-0050597412",
+      storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
+      messagingSenderId: "43871673395",
+      appId: "1:43871673395:web:00e950c3694f2a49291746",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Data generators
+    const firstNames = ['Minh', 'Hương', 'Tuấn', 'Linh', 'Khoa', 'Trang', 'Dũng', 'Hà', 'Phúc', 'Mai', 'Hoàng', 'Lan', 'Quân', 'Thảo', 'Hải', 'Ngọc', 'Bảo', 'Vy', 'Long', 'Anh', 'Nam', 'Huyền', 'Đức', 'Phương'];
+    const lastNames = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Huỳnh', 'Phan', 'Vũ', 'Võ', 'Đặng', 'Bùi', 'Đỗ', 'Hồ', 'Ngô', 'Dương', 'Lý'];
+    const faculties = ['Công nghệ thông tin', 'Kinh tế', 'Ngoại ngữ', 'Sư phạm', 'Kỹ thuật công nghệ', 'Khoa học tự nhiên', 'Nông nghiệp', 'Luật'];
+    const classes = ['CNTT1', 'CNTT2', 'CNTT3', 'CNTT4', 'KT1', 'KT2', 'KT3', 'NN1', 'NN2', 'NN3', 'SP1', 'SP2', 'KTCN1', 'KTCN2', 'KHTN1', 'KHTN2'];
+    const hobbies = ['Đọc sách', 'Nghe nhạc', 'Xem phim', 'Thể thao', 'Du lịch', 'Chụp ảnh', 'Nấu ăn', 'Vẽ', 'Chơi game', 'Âm nhạc', 'Múa', 'Ca hát', 'Lập trình', 'Thiết kế', 'Viết blog', 'Bóng đá', 'Bóng rổ', 'Cầu lông', 'Yoga', 'Gym', 'Chạy bộ'];
+    const bios = ['Mình là sinh viên TVU, thích làm quen bạn mới!', 'Yêu thích học tập và khám phá điều mới.', 'Tìm bạn cùng sở thích để cùng nhau phát triển.', 'Mình rất thân thiện và hòa đồng nha!', 'Thích đi cafe và tán gẫu với bạn bè.', 'Đam mê công nghệ và sáng tạo.', 'Mong muốn kết nối với nhiều bạn trong trường.'];
+    const genders = ['male', 'female'];
+    const birthYears = [1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006];
+    const academicYears = ['2020-2024', '2021-2025', '2022-2026', '2023-2027'];
+
+    const random = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const randomMultiple = (arr, count) => {
+      const shuffled = [...arr].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, count);
+    };
+
+    const generateMSSV = (index) => {
+      const year = random([21, 22, 23, 24]);
+      const code = String(1000000 + index).padStart(7, '0');
+      return `${year}${code}`;
+    };
+
+    const generatePhone = () => {
+      const prefixes = ['032', '033', '034', '035', '036', '037', '038', '039', '070', '076', '077', '078', '079'];
+      const prefix = random(prefixes);
+      const number = Math.floor(Math.random() * 9000000) + 1000000;
+      return `${prefix}${number}`;
+    };
+
+    const calculateAge = (birthYear) => new Date().getFullYear() - birthYear;
+
+    const generateProfile = (index, uid) => {
+      const firstName = random(firstNames);
+      const lastName = random(lastNames);
+      const fullName = `${lastName} ${firstName}`;
+      const gender = random(genders);
+      const birthYear = random(birthYears);
+      
+      return {
+        uid,
+        email: `fakeuser${index}@tvu.edu.vn`,
+        fullName,
+        mssv: generateMSSV(index),
+        className: random(classes),
+        phone: generatePhone(),
+        gender,
+        major: random(faculties),
+        academicYear: random(academicYears),
+        birthYear,
+        age: calculateAge(birthYear),
+        interests: randomMultiple(hobbies, 3),
+        bio: random(bios),
+        isOnline: false,
+        photoURL: '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+    };
+
+    let successCount = 0;
+    let failCount = 0;
+
+    const addLog = (message, type = 'info') => {
+      const log = document.getElementById('log');
+      const item = document.createElement('div');
+      item.className = `log-item log-${type}`;
+      item.textContent = message;
+      log.appendChild(item);
+      log.scrollTop = log.scrollHeight;
+    };
+
+    const updateProgress = (current, total) => {
+      const percent = Math.round((current / total) * 100);
+      const fill = document.getElementById('progressFill');
+      fill.style.width = `${percent}%`;
+      fill.textContent = `${percent}%`;
+    };
+
+    const createUser = async (index) => {
+      const email = `fakeuser${index}@tvu.edu.vn`;
+      const password = 'Test123456';
+      
+      try {
+        // Create auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+        
+        // Create profile
+        const profile = generateProfile(index, uid);
+        await setDoc(doc(db, 'profiles', uid), profile);
+        
+        successCount++;
+        addLog(`✅ ${index}. ${profile.fullName} (${email})`, 'success');
+        return { success: true, profile };
+      } catch (error) {
+        failCount++;
+        if (error.code === 'auth/email-already-in-use') {
+          addLog(`⚠️  ${index}. ${email} - Đã tồn tại`, 'info');
+        } else {
+          addLog(`❌ ${index}. ${email} - ${error.message}`, 'error');
+        }
+        return { success: false, error };
+      }
+    };
+
+    window.startCreating = async () => {
+      const startIndex = parseInt(document.getElementById('startIndex').value);
+      const count = parseInt(document.getElementById('count').value);
+      const endIndex = startIndex + count - 1;
+      
+      const startBtn = document.getElementById('startBtn');
+      const progress = document.getElementById('progress');
+      const summary = document.getElementById('summary');
+      
+      startBtn.disabled = true;
+      startBtn.textContent = '⚡ Đang tạo nhanh...';
+      progress.style.display = 'block';
+      summary.style.display = 'none';
+      successCount = 0;
+      failCount = 0;
+      
+      document.getElementById('log').innerHTML = '';
+      addLog(`🚀 Tạo ${count} users từ fakeuser${startIndex} đến fakeuser${endIndex}...`, 'info');
+      
+      const startTime = Date.now();
+      
+      // Tạo song song tất cả users (KHÔNG delay)
+      const promises = [];
+      for (let i = startIndex; i <= endIndex; i++) {
+        promises.push(createUser(i));
+      }
+      
+      // Đợi tất cả hoàn thành
+      const results = await Promise.allSettled(promises);
+      
+      // Update progress
+      updateProgress(count, count);
+      
+      const endTime = Date.now();
+      const duration = ((endTime - startTime) / 1000).toFixed(1);
+      
+      // Show summary
+      document.getElementById('successCount').textContent = successCount;
+      document.getElementById('failCount').textContent = failCount;
+      document.getElementById('totalCount').textContent = count;
+      summary.style.display = 'block';
+      
+      startBtn.disabled = false;
+      startBtn.textContent = '⚡ Tạo lại';
+      
+      addLog(`\n✨ Hoàn thành trong ${duration}s! Thành công: ${successCount}, Thất bại: ${failCount}`, 'success');
+    };
+  </script>
+</body>
+</html>

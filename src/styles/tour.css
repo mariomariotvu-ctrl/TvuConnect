@@ -1,0 +1,88 @@
+/* Onboarding Tour Styles */
+
+/* Spotlight border cho dark mode */
+.__floater__open .react-joyride__spotlight {
+  box-shadow: 
+    0 0 0 3px rgba(59, 130, 246, 0.9),
+    0 0 0 6px rgba(59, 130, 246, 0.5),
+    0 0 20px rgba(59, 130, 246, 0.3) !important;
+  border-radius: 12px !important;
+}
+
+/* Light mode - viền nhẹ hơn */
+html:not(.dark) .__floater__open .react-joyride__spotlight {
+  box-shadow: 
+    0 0 0 2px rgba(59, 130, 246, 0.7),
+    0 0 10px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Đảm bảo spotlight luôn visible */
+.react-joyride__spotlight {
+  animation: pulse-spotlight 2s ease-in-out infinite;
+}
+
+@keyframes pulse-spotlight {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+/* Tăng contrast cho overlay trong dark mode */
+html.dark .react-joyride__overlay {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Hover Effects cho Feature Cards */
+
+/* Tìm người yêu - Red Glow on Hover */
+.feature-card-lover:hover {
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  transform: scale(1.02);
+}
+
+html.dark .feature-card-lover:hover {
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.6), 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Mobile: Active/Tap effect cho Tìm người yêu */
+@media (hover: none) and (pointer: coarse) {
+  .feature-card-lover:active {
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    transform: scale(0.98);
+  }
+  
+  html.dark .feature-card-lover:active {
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.6), 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+  }
+}
+
+/* Sở thích chung - Yellow Glow on Hover */
+.feature-card-hobby:hover {
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.4), 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  transform: scale(1.02);
+}
+
+html.dark .feature-card-hobby:hover {
+  box-shadow: 0 0 30px rgba(234, 179, 8, 0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Mobile: Active/Tap effect cho Sở thích chung */
+@media (hover: none) and (pointer: coarse) {
+  .feature-card-hobby:active {
+    box-shadow: 0 0 25px rgba(234, 179, 8, 0.4), 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    transform: scale(0.98);
+  }
+  
+  html.dark .feature-card-hobby:active {
+    box-shadow: 0 0 30px rgba(234, 179, 8, 0.5), 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+  }
+}
+
+/* Smooth transition cho tất cả feature cards */
+.feature-card-lover,
+.feature-card-hobby {
+  transition: all 0.3s ease-in-out;
+}

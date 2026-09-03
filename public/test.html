@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+</head>
+<body style="margin:0;padding:40px;background:#667eea;color:white;font-family:sans-serif;text-align:center;">
+    <h1>✅ WORKS!</h1>
+    <p>If you see this, hosting is OK</p>
+    <p id="info"></p>
+    <script>
+        document.getElementById('info').textContent = 
+            'Device: ' + navigator.userAgent.substring(0, 50);
+    </script>
+</body>
+</html>

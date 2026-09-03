@@ -1,0 +1,18 @@
+feat: Add entertainment category (Vui chơi)
+
+✅ Added:
+- 🎮 entertainment category (Game, Karaoke, Billiards)
+- Pink icon color (#C2185B)
+- Vietnamese mapping support
+
+📝 Changes:
+- src/types.ts: Added 'entertainment' to PlaceCategory
+- src/components/PlaceList.tsx: Added "🎮 Vui chơi" label
+- src/components/MapView.tsx: Added pink icon color
+
+🎯 Impact:
+- 11 → 12 categories (+1)
+- Students can now find entertainment places
+- Ready for data entry
+
+⚡ No breaking changes

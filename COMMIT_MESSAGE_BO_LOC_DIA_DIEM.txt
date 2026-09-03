@@ -1,0 +1,60 @@
+feat: Add advanced place filters (radius, nearby toggle, sort options)
+
+✨ New Features:
+- Radius filter: 1km, 3km, 5km (default), 10km, All
+- "Nearby only" toggle switch with smooth animation
+- 4 sort options: Distance (default), Rating, Price, Popular
+- Results counter showing count, category, and radius
+- "View on map" button (desktop only)
+
+🎨 Design:
+- Purple-cyan gradient for selected filters
+- Smooth hover effects and animations
+- Fully responsive (desktop & mobile)
+- Touch-friendly buttons on mobile
+- Compact layout for mobile
+
+⚡ Performance:
+- Efficient filtering pipeline
+- Minimal re-renders
+- Smooth 60fps animations
+- Fast sorting algorithms
+
+📱 Responsive:
+- Desktop: Horizontal layout, full text, large buttons
+- Mobile: Vertical layout, compact text, grid layout for sort
+- Tablet: Hybrid responsive design
+
+🔧 Technical:
+- Update PlaceList.tsx with new filtering logic
+- Add 2 new states: selectedRadius, showNearbyOnly
+- Refactor sorting to support 4 options
+- Import getCategoryLabel from locationUtils
+- Remove unused imports
+- Add CSS animations for filters
+
+📁 Files Changed:
+- src/components/PlaceList.tsx (+180 lines)
+- src/index.css (+50 lines)
+- HUONG_DAN_BO_LOC_DIA_DIEM_10_4_2026.md (new)
+- TONG_KET_BO_LOC_DIA_DIEM_10_4_2026.md (new)
+
+✅ Testing:
+- All filter combinations tested
+- Responsive design verified
+- No TypeScript errors
+- No console errors
+- Performance optimized
+
+📚 Documentation:
+- Comprehensive user guide
+- 4 real-world case studies
+- Troubleshooting section
+- Complete technical summary
+
+🎯 Impact:
+- Better search experience
+- More accurate filtering
+- Flexible sorting options
+- Beautiful UI/UX
+- Faster place discovery

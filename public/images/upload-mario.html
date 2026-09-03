@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Ảnh Mario - TVU Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .drop-zone {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+        
+        .drop-zone:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+            transform: scale(1.02);
+        }
+        
+        .drop-zone.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.05);
+        }
+        
+        .drop-zone-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .drop-zone-text {
+            font-size: 18px;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .drop-zone-hint {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .preview-container {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .preview-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-save {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-save:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .btn-cancel:hover {
+            background: #d0d0d0;
+        }
+        
+        .success-message {
+            background: #4caf50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #856404;
+        }
+        
+        .instructions strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #664d03;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Upload Ảnh Mario 🦷</h1>
+        <p class="subtitle">Kéo thả ảnh vào đây hoặc click để chọn file</p>
+        
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-icon">📸</div>
+            <div class="drop-zone-text">Kéo thả ảnh vào đây</div>
+            <div class="drop-zone-hint">hoặc click để chọn file từ máy tính</div>
+        </div>
+        
+        <input type="file" id="fileInput" accept="image/*">
+        
+        <div class="preview-container" id="previewContainer">
+            <img id="previewImage" class="preview-image" alt="Preview">
+            <div class="button-group">
+                <button class="btn-save" onclick="saveImage()">💾 Lưu ảnh</button>
+                <button class="btn-cancel" onclick="cancelUpload()">❌ Hủy</button>
+            </div>
+        </div>
+        
+        <div class="success-message" id="successMessage">
+            ✅ Đã lưu ảnh thành công! Bây giờ bạn có thể đóng trang này và test AI.
+        </div>
+        
+        <div class="instructions">
+            <strong>📋 Hướng dẫn:</strong>
+            <ol>
+                <li>Kéo ảnh Mario vào khung trên (hoặc click để chọn)</li>
+                <li>Xem trước ảnh</li>
+                <li>Click "Lưu ảnh" để lưu vào project</li>
+                <li>Test AI bằng cách hỏi "Ai tạo ra bạn?"</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const successMessage = document.getElementById('successMessage');
+        let selectedFile = null;
+
+        // Click to select file
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File selected via input
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        // Drag and drop events
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            handleFile(file);
+        });
+
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                alert('❌ Vui lòng chọn file ảnh!');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewContainer.style.display = 'block';
+                dropZone.style.display = 'none';
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        function saveImage() {
+            if (!selectedFile) return;
+
+            // Create download link
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const link = document.createElement('a');
+                link.href = e.target.result;
+                link.download = 'mario.jpg';
+                link.click();
+                
+                // Show success message
+                successMessage.style.display = 'block';
+                previewContainer.style.display = 'none';
+                
+                // Show instructions
+                setTimeout(() => {
+                    alert('✅ Ảnh đã được tải xuống!\n\n📝 Bây giờ hãy:\n1. Tìm file "mario.jpg" trong thư mục Downloads\n2. Copy file đó vào thư mục: public/images/ của project\n3. Test AI!');
+                }, 500);
+            };
+            reader.readAsDataURL(selectedFile);
+        }
+
+        function cancelUpload() {
+            selectedFile = null;
+            previewContainer.style.display = 'none';
+            dropZone.style.display = 'block';
+            fileInput.value = '';
+        }
+    </script>
+</body>
+</html>

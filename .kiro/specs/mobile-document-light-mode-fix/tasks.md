@@ -1,0 +1,105 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Mobile Light Mode Display Failure
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate mobile light mode styling failures
+  - **Scoped PBT Approach**: Scope the property to mobile viewports (< 768px) in light mode
+  - Test that SearchBar, FilterPanel, and DocumentCard display white backgrounds (#FFFFFF) and black text (#111827) on mobile light mode
+  - Use browser DevTools or testing library to simulate mobile viewport (375px width) in light mode
+  - Inspect computed styles: background-color, color, border-color for each component
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (components show dark backgrounds or incorrect colors - this proves the bug exists)
+  - Document counterexamples found (e.g., "SearchBar shows bg-gray-900 instead of bg-white on mobile light mode")
+  - Analyze CSS specificity conflicts using DevTools to understand root cause
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Non-Mobile-Light-Mode Behavior
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-buggy inputs:
+    - Desktop light mode (1920x1080, light mode)
+    - Desktop dark mode (1920x1080, dark mode)
+    - Mobile dark mode (375px, dark mode)
+    - Tablet breakpoint (768px, both modes)
+  - Record actual styling for each scenario (background colors, text colors, borders)
+  - Write property-based tests capturing observed behavior patterns from Preservation Requirements
+  - Test that desktop light/dark mode and mobile dark mode styling remains unchanged
+  - Property-based testing generates many test cases for stronger guarantees across viewport sizes
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4_
+
+- [x] 3. Fix mobile light mode styling in Document Repository components
+
+  - [x] 3.1 Implement the fix in SearchBar.tsx
+    - Restructure className strings with proper precedence pattern
+    - Pattern: `[base-light-classes] dark:[dark-classes] max-md:[mobile-light-classes] max-md:dark:[mobile-dark-classes]`
+    - Ensure mobile light mode classes come AFTER dark mode classes in className string
+    - Replace `max-md:!bg-white` pattern with explicit mobile light and dark mode classes
+    - Apply fix to search input element and all child elements (icons, buttons)
+    - Verify all text, backgrounds, borders, and placeholders have mobile light mode overrides
+    - _Bug_Condition: isBugCondition(input) where input.screenWidth < 768 AND input.isDarkMode == false_
+    - _Expected_Behavior: backgroundColor == '#FFFFFF' AND textColor == '#111827' for mobile light mode_
+    - _Preservation: Desktop light/dark mode and mobile dark mode styling unchanged_
+    - _Requirements: 2.1, 2.4, 3.1, 3.2, 3.3_
+
+  - [x] 3.2 Implement the fix in FilterPanel.tsx
+    - Restructure className strings with proper precedence pattern
+    - Pattern: `[base-light-classes] dark:[dark-classes] max-md:[mobile-light-classes] max-md:dark:[mobile-dark-classes]`
+    - Ensure mobile light mode classes come AFTER dark mode classes in className string
+    - Apply fix to select dropdown, option elements, icons, and container
+    - Verify all text, backgrounds, borders have mobile light mode overrides
+    - Pay special attention to optgroup and option elements styling
+    - _Bug_Condition: isBugCondition(input) where input.screenWidth < 768 AND input.isDarkMode == false_
+    - _Expected_Behavior: backgroundColor == '#FFFFFF' AND textColor == '#111827' for mobile light mode_
+    - _Preservation: Desktop light/dark mode and mobile dark mode styling unchanged_
+    - _Requirements: 2.2, 2.4, 3.1, 3.2, 3.3_
+
+  - [x] 3.3 Implement the fix in DocumentCard.tsx
+    - Restructure className strings with proper precedence pattern
+    - Pattern: `[base-light-classes] dark:[dark-classes] max-md:[mobile-light-classes] max-md:dark:[mobile-dark-classes]`
+    - Ensure mobile light mode classes come AFTER dark mode classes in className string
+    - Apply fix to card container, title, description, tags, buttons, and all nested elements
+    - Verify mobile layout section (`.md:hidden`) has complete mobile light mode overrides
+    - Ensure UploaderInfo component integration maintains correct styling
+    - _Bug_Condition: isBugCondition(input) where input.screenWidth < 768 AND input.isDarkMode == false_
+    - _Expected_Behavior: backgroundColor == '#FFFFFF' AND textColor == '#111827' for mobile light mode_
+    - _Preservation: Desktop light/dark mode and mobile dark mode styling unchanged_
+    - _Requirements: 2.3, 2.4, 3.1, 3.2, 3.3_
+
+  - [x] 3.4 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Mobile Light Mode Display Correct
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run bug condition exploration test from step 1
+    - Test on multiple mobile viewports: iPhone 12 (390px), Galaxy S21 (360px), small mobile (320px)
+    - Verify all components show white backgrounds (#FFFFFF) and black text (#111827)
+    - Use browser DevTools to inspect computed styles and confirm correct CSS is applied
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+
+  - [x] 3.5 Verify preservation tests still pass
+    - **Property 2: Preservation** - Non-Mobile-Light-Mode Behavior Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - Verify desktop light mode styling unchanged (1920x1080, light mode)
+    - Verify desktop dark mode styling unchanged (1920x1080, dark mode)
+    - Verify mobile dark mode styling unchanged (375px, dark mode)
+    - Verify tablet breakpoint behavior unchanged (768px, both modes)
+    - Test mode switching: dark → light → dark on both desktop and mobile
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all tests still pass after fix (no regressions)
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Run all bug condition tests across multiple mobile devices and simulators
+  - Run all preservation tests across desktop and mobile dark mode
+  - Test edge cases: exactly 768px width, mode switching, component re-renders
+  - Verify interactive behaviors work correctly: search, filter, edit, delete
+  - Test responsive behavior: resize from desktop to mobile and verify correct breakpoint activation
+  - Ensure all tests pass, ask the user if questions arise

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔍 Debug Firebase Mobile - TVU Connect</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #fff;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #667eea;
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .success { background: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
+    .error { background: #f8d7da; color: #721c24; border: 2px solid #f5c6cb; }
+    .warning { background: #fff3cd; color: #856404; border: 2px solid #ffeaa7; }
+    .info { background: #d1ecf1; color: #0c5460; border: 2px solid #bee5eb; }
+    .label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    .value {
+      font-family: 'Courier New', monospace;
+      background: #f8f9fa;
+      padding: 8px;
+      border-radius: 6px;
+      word-break: break-all;
+      color: #495057;
+      font-size: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: transform 0.2s;
+    }
+    button:active { transform: scale(0.98); }
+    .section {
+      margin-bottom: 25px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e9ecef;
+    }
+    .section:last-child { border-bottom: none; }
+    .emoji { font-size: 20px; margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Debug Firebase Mobile</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="runTests()">🚀 Chạy Test Ngay</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    window.runTests = async function() {
+      const results = document.getElementById('results');
+      results.innerHTML = '<div class="info">⏳ Đang chạy tests...</div>';
+      
+      let html = '';
+
+      // Test 1: Environment Detection
+      html += '<div class="section">';
+      html += '<div class="label"><span class="emoji">📱</span>1. Môi Trường</div>';
+      html += `<div class="value">
+        User Agent: ${navigator.userAgent}<br>
+        Platform: ${navigator.platform}<br>
+        Hostname: ${window.location.hostname}<br>
+        Protocol: ${window.location.protocol}<br>
+        Is Mobile: ${/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'Yes ✅' : 'No ❌'}<br>
+        Is WebView: ${/Zalo|FBAN|FBAV|Instagram|TikTok|Line/i.test(navigator.userAgent) ? 'Yes ⚠️' : 'No ✅'}
+      </div>`;
+      html += '</div>';
+
+      // Test 2: Firebase Config
+      html += '<div class="section">';
+      html += '<div class="label"><span class="emoji">🔧</span>2. Firebase Config</div>';
+      
+      const config = {
+        apiKey: "AIzaSyByuf-sL2MfEE2zE4reYHxqAGlDg5CcJ9w",
+        authDomain: "gen-lang-client-0050597412.firebaseapp.com",
+        projectId: "gen-lang-client-0050597412",
+        storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
+        messagingSenderId: "43871673395",
+        appId: "1:43871673395:web:00e950c3694f2a49291746"
+      };
+
+      html += `<div class="value">
+        API Key: ${config.apiKey ? '✅ Có (' + config.apiKey.substring(0, 20) + '...)' : '❌ Thiếu'}<br>
+        Auth Domain: ${config.authDomain ? '✅ ' + config.authDomain : '❌ Thiếu'}<br>
+        Project ID: ${config.projectId ? '✅ ' + config.projectId : '❌ Thiếu'}<br>
+        Storage Bucket: ${config.storageBucket ? '✅ ' + config.storageBucket : '❌ Thiếu'}<br>
+        Messaging Sender ID: ${config.messagingSenderId ? '✅ ' + config.messagingSenderId : '❌ Thiếu'}<br>
+        App ID: ${config.appId ? '✅ ' + config.appId.substring(0, 30) + '...' : '❌ Thiếu'}
+      </div>`;
+      html += '</div>';
+
+      // Test 3: Firebase Initialization
+      html += '<div class="section">';
+      html += '<div class="label"><span class="emoji">🚀</span>3. Firebase Initialization</div>';
+      
+      try {
+        const app = initializeApp(config);
+        html += '<div class="status success">✅ Firebase app initialized thành công!</div>';
+        
+        // Test 4: Auth Service
+        html += '<div class="label"><span class="emoji">🔐</span>4. Auth Service</div>';
+        try {
+          const auth = getAuth(app);
+          html += '<div class="status success">✅ Auth service khởi tạo thành công!</div>';
+          html += `<div class="value">Current User: ${auth.currentUser ? auth.currentUser.email : 'Chưa đăng nhập'}</div>`;
+        } catch (authError) {
+          html += `<div class="status error">❌ Auth Error: ${authError.message}</div>`;
+        }
+
+        // Test 5: Firestore Connection
+        html += '<div class="label"><span class="emoji">💾</span>5. Firestore Connection</div>';
+        try {
+          const db = getFirestore(app);
+          const testDoc = await getDoc(doc(db, 'test', 'connection'));
+          html += '<div class="status success">✅ Firestore kết nối thành công!</div>';
+          html += `<div class="value">Test doc exists: ${testDoc.exists() ? 'Yes' : 'No (normal)'}</div>`;
+        } catch (firestoreError) {
+          html += `<div class="status error">❌ Firestore Error: ${firestoreError.message}</div>`;
+        }
+
+        // Test 6: Google Sign-In Popup Test
+        html += '<div class="label"><span class="emoji">🔑</span>6. Google Sign-In Test</div>';
+        html += '<button onclick="testGoogleLogin()" style="margin-top: 10px;">Test Google Login</button>';
+        html += '<div id="loginResult"></div>';
+
+      } catch (error) {
+        html += `<div class="status error">❌ Firebase Initialization Failed: ${error.message}</div>`;
+        html += `<div class="value">Error Code: ${error.code || 'N/A'}<br>Error Stack: ${error.stack || 'N/A'}</div>`;
+      }
+      html += '</div>';
+
+      // Test 7: Network Connectivity
+      html += '<div class="section">';
+      html += '<div class="label"><span class="emoji">🌐</span>7. Network Connectivity</div>';
+      html += `<div class="value">
+        Online: ${navigator.onLine ? '✅ Yes' : '❌ No'}<br>
+        Connection: ${navigator.connection ? navigator.connection.effectiveType : 'Unknown'}
+      </div>`;
+      html += '</div>';
+
+      // Test 8: Domain Authorization Check
+      html += '<div class="section">';
+      html += '<div class="label"><span class="emoji">🔒</span>8. Domain Authorization</div>';
+      const authorizedDomains = [
+        'localhost',
+        '127.0.0.1',
+        'tvu-connect.vercel.app',
+        'gen-lang-client-0050597412.firebaseapp.com'
+      ];
+      const currentDomain = window.location.hostname;
+      const isAuthorized = authorizedDomains.includes(currentDomain);
+      html += `<div class="status ${isAuthorized ? 'success' : 'error'}">
+        ${isAuthorized ? '✅' : '❌'} Current domain: ${currentDomain}<br>
+        ${isAuthorized ? 'Domain is authorized' : '⚠️ Domain may not be authorized in Firebase Console'}
+      </div>`;
+      html += '<div class="value">Authorized domains:<br>' + authorizedDomains.join('<br>') + '</div>';
+      html += '</div>';
+
+      results.innerHTML = html;
+    };
+
+    window.testGoogleLogin = async function() {
+      const loginResult = document.getElementById('loginResult');
+      loginResult.innerHTML = '<div class="info">⏳ Testing Google login...</div>';
+      
+      try {
+        const config = {
+          apiKey: "AIzaSyByuf-sL2MfEE2zE4reYHxqAGlDg5CcJ9w",
+          authDomain: "gen-lang-client-0050597412.firebaseapp.com",
+          projectId: "gen-lang-client-0050597412",
+          storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
+          messagingSenderId: "43871673395",
+          appId: "1:43871673395:web:00e950c3694f2a49291746"
+        };
+        
+        const app = initializeApp(config, 'test-app-' + Date.now());
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        
+        const result = await signInWithPopup(auth, provider);
+        loginResult.innerHTML = `<div class="status success">✅ Login thành công!<br>User: ${result.user.email}</div>`;
+      } catch (error) {
+        let errorMsg = error.message;
+        if (error.code === 'auth/popup-blocked') {
+          errorMsg = '⚠️ Popup bị chặn. Hãy cho phép popup trong browser settings.';
+        } else if (error.code === 'auth/unauthorized-domain') {
+          errorMsg = '❌ Domain chưa được authorize trong Firebase Console.';
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          errorMsg = 'ℹ️ User đã đóng popup.';
+        }
+        loginResult.innerHTML = `<div class="status error">❌ Login Error: ${errorMsg}<br>Code: ${error.code}</div>`;
+      }
+    };
+
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      setTimeout(() => runTests(), 500);
+    });
+  </script>
+</body>
+</html>

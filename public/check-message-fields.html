@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiểm Tra Fields Tin Nhắn</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .error {
+      color: red;
+    }
+    .success {
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Kiểm Tra Fields Tin Nhắn</h1>
+    <p>Tool này sẽ kiểm tra các fields có trong tin nhắn để xác định field nào được dùng cho sender.</p>
+    
+    <button onclick="checkMessageFields()">Kiểm Tra Tin Nhắn</button>
+    <button onclick="location.reload()">Làm Mới</button>
+    
+    <div id="result"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore, collection, query, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDgxl4RyUke_E1dKLqqDOBi-OmgbWMH-Vc",
+      authDomain: "tvu-connect.firebaseapp.com",
+      projectId: "tvu-connect",
+      storageBucket: "tvu-connect.firebasestorage.app",
+      messagingSenderId: "821537713846",
+      appId: "1:821537713846:web:e2f7e0e6f8e8e8e8e8e8e8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.checkMessageFields = async function() {
+      const resultDiv = document.getElementById('result');
+      
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          resultDiv.innerHTML = '<span class="error">❌ Bạn chưa đăng nhập!</span>';
+          return;
+        }
+
+        resultDiv.innerHTML = '⏳ Đang kiểm tra...';
+
+        // Get first 5 messages
+        const q = query(collection(db, 'messages'), limit(5));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          resultDiv.innerHTML = '<span class="error">❌ Không có tin nhắn nào trong database</span>';
+          return;
+        }
+
+        let output = '<span class="success">✅ Tìm thấy ' + snapshot.size + ' tin nhắn\n\n</span>';
+        output += '📋 FIELDS CÓ TRONG TIN NHẮN:\n';
+        output += '='.repeat(50) + '\n\n';
+
+        snapshot.docs.forEach((doc, index) => {
+          const data = doc.data();
+          output += `Tin nhắn ${index + 1} (ID: ${doc.id}):\n`;
+          output += JSON.stringify(data, null, 2);
+          output += '\n\n' + '-'.repeat(50) + '\n\n';
+        });
+
+        // Check which field is used for sender
+        const firstMsg = snapshot.docs[0].data();
+        output += '\n🔍 PHÂN TÍCH:\n';
+        output += '='.repeat(50) + '\n';
+        
+        if (firstMsg.senderUid) {
+          output += '✅ Có field: senderUid = ' + firstMsg.senderUid + '\n';
+        } else {
+          output += '❌ KHÔNG có field: senderUid\n';
+        }
+        
+        if (firstMsg.senderId) {
+          output += '✅ Có field: senderId = ' + firstMsg.senderId + '\n';
+        } else {
+          output += '❌ KHÔNG có field: senderId\n';
+        }
+        
+        if (firstMsg.userId) {
+          output += '✅ Có field: userId = ' + firstMsg.userId + '\n';
+        } else {
+          output += '❌ KHÔNG có field: userId\n';
+        }
+
+        resultDiv.innerHTML = output;
+
+      } catch (error) {
+        console.error('Error:', error);
+        resultDiv.innerHTML = '<span class="error">❌ Lỗi: ' + error.message + '</span>';
+      }
+    };
+
+    // Check auth state
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('User logged in:', user.uid);
+      } else {
+        console.log('User not logged in');
+        document.getElementById('result').innerHTML = '<span class="error">⚠️ Vui lòng đăng nhập vào TVU Connect trước</span>';
+      }
+    });
+  </script>
+</body>
+</html>

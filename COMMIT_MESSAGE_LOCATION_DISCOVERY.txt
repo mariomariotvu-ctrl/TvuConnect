@@ -1,0 +1,47 @@
+feat: Thêm Location-Based Discovery cho trang Khám phá
+
+✨ Tính năng mới:
+- GPS location tracking tự động
+- Tính khoảng cách đến địa điểm (Haversine formula)
+- Lọc địa điểm trong bán kính 10km
+- Sắp xếp theo khoảng cách (gần nhất lên đầu)
+- Dynamic badge hiển thị số lượng địa điểm gần bạn
+- Location picker modal với 5 preset locations
+- Distance badges trên mỗi place card
+- Distance text "Cách bạn X km"
+
+🎨 UI/UX:
+- Glassmorphism design cho badges
+- Location update button (góc trên phải)
+- GPS loading states
+- Dark/Light mode support
+- Mobile responsive
+
+📍 Locations:
+- Trường ĐH Trà Vinh
+- Ký túc xá TVU
+- Khu 1
+- Khu 4
+- Trung tâm TP Trà Vinh
+
+🔧 Technical:
+- New: src/utils/locationUtils.ts
+- New: src/components/LocationPicker.tsx
+- Updated: src/components/MapView.tsx
+- Updated: src/components/PlaceList.tsx
+
+⚡ Performance:
+- Distance calculation cached với useMemo
+- 10km radius filter để giảm tính toán
+- GPS location cached 5 phút
+- Mobile optimized (30 markers max)
+
+🎯 User Flow:
+1. Auto-get GPS location on mount
+2. Calculate distances to all places
+3. Filter by 10km radius
+4. Sort by distance
+5. Display with distance badges
+6. Allow manual location update
+
+Date: 10/4/2026

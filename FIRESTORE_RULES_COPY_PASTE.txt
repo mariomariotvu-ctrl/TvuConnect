@@ -1,0 +1,185 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // ===============================================================
+    // Profiles Collection Rules
+    // ===============================================================
+    match /profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ===============================================================
+    // Users Collection Rules (for uploader profile info)
+    // ===============================================================
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles (for uploader info display)
+      allow read: if isAuthenticated();
+      // Only the user can write their own profile
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ===============================================================
+    // Messages Collection Rules
+    // ===============================================================
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Allow update if user is the sender (check both senderUid and senderId for compatibility)
+      allow update: if isAuthenticated() && 
+        (resource.data.senderUid == request.auth.uid || 
+         resource.data.senderId == request.auth.uid);
+      // Allow delete if user is the sender (check both senderUid and senderId for compatibility)
+      allow delete: if isAuthenticated() && 
+        (resource.data.senderUid == request.auth.uid || 
+         resource.data.senderId == request.auth.uid);
+    }
+    
+    // ===============================================================
+    // Conversations Collection Rules
+    // ===============================================================
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // ===============================================================
+    // Typing Collection Rules (for real-time typing indicators)
+    // ===============================================================
+    match /typing/{conversationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // ===============================================================
+    // Posts Collection Rules
+    // ===============================================================
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      // Allow delete if user is the post creator (check both userId and createdBy for compatibility)
+      allow delete: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || 
+         resource.data.createdBy == request.auth.uid);
+    }
+    
+    // ===============================================================
+    // FCM Tokens Collection
+    // ===============================================================
+    match /fcmTokens/{tokenId} {
+      allow read: if isAuthenticated() && 
+        request.auth.uid == resource.data.userId;
+      allow write: if isAuthenticated() && 
+        request.auth.uid == request.resource.data.userId;
+    }
+    
+    // ===============================================================
+    // Document Links Collection (Academic Document Repository)
+    // ===============================================================
+    match /documentLinks/{documentId} {
+      // READ: Any authenticated user can read documents
+      allow read: if isAuthenticated();
+      
+      // CREATE: Any authenticated user can create documents
+      // Must set createdBy to their own UID
+      allow create: if isAuthenticated() &&
+                       request.resource.data.createdBy == request.auth.uid;
+      
+      // UPDATE: Only the document creator can update
+      allow update: if isAuthenticated() &&
+                       resource.data.createdBy == request.auth.uid;
+      
+      // DELETE: Only the document creator can delete
+      allow delete: if isAuthenticated() &&
+                       resource.data.createdBy == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Blocks Collection Rules
+    // ===============================================================
+    match /blocks/{blockId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // ===============================================================
+    // Places Collection Rules
+    // ===============================================================
+    match /places/{placeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // ===============================================================
+    // Matches Collection Rules
+    // ===============================================================
+    match /matches/{matchId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // ===============================================================
+    // Match Feedback Collection Rules
+    // ===============================================================
+    match /matchFeedback/{feedbackId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Matching Analytics Collection Rules
+    // ===============================================================
+    match /matching_analytics/{analyticsId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false; // Analytics events are immutable
+      allow delete: if false; // Analytics events should not be deleted
+    }
+    
+    // ===============================================================
+    // Check-ins Collection Rules (for MapView)
+    // ===============================================================
+    match /checkIns/{checkInId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Events Collection Rules (for MapView)
+    // ===============================================================
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Comments Collection Rules (for Posts)
+    // ===============================================================
+    match /comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // ===============================================================
+    // Default deny all other collections
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

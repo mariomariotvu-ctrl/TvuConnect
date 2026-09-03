@@ -1,0 +1,23 @@
+🔗 ĐƯỜNG DẪN TOOL CẬP NHẬT PROFILE FAKE USERS
+
+📍 URL: http://localhost:3000/update-fake-profiles.html
+
+⚠️ LƯU Ý:
+- PHẢI chạy dev server trước: npm run dev
+- KHÔNG mở file trực tiếp (file://) vì sẽ bị CORS error
+- Chỉ hoạt động khi dev server đang chạy
+
+🚀 CÁCH SỬ DỤNG:
+1. Mở terminal
+2. Chạy: npm run dev
+3. Đợi server khởi động (thường là port 3000)
+4. Mở browser
+5. Truy cập: http://localhost:3000/update-fake-profiles.html
+6. Nhập start/end index
+7. Bấm "Bắt đầu cập nhật"
+8. Chờ ~30 giây
+9. Xong!
+
+✅ KẾT QUẢ:
+- Tất cả fake users sẽ có profile đầy đủ
+- Sẵn sàng test matching ngay!

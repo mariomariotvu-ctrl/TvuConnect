@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Sư Phạm Matching</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .test-case {
+      margin: 20px 0;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      background: #f9f9f9;
+    }
+    .test-case.pass {
+      border-color: #4caf50;
+      background: #e8f5e9;
+    }
+    .test-case.fail {
+      border-color: #f44336;
+      background: #ffebee;
+    }
+    .result {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .pass .result {
+      color: #4caf50;
+    }
+    .fail .result {
+      color: #f44336;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .summary {
+      margin-top: 30px;
+      padding: 20px;
+      background: #667eea;
+      color: white;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Test Sư Phạm Matching</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="runTests()">Chạy Test</button>
+    
+    <div id="summary" style="display: none;"></div>
+  </div>
+
+  <script>
+    // Copy functions from matchingUtils.ts
+    function normalizeVietnameseText(text) {
+      if (!text) return '';
+      
+      let normalized = text.toLowerCase();
+      
+      normalized = normalized
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'd');
+      
+      normalized = normalized.replace(/\s+/g, ' ').trim();
+      
+      return normalized;
+    }
+
+    function extractAcronym(text) {
+      if (!text) return '';
+      
+      const normalized = normalizeVietnameseText(text);
+      const words = normalized.split(' ').filter(w => w.length > 0);
+      
+      return words.map(w => w[0]).join('');
+    }
+
+    function majorContains(major, keyword) {
+      if (!major || !keyword) return false;
+      
+      const normMajor = normalizeVietnameseText(major);
+      const normKeyword = normalizeVietnameseText(keyword);
+      
+      // Direct substring match
+      if (normMajor.includes(normKeyword)) return true;
+      
+      // Check if keyword is acronym of major
+      const acronym = extractAcronym(major);
+      if (acronym === normKeyword) return true;
+      
+      // Check if major is acronym and keyword contains it
+      if (normKeyword.includes(normMajor)) return true;
+      
+      return false;
+    }
+
+    // Test cases
+    const testCases = [
+      {
+        name: 'Case 1: Exact match',
+        profile: 'Sư Phạm',
+        search: 'Sư Phạm',
+        expected: true
+      },
+      {
+        name: 'Case 2: Acronym SP',
+        profile: 'Sư Phạm',
+        search: 'SP',
+        expected: true
+      },
+      {
+        name: 'Case 3: Lowercase acronym',
+        profile: 'Sư Phạm',
+        search: 'sp',
+        expected: true
+      },
+      {
+        name: 'Case 4: First word only',
+        profile: 'Sư Phạm',
+        search: 'Sư',
+        expected: true
+      },
+      {
+        name: 'Case 5: Second word only',
+        profile: 'Sư Phạm',
+        search: 'Phạm',
+        expected: true
+      },
+      {
+        name: 'Case 6: No accents',
+        profile: 'Sư Phạm',
+        search: 'su pham',
+        expected: true
+      },
+      {
+        name: 'Case 7: Full name search',
+        profile: 'Sư Phạm',
+        search: 'Sư Phạm Toán Học',
+        expected: true
+      },
+      {
+        name: 'Case 8: Reverse - profile full, search short',
+        profile: 'Sư Phạm Toán Học',
+        search: 'Sư Phạm',
+        expected: true
+      },
+      {
+        name: 'Case 9: Acronym for full name',
+        profile: 'Sư Phạm Toán Học',
+        search: 'SPTH',
+        expected: true
+      },
+      {
+        name: 'Case 10: Mixed case',
+        profile: 'Sư Phạm',
+        search: 'sU PhAm',
+        expected: true
+      },
+      {
+        name: 'Case 11: Should NOT match',
+        profile: 'Sư Phạm',
+        search: 'Kinh Tế',
+        expected: false
+      }
+    ];
+
+    function runTests() {
+      const resultsDiv = document.getElementById('results');
+      const summaryDiv = document.getElementById('summary');
+      resultsDiv.innerHTML = '';
+      
+      let passed = 0;
+      let failed = 0;
+
+      testCases.forEach((test, index) => {
+        const result = majorContains(test.profile, test.search);
+        const success = result === test.expected;
+        
+        if (success) passed++;
+        else failed++;
+
+        const testDiv = document.createElement('div');
+        testDiv.className = `test-case ${success ? 'pass' : 'fail'}`;
+        testDiv.innerHTML = `
+          <strong>${test.name}</strong><br>
+          Profile: <code>${test.profile}</code><br>
+          Search: <code>${test.search}</code><br>
+          Expected: <code>${test.expected}</code><br>
+          <div class="result">
+            ${success ? '✅ PASS' : '❌ FAIL'} 
+            (Got: ${result})
+          </div>
+        `;
+        resultsDiv.appendChild(testDiv);
+      });
+
+      // Show summary
+      summaryDiv.style.display = 'block';
+      summaryDiv.innerHTML = `
+        📊 Kết Quả: ${passed}/${testCases.length} tests passed
+        ${failed === 0 ? '<br>🎉 Tất cả tests đều PASS!' : ''}
+      `;
+    }
+
+    // Auto run on load
+    window.onload = runTests;
+  </script>
+</body>
+</html>

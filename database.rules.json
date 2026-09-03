@@ -1,0 +1,48 @@
+{
+  "rules": {
+    "presence": {
+      "$userId": {
+        ".read": "auth != null && (
+          auth.uid === $userId ||
+          root.child('presence').child($userId).child('settings').child('invisibleMode').val() === false &&
+          root.child('presence').child($userId).child('settings').child('privacyMode').val() === false ||
+          root.child('users').child($userId).child('friends').child(auth.uid).exists()
+        ) && !root.child('users').child($userId).child('blocked').child(auth.uid).exists()",
+        
+        ".write": "auth != null && auth.uid === $userId",
+        
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'online' || newData.val() === 'away' || newData.val() === 'offline')"
+        },
+        
+        "lastActive": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        
+        "connections": {
+          "$connectionId": {
+            ".validate": "newData.hasChildren(['device', 'timestamp'])",
+            "device": {
+              ".validate": "newData.isString() && (newData.val() === 'web' || newData.val() === 'mobile' || newData.val() === 'desktop')"
+            },
+            "timestamp": {
+              ".validate": "newData.isNumber() && newData.val() <= now"
+            },
+            "userAgent": {
+              ".validate": "newData.isString()"
+            }
+          }
+        },
+        
+        "settings": {
+          "privacyMode": {
+            ".validate": "newData.isBoolean()"
+          },
+          "invisibleMode": {
+            ".validate": "newData.isBoolean()"
+          }
+        }
+      }
+    }
+  }
+}

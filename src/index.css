@@ -1,0 +1,1441 @@
+@import "tailwindcss";
+
+/* Tailwind v4: dùng class .dark thay vì prefers-color-scheme media query */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  
+  /* Navigation colors */
+  --nav-bg: #ffffff;
+  
+  /* Animation durations - Faster for better responsiveness */
+  --duration-fast: 100ms;
+  --duration-normal: 150ms;
+  --duration-slow: 200ms;
+
+  /* Force light color scheme by default so iOS Safari renders
+     native elements (input, button, select) in light mode */
+  color-scheme: light;
+
+  /* ── Bug 1.14 fix: CSS custom properties cho light/dark mode text & card ──
+     Dùng trong .post-card để tránh inline style conflict với dark mode */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --bg-card: #ffffff;
+}
+
+.dark {
+  --nav-bg: rgba(17, 24, 39, 0.95);
+  color-scheme: dark;
+
+  /* ── Bug 1.14 fix: dark mode custom properties ── */
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --bg-card: rgba(31, 41, 55, 0.6);
+}
+
+/* Optimize font rendering for performance */
+* {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Only apply optimizeLegibility to headings to prevent severe layout thrashing and lag */
+h1, h2, h3, h4, h5, h6 {
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  height: -webkit-fill-available;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  touch-action: manipulation;
+}
+
+/* Reduce heavy animations on mobile for performance */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Selective GPU acceleration - only for elements that actually animate their transform continuously */
+.modal-animation-target {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* Optimize scrolling performance */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Optimize touch interactions - Faster response */
+button,
+a,
+input,
+textarea,
+select {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in inputs */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Faster transitions for better responsiveness */
+button,
+a {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: var(--duration-fast);
+}
+
+/* Optimize animations */
+@media (hover: hover) and (pointer: fine) {
+  /* Only enable hover effects on devices with precise pointers */
+  button:hover,
+  a:hover {
+    transition-duration: var(--duration-fast);
+  }
+}
+
+/* Active state for immediate feedback */
+button:active,
+a:active {
+  transform: scale(0.97);
+  transition: transform 50ms ease-out;
+}
+
+/* ==========================================
+   MOBILE NAV - Native-like tab switching
+   ========================================== */
+
+/* Mobile nav container: GPU composited layer */
+.mobile-nav {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Mobile nav tab buttons: instant color feedback on touch */
+.mobile-nav-tab {
+  transition: color 60ms ease, background-color 80ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Active tab icon: smooth scale-up */
+.mobile-nav-tab.active svg {
+  transform: scale(1.1);
+  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Inactive tab icon: scale back */
+.mobile-nav-tab:not(.active) svg {
+  transform: scale(1);
+  transition: transform 100ms ease;
+}
+
+/* View transition container */
+.view-transition-container {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+
+
+
+
+/* Increase base font size for better readability */
+html {
+  font-size: 17px; /* Increased from default 16px */
+}
+
+@media screen and (max-width: 768px) {
+  html {
+    font-size: 18px; /* Even larger on mobile for better readability */
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 17px !important; /* Increased from 16px */
+  }
+  
+  /* Fix placeholder text visibility on mobile */
+  input::placeholder,
+  textarea::placeholder {
+    color: #4b5563 !important;
+    opacity: 1 !important;
+  }
+  
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #9ca3af !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Hide scrollbar for reaction picker */
+.overflow-x-auto::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom Scrollbar for a premium feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
+
+/* ========================================
+   DARK MODE - OPTIMIZED VERSION
+   ======================================== */
+
+.dark {
+  color-scheme: dark;
+}
+
+/* Dark mode background - Optimized (no background-attachment:fixed to prevent GPU thrash) */
+.dark body {
+  background: 
+    radial-gradient(ellipse 100% 60% at 10% 10%, rgba(103, 232, 249, 0.05), transparent 50%),
+    linear-gradient(180deg, #121212 0%, #1a1a2e 50%, #121212 100%);
+  background-attachment: fixed;
+  color: #E0E0E0;
+  min-height: 100vh;
+}
+
+/* Mobile: remove fixed attachment to prevent GPU compositing issues */
+@media (max-width: 768px) {
+  .dark body {
+    background-attachment: scroll;
+    background: linear-gradient(180deg, #121212 0%, #1a1a2e 50%, #121212 100%);
+  }
+}
+
+#root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.dark #root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
+}
+
+/* Dark mode Google Translate widget */
+.dark [id^="google_translate_element"] .goog-te-gadget .goog-te-combo {
+  background: rgba(30, 30, 30, 0.8) !important;
+  border: 1px solid rgba(79, 70, 229, 0.3) !important;
+  color: #E0E0E0 !important;
+  backdrop-filter: blur(10px);
+}
+
+.dark [id^="google_translate_element"] .goog-te-gadget .goog-te-combo:hover {
+  border-color: #4F46E5 !important;
+  box-shadow: 0 0 20px rgba(79, 70, 229, 0.3) !important;
+}
+
+/* Dark mode text colors - Off-white for maximum legibility */
+.dark .text-gray-900:not([style*="color"]) {
+  color: #E0E0E0;
+}
+
+.dark .text-gray-800:not([style*="color"]) {
+  color: #E0E0E0;
+}
+
+.dark .text-gray-700:not([style*="color"]) {
+  color: #D1D5DB;
+}
+
+.dark .text-gray-600 {
+  color: #9CA3AF !important;
+}
+
+.dark .text-gray-500 {
+  color: #6B7280 !important;
+}
+
+.dark .text-gray-400 {
+  color: #4B5563 !important;
+}
+
+/* Dark mode backgrounds with glassmorphism - Optimized */
+.dark .bg-white {
+  background-color: rgba(30, 30, 30, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark .bg-gray-50 {
+  background-color: rgba(20, 25, 30, 0.95) !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: rgba(26, 31, 46, 0.95) !important;
+}
+
+/* Dark mode borders with cool-blue and purple glow */
+.dark .border-gray-100 {
+  border-color: rgba(103, 232, 249, 0.15) !important;
+}
+
+.dark .border-gray-200 {
+  border-color: rgba(103, 232, 249, 0.25) !important;
+}
+
+.dark .border-gray-50 {
+  border-color: rgba(139, 92, 246, 0.2) !important;
+}
+
+/* Enhanced gradient buttons in dark mode - Optimized (1 shadow instead of 3) */
+.dark .bg-gradient-to-r.from-indigo-600 {
+  background: linear-gradient(135deg, #5B21B6 0%, #4F46E5 50%, #3B82F6 100%) !important;
+  box-shadow: 0 0 30px rgba(79, 70, 229, 0.4);
+}
+
+.dark .bg-gradient-to-r.from-indigo-600:hover {
+  box-shadow: 0 0 40px rgba(79, 70, 229, 0.6);
+  transform: translateY(-1px);
+}
+
+/* Ghost button style for "Tìm bạn ngay" in dark mode - Clean off-white outline */
+.dark .ghost-button,
+.dark button.bg-white.border-2 {
+  background: transparent !important;
+  border: 2px solid rgba(224, 224, 224, 0.8) !important;
+  color: #E0E0E0 !important;
+}
+
+.dark .ghost-button:hover,
+.dark button.bg-white.border-2:hover {
+  background: rgba(224, 224, 224, 0.1) !important;
+  box-shadow: 0 0 20px rgba(224, 224, 224, 0.2);
+  border-color: #E0E0E0 !important;
+}
+
+/* Dark mode feature cards - Optimized (1 shadow instead of 3) */
+.dark .bg-gradient-to-br.from-indigo-950 {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  box-shadow: 0 0 25px rgba(103, 232, 249, 0.2);
+  border: 1px solid rgba(103, 232, 249, 0.2);
+}
+
+.dark .bg-gradient-to-br.from-indigo-950:hover {
+  box-shadow: 0 0 35px rgba(103, 232, 249, 0.3);
+  transform: translateY(-2px);
+}
+
+/* "Bạn cùng học" card - Optimized (1 shadow instead of 3) */
+.dark .bg-gradient-to-r.from-indigo-600.via-violet-600 {
+  background: linear-gradient(135deg, #4B237B 0%, #5B21B6 50%, #2D154A 100%) !important;
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.dark .bg-gradient-to-r.from-indigo-600.via-violet-600:hover {
+  box-shadow: 0 0 45px rgba(139, 92, 246, 0.6);
+  transform: translateY(-2px);
+}
+
+/* White cards in dark mode - Optimized */
+.dark .bg-white.dark\:bg-gray-800\/60 {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border: 1px solid rgba(103, 232, 249, 0.2) !important;
+  box-shadow: 0 0 20px rgba(103, 232, 249, 0.15);
+}
+
+.dark .bg-white.dark\:bg-gray-800\/60:hover {
+  box-shadow: 0 0 30px rgba(103, 232, 249, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Dark mode input fields with glassmorphism */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: rgba(30, 30, 30, 0.95) !important;
+  border-color: rgba(79, 70, 229, 0.2) !important;
+  color: #E0E0E0 !important;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #4F46E5 !important;
+  box-shadow: 0 0 20px rgba(79, 70, 229, 0.3) !important;
+  background-color: rgba(30, 30, 30, 0.8) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6B7280 !important;
+}
+
+/* Dark mode navigation - Optimized */
+.dark nav {
+  background: rgba(18, 18, 18, 0.9) !important;
+  backdrop-filter: blur(10px) saturate(180%);
+  border-bottom: 1px solid rgba(103, 232, 249, 0.2) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode mobile menu - Optimized */
+.dark #mobile-menu-container {
+  background: rgba(20, 25, 35, 0.95) !important;
+  backdrop-filter: blur(15px) saturate(180%);
+  border: 1px solid rgba(103, 232, 249, 0.3) !important;
+  box-shadow: 0 0 30px rgba(103, 232, 249, 0.15);
+}
+
+/* Dark mode skeleton loaders */
+.dark .animate-pulse {
+  background: linear-gradient(90deg, rgba(30, 30, 30, 0.6) 25%, rgba(42, 42, 42, 0.6) 50%, rgba(30, 30, 30, 0.6) 75%);
+  background-size: 200% 100%;
+}
+
+/* Dark mode toast notifications */
+.dark [data-sonner-toast] {
+  background: rgba(30, 30, 30, 0.9) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(79, 70, 229, 0.3) !important;
+  color: #E0E0E0 !important;
+}
+
+/* Dark mode profile card */
+.dark .profile-card {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 30px rgba(79, 70, 229, 0.15);
+}
+
+/* Dark mode chat bubbles */
+.dark .chat-bubble-sent {
+  background: linear-gradient(135deg, #5B21B6 0%, #4F46E5 100%);
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.3);
+}
+
+.dark .chat-bubble-received {
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+/* Logo "TVU Connect" text - gradient matching buttons */
+.logo-gradient-text {
+  background: linear-gradient(to right, #4F46E5, #7C3AED, #3B82F6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #4F46E5; /* Fallback color */
+}
+
+.dark .logo-gradient-text {
+  background: linear-gradient(to right, #6366F1, #8B5CF6, #60A5FA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #6366F1; /* Fallback color */
+}
+
+/* Matching page heading - force visible in both light and dark */
+.matching-heading {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+.dark .matching-heading {
+  color: #f9fafb !important;
+  -webkit-text-fill-color: #f9fafb !important;
+}
+
+.matching-subheading {
+  color: #374151 !important;
+  -webkit-text-fill-color: #374151 !important;
+}
+
+.dark .matching-subheading {
+  color: #d1d5db !important;
+  -webkit-text-fill-color: #d1d5db !important;
+}
+
+/* Heading "TVU Connect" text - gradient matching "Cập nhật hồ sơ" button */
+.heading-gradient-text {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #3B82F6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #4F46E5; /* Fallback color */
+  display: inline-block;
+  /* Fix Safari iOS leak: isolate gradient clipping */
+  isolation: isolate;
+  position: relative;
+}
+
+.dark .heading-gradient-text {
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #60A5FA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #6366F1; /* Fallback color */
+  isolation: isolate;
+  position: relative;
+}
+
+/* Reset text-fill-color for siblings/children after gradient text */
+.heading-gradient-text ~ * {
+  -webkit-text-fill-color: unset;
+  color: inherit;
+}
+
+/* Home welcome text - light/dark mode colors */
+.home-welcome-text {
+  color: #1f2937;
+  -webkit-text-fill-color: #1f2937;
+}
+.dark .home-welcome-text {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Conversations subtitle text - light/dark mode colors */
+.conversations-subtitle {
+  color: #4b5563;
+  -webkit-text-fill-color: #4b5563;
+}
+.dark .conversations-subtitle {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Posts subtitle text - light/dark mode colors */
+.posts-subtitle {
+  color: #374151;
+  -webkit-text-fill-color: #374151;
+}
+.dark .posts-subtitle {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Page headings (Bảng tin TVU, Tin nhắn, etc.) - light/dark mode */
+.page-heading {
+  color: #111827;
+  -webkit-text-fill-color: #111827;
+}
+.dark .page-heading {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+button, 
+a, 
+input, 
+select, 
+textarea, 
+.card, 
+.modal, 
+.profile-card,
+.chat-bubble-sent,
+.chat-bubble-received,
+[role="button"] {
+  transition: background-color 0.15s ease, 
+              border-color 0.15s ease, 
+              color 0.15s ease,
+              box-shadow 0.15s ease,
+              transform 0.1s ease;
+}
+
+/* Optimize specific animated elements ONLY */
+.modal-content,
+.sliding-panel {
+  will-change: transform;
+}
+
+/* Optimize animations for 60fps */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%) translateZ(0);
+  }
+  to {
+    transform: translateX(0) translateZ(0);
+  }
+}
+
+@keyframes loading-bar {
+  0% { transform: scaleX(0); transform-origin: 0% 50%; }
+  50% { transform: scaleX(1); transform-origin: 0% 50%; }
+  51% { transform: scaleX(1); transform-origin: 100% 50%; }
+  100% { transform: scaleX(0); transform-origin: 100% 50%; }
+}
+
+/* Use transform instead of top/left for better performance */
+.animate-slide {
+  animation: slideIn 0.2s ease-out;
+}
+
+.animate-fade {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Optimize scroll containers */
+.overflow-y-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  contain: layout style paint;
+}
+
+/* Content visibility for off-screen content - massive paint perf win */
+/* Bug 1.5 fix: tách .post-card ra riêng với contain-intrinsic-size khớp chiều cao thực tế */
+.post-card {
+  content-visibility: auto;
+  /* PostCard không ảnh: ~160px | có 1 ảnh: ~350px | có nhiều ảnh: ~500px */
+  contain-intrinsic-size: 0 350px;
+}
+
+/* Variant cho post chỉ text (không có ảnh) */
+.post-card.text-only {
+  contain-intrinsic-size: 0 160px;
+}
+
+/* Variant cho post có nhiều ảnh */
+.post-card.multi-image {
+  contain-intrinsic-size: 0 520px;
+}
+
+.conversation-item,
+.document-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 120px;
+}
+
+/* Bug 1.14 fix: PostCard dùng CSS custom properties để tránh hardcode color conflict */
+.post-card {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+/* GPU compositing for nav bar - stays on its own layer */
+nav {
+  transform: translateZ(0);
+  will-change: auto;
+}
+
+/* Screen reader only - hide visually but keep for screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid #4F46E5;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.dark *:focus-visible {
+  outline-color: #6366F1;
+}
+
+/* Disable heavy effects on mobile for better performance */
+@media (max-width: 768px) {
+  
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100,
+  nav,
+  #mobile-menu-container,
+  [style*="backdrop-filter"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  main {
+    contain: content;
+  }
+}
+
+
+/* Chỉ áp dụng cho giao diện Mobile - Status Options */
+@media (max-width: 768px) {
+  /* Place Info Box - Thông tin địa điểm */
+  .place-info-box {
+    background-color: #e0e7ff !important; /* Nền xanh nhạt */
+    border: 1px solid #6366f1 !important; /* Viền xanh */
+  }
+  
+  .place-name {
+    color: #1e1b4b !important; /* Chữ xanh đậm */
+    font-size: 16px !important;
+    font-weight: 700 !important;
+  }
+  
+  .place-address {
+    color: #312e81 !important; /* Chữ xanh đậm */
+    font-size: 14px !important;
+    font-weight: 500 !important;
+  }
+  
+  /* Dark mode - Place Info */
+  .dark .place-info-box {
+    background-color: #3730a3 !important; /* Nền xanh đậm */
+    border: 1px solid #818cf8 !important; /* Viền xanh sáng */
+  }
+  
+  .dark .place-name {
+    color: #e0e7ff !important; /* Chữ trắng xanh */
+  }
+  
+  .dark .place-address {
+    color: #c7d2fe !important; /* Chữ xanh nhạt */
+  }
+  
+  .status-option {
+    background-color: #ffffff !important; /* Đổi nền thành trắng */
+    color: #000000 !important;           /* Đổi chữ thành đen */
+    border: 1px solid #e0e0e0;          /* Thêm viền nhẹ để dễ nhìn */
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+  }
+  
+  /* Dark mode - Status Options */
+  .dark .status-option {
+    background-color: #374151 !important; /* Nền xám đậm */
+    color: #ffffff !important;           /* Chữ trắng */
+    border: 1px solid #4b5563 !important;
+  }
+  
+  /* Hiệu ứng khi nhấn chọn */
+  .status-option.active {
+    background-color: #6366f1 !important; /* Giữ màu tím cho nút đang chọn */
+    color: #ffffff !important;           /* Chữ trắng cho nút đang chọn */
+    border-color: #6366f1;
+  }
+  
+  .dark .status-option.active {
+    background-color: #818cf8 !important; /* Tím sáng hơn cho dark mode */
+    color: #000000 !important;           /* Chữ đen để tương phản */
+    border-color: #818cf8;
+  }
+  
+  /* Hover effect trên mobile */
+  .status-option:hover {
+    background-color: #f5f5f5 !important;
+  }
+  
+  .dark .status-option:hover {
+    background-color: #4b5563 !important;
+  }
+  
+  .status-option.active:hover {
+    background-color: #4f46e5 !important;
+  }
+  
+  .dark .status-option.active:hover {
+    background-color: #6366f1 !important;
+  }
+  
+  /* Visibility Options - Ai có thể thấy? */
+  .visibility-option {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 8px;
+  }
+  
+  .dark .visibility-option {
+    background-color: #374151 !important;
+    color: #ffffff !important;
+    border: 1px solid #4b5563 !important;
+  }
+  
+  .visibility-option.active {
+    background-color: #6366f1 !important;
+    color: #ffffff !important;
+    border-color: #6366f1;
+  }
+  
+  .dark .visibility-option.active {
+    background-color: #818cf8 !important;
+    color: #000000 !important;
+    border-color: #818cf8;
+  }
+  
+  .visibility-option:hover {
+    background-color: #f5f5f5 !important;
+  }
+  
+  .dark .visibility-option:hover {
+    background-color: #4b5563 !important;
+  }
+  
+  .visibility-option.active:hover {
+    background-color: #4f46e5 !important;
+  }
+  
+  .dark .visibility-option.active:hover {
+    background-color: #6366f1 !important;
+  }
+  
+  /* Expiry Notice - Thông báo hết hạn */
+  .expiry-notice {
+    background-color: #fff9e6 !important; /* Nền vàng nhạt */
+    border: 2px solid #f59e0b !important; /* Viền vàng đậm */
+  }
+  
+  .dark .expiry-notice {
+    background-color: #78350f !important; /* Nền nâu đậm */
+    border: 2px solid #fbbf24 !important; /* Viền vàng sáng */
+  }
+  
+  .expiry-notice p {
+    color: #92400e !important; /* Chữ nâu đậm dễ đọc */
+    font-weight: 600 !important;
+  }
+  
+  .dark .expiry-notice p {
+    color: #fef3c7 !important; /* Chữ vàng nhạt */
+    font-weight: 600 !important;
+  }
+  
+  .expiry-notice .text-xs {
+    color: #78350f !important; /* Chữ nhỏ cũng đậm hơn */
+    font-weight: 500 !important;
+  }
+  
+  .dark .expiry-notice .text-xs {
+    color: #fde68a !important; /* Chữ vàng sáng */
+    font-weight: 500 !important;
+  }
+  
+  /* Cancel Button - Nút Hủy */
+  .cancel-button {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #e0e0e0 !important;
+  }
+  
+  .dark .cancel-button {
+    background-color: #374151 !important;
+    color: #ffffff !important;
+    border: 1px solid #4b5563 !important;
+  }
+  
+  .cancel-button:hover {
+    background-color: #f5f5f5 !important;
+  }
+  
+  .dark .cancel-button:hover {
+    background-color: #4b5563 !important;
+  }
+}
+
+
+
+
+
+
+/* Tối ưu MapView cho Mobile - Chỉ chế độ sáng */
+@media (max-width: 768px) {
+  /* Tab Menu - Bản đồ, Địa điểm, AI Trợ lý */
+  .map-tab-button {
+    font-weight: 700 !important; /* Chữ đậm hơn */
+    font-size: 15px !important;
+  }
+  
+  .map-tab-button svg {
+    width: 22px !important;
+    height: 22px !important;
+    stroke-width: 2.5 !important; /* Icon đậm hơn */
+  }
+  
+  /* Đường line dưới tab active */
+  .map-tab-active-line {
+    border-bottom-width: 3px !important;
+    border-radius: 999px !important; /* Bo tròn 2 đầu */
+    margin-left: 20% !important; /* Căn giữa dưới text */
+    margin-right: 20% !important;
+  }
+  
+  /* Category Filter Buttons - Chỉ chế độ sáng */
+  .category-filter-button {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #E2E8F0 !important;
+    padding: 10px 16px !important; /* Tăng padding */
+    font-weight: 600 !important;
+  }
+  
+  .category-filter-button:hover {
+    background-color: #f8fafc !important;
+  }
+  
+  .category-filter-button.active {
+    background-color: #6366f1 !important;
+    color: #ffffff !important;
+    border-color: #6366f1 !important;
+  }
+  
+  .category-filter-button.active:hover {
+    background-color: #4f46e5 !important;
+  }
+  
+  /* Giữ nguyên cho dark mode */
+  .dark .category-filter-button {
+    background-color: #374151 !important;
+    color: #ffffff !important;
+    border: 1px solid #4b5563 !important;
+  }
+  
+  .dark .category-filter-button:hover {
+    background-color: #4b5563 !important;
+  }
+  
+  .dark .category-filter-button.active {
+    background-color: #6366f1 !important;
+    color: #ffffff !important;
+    border-color: #6366f1 !important;
+  }
+}
+
+
+
+/* Chỉ áp dụng cho Mobile Light Mode - MapView */
+@media (max-width: 768px) {
+  /* Tab Menu phía trên - Chỉ Light Mode */
+  .top-tab-item {
+    color: #1a1a1a !important; /* Chữ đen đậm */
+    font-weight: 700 !important;
+  }
+  
+  /* Các nút lọc category - Chỉ Light Mode */
+  .filter-category-btn:not(.active) {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  
+  .filter-category-btn.active {
+    background-color: #6366f1 !important;
+    color: #ffffff !important;
+    border-color: #6366f1 !important;
+  }
+  
+  /* Dark mode giữ nguyên - không bị ảnh hưởng */
+  .dark .top-tab-item {
+    color: inherit !important;
+    font-weight: inherit !important;
+  }
+  
+  .dark .filter-category-btn:not(.active) {
+    background-color: inherit !important;
+    color: inherit !important;
+    border: inherit !important;
+  }
+  
+  .dark .filter-category-btn.active {
+    background-color: inherit !important;
+    color: inherit !important;
+    border-color: inherit !important;
+  }
+}
+
+/* Tối ưu Place Stats Badges cho Mobile */
+@media (max-width: 768px) {
+  /* Đảm bảo badges hiển thị đẹp trên mobile */
+  .place-stats-badges {
+    gap: 0.5rem !important; /* 8px gap giữa các badges */
+  }
+  
+  /* Tăng kích thước badges trên mobile để dễ đọc hơn */
+  .place-badge {
+    padding: 0.4rem 0.65rem !important;
+    font-size: 0.8125rem !important; /* 13px */
+  }
+  
+  /* Icon trong badges */
+  .place-badge svg {
+    width: 0.875rem !important;
+    height: 0.875rem !important;
+  }
+  
+  /* Text trong badges */
+  .place-badge span:last-child {
+    font-size: 0.8125rem !important;
+    font-weight: 700 !important;
+  }
+}
+
+/* Tối ưu cho màn hình rất nhỏ (< 375px) */
+@media (max-width: 375px) {
+  .place-badge {
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.75rem !important; /* 12px */
+  }
+  
+  .place-badge span:last-child {
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Làm sáng Place Stats Badges ở Light Mode trên Mobile */
+@media (max-width: 768px) {
+  /* Chỉ áp dụng cho Light Mode - Làm badges sáng hơn */
+  :root:not(.dark) .place-badge-rating {
+    background-color: #FEF3C7 !important; /* amber-100 - sáng hơn */
+    border-color: #FDE68A !important; /* amber-200 */
+  }
+  
+  :root:not(.dark) .place-badge-hours {
+    background-color: #D1FAE5 !important; /* emerald-100 - sáng hơn */
+    border-color: #A7F3D0 !important; /* emerald-200 */
+  }
+  
+  :root:not(.dark) .place-badge-price {
+    background-color: #DBEAFE !important; /* blue-100 - sáng hơn */
+    border-color: #BFDBFE !important; /* blue-200 */
+  }
+  
+  :root:not(.dark) .place-badge-events {
+    background-color: #F3E8FF !important; /* purple-100 - sáng hơn */
+    border-color: #E9D5FF !important; /* purple-200 */
+  }
+}
+
+/* Thêm khung cho các nút category filter ở Dark Mode trên Mobile */
+@media (max-width: 768px) {
+  .dark .filter-category-btn:not(.active) {
+    border: 1.5px solid #4B5563 !important; /* Viền xám đậm hơn */
+    background-color: rgba(55, 65, 81, 0.8) !important; /* Nền tối hơn một chút */
+  }
+  
+  .dark .filter-category-btn.active {
+    border: 1.5px solid #6366f1 !important; /* Viền tím cho nút active */
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3) !important; /* Glow effect nhẹ */
+  }
+}
+
+/* Custom scrollbar for horizontal scroll in Quick Replies */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 2px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Dark mode scrollbar */
+.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+  background: rgba(165, 180, 252, 0.3);
+}
+
+.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(165, 180, 252, 0.5);
+}
+
+/* Glassmorphism animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Location Picker Modal Animations - uses global fadeIn/slideUp keyframes above */
+
+/* Enhanced Place List Filter Animations */
+@keyframes pulse-glow-filter {
+  0%, 100% { 
+    box-shadow: 0 0 0 rgba(139, 92, 246, 0);
+  }
+  50% { 
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+}
+
+.filter-button-active {
+  animation: pulse-glow-filter 2s infinite;
+}
+
+/* Toggle Switch Animation */
+.toggle-switch {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-switch:checked {
+  transform: translateX(20px);
+}
+
+/* Results Counter Animation */
+@keyframes count-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0);
+  }
+}
+
+.results-counter {
+  animation: count-up 0.3s ease-out;
+}
+
+/* Radius Filter Button Hover */
+.radius-filter-btn:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* Sort Button Hover */
+.sort-btn:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* Scrollbar hide + smooth horizontal scroll for filters */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Grid auto-fit for responsive cards */
+@media (min-width: 640px) {
+  .grid-cols-auto-fit {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Modal Animations - uses global fadeIn/slideUp keyframes */
+
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass-morphism {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.page-transition {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}
+
+.active-pop {
+  transition: transform 0.1s ease;
+}
+
+.active-pop:active {
+  transform: scale(0.96);
+}
+
+/* ========================================
+   MOBILE PERFORMANCE OPTIMIZATION
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Tắt backdrop-filter trên các thiết bị cũ/yếu */
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass-morphism {
+      background: rgba(255, 255, 255, 0.95) !important;
+    }
+  }
+  
+  /* Tối ưu scroll performance */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Giảm shadow complexity cho mobile để tăng FPS */
+  .shadow-2xl {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Đảm bảo clickable area đủ lớn (Apple Human Interface Guidelines)
+     Bug 3.5: thêm [role="button"] vào selector để bao phủ mọi touch target */
+  button, [role="button"], a, .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Only reduce long/loop animations on mobile, not UI transitions */
+  @keyframes loading-bar-mobile {
+    0% { transform: scaleX(0); transform-origin: 0% 50%; }
+    100% { transform: scaleX(1); transform-origin: 0% 50%; }
+  }
+}
+
+/* ========================================
+   MOBILE ULTRA-SMALL — Chặn horizontal overflow
+   Áp dụng cho viewport < 375px (Galaxy A, older iPhones, ...)
+   ======================================== */
+
+/* Bug 1.1 fix: chặn .max-w-2xl/.max-w-4xl tạo ra overflow ngang */
+@media (max-width: 374px) {
+  .max-w-2xl,
+  .max-w-4xl {
+    max-width: 100% !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Đảm bảo tất cả flex container không overflow — min-width mặc định là auto,
+     có thể khiến flex children vượt quá container */
+  .flex {
+    min-width: 0;
+  }
+}
+
+/* ========================================
+   MODAL MOBILE SAFE — Bug 1.2 fix
+   Modal bị cắt nội dung trên mobile khi content > 90dvh
+   Bug_Condition: modalOpen=true AND modalContentHeight > viewportHeight*0.9 AND overflow!='auto'
+   ======================================== */
+
+/* Class helper: áp dụng trực tiếp lên modal container để đảm bảo cuộn được */
+.modal-mobile-safe {
+  max-height: 90dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 768px) {
+  /* Bottom sheet pattern cho modal trên mobile */
+  [role="dialog"],
+  .modal-content {
+    max-height: 90dvh !important;
+    overflow-y: auto !important;
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ========================================
+   LANDSCAPE FONT SIZE — Bug 3.4 fix
+   Font size responsive trên mobile landscape
+   Bug_Condition: orientation='landscape' AND viewportWidth<768 AND (fontSize<13 OR fontSize>18)
+   Expected_Behavior: font-size ∈ [13px, 16px] trên mobile landscape
+   ======================================== */
+
+/* Portrait mobile: tăng font cho post content text */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  .post-content-text {
+    font-size: clamp(14px, 4vw, 17px);
+  }
+}
+
+/* Landscape mobile nhỏ (điện thoại ngang, chiều cao < 500px):
+   giảm font-size để tránh text quá to chiếm hết màn hình */
+@media screen and (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  html {
+    font-size: 15px; /* Giảm từ 18px (portrait mobile) xuống 15px */
+  }
+
+  .post-card-content {
+    font-size: clamp(13px, 2.5vw, 16px);
+  }
+
+  .post-content-text {
+    font-size: clamp(13px, 2.5vw, 16px);
+  }
+}
+
+/* ========================================
+   TOUCH TARGET — Bug 3.5 fix
+   Mở rộng touch target ẩn bằng pseudo-element cho các icon button nhỏ
+   Bug_Condition: buttonElement.offsetWidth < 44 OR buttonElement.offsetHeight < 44 AND isTouchDevice
+   Expected_Behavior: Mọi touch target ≥ 44×44px kể cả pseudo-element
+   Preservation: Desktop layout không bị ảnh hưởng vì pseudo-element position: absolute
+   ======================================== */
+
+/* Cho phép pseudo-element ::after mở rộng vùng nhấn mà không chiếm layout */
+.btn-icon-sm {
+  position: relative;
+}
+
+/* Touch target ẩn: căn giữa và đảm bảo tối thiểu 44×44px theo WCAG 2.5.5 */
+.btn-icon-sm::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  /* Không có background/border để hoàn toàn ẩn với người dùng */
+}
+
+/* Cluster icon styling for MapView */
+.custom-cluster {
+  background: transparent;
+  border: none;
+}
+
+.cluster-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  border: 2px solid white;
+}
+
+.dark .cluster-icon {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+/* ========================================
+   SCROLL ANCHOR — Bug 3.6 fix (Requirements: 2.18)
+   Giữ vị trí scroll khi loadMore thêm nội dung phía trên
+   ======================================== */
+
+/* Bật overflow-anchor để browser tự động neo scroll position */
+.chat-messages-container {
+  overflow-anchor: auto;
+}
+
+/* Anchor element đặt ở cuối danh sách tin nhắn — height 1px để không ảnh hưởng layout */
+.chat-scroll-anchor {
+  overflow-anchor: auto;
+  height: 1px;
+}
+
+/* ========================================
+   TAB SWITCHING SCROLL CANCEL — Bug 3.6 fix (Requirements: 2.13)
+   Tắt scroll-behavior trong quá trình chuyển tab để cancel animation ngay lập tức
+   ======================================== */
+
+.tab-switching * {
+  scroll-behavior: auto !important;
+}
+
+/* ========================================
+   CONVERSATION ITEM TOUCH — Bug 3.6 fix (Requirements: 2.17)
+   Tắt double-tap-to-zoom và tap highlight để cải thiện responsiveness
+   ======================================== */
+
+.conversation-item {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}

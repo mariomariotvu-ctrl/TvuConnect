@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xóa User Ảo - TVU Connect</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .warning {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 25px;
+      color: #856404;
+    }
+    
+    .warning strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 16px;
+    }
+    
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 15px;
+      margin-bottom: 25px;
+      border-radius: 8px;
+    }
+    
+    .info-box h3 {
+      color: #1976d2;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    
+    .info-box ul {
+      margin-left: 20px;
+      color: #555;
+    }
+    
+    .info-box li {
+      margin: 5px 0;
+    }
+    
+    button {
+      width: 100%;
+      padding: 15px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 15px;
+    }
+    
+    button:hover:not(:disabled) {
+      background: #c82333;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+    }
+    
+    .btn-secondary:hover:not(:disabled) {
+      background: #5a6268;
+    }
+    
+    #status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 12px;
+      display: none;
+    }
+    
+    #status.show {
+      display: block;
+    }
+    
+    #status.success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    
+    #status.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    
+    #status.info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+    
+    .progress {
+      margin-top: 15px;
+      display: none;
+    }
+    
+    .progress.show {
+      display: block;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e9ecef;
+      border-radius: 15px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .stat-card {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 32px;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗑️ Xóa User Ảo</h1>
+    <p class="subtitle">Tool xóa tất cả người dùng ảo (fake users) khỏi hệ thống</p>
+    
+    <div class="warning">
+      <strong>⚠️ CẢNH BÁO QUAN TRỌNG</strong>
+      Thao tác này sẽ XÓA VĨNH VIỄN tất cả user ảo. Không thể hoàn tác!
+    </div>
+    
+    <div class="info-box">
+      <h3>📋 Tiêu chí nhận diện User Ảo:</h3>
+      <ul>
+        <li>Email có chứa "fakeuser" hoặc "test"</li>
+        <li>Tên có chứa "Test User" hoặc "Fake"</li>
+        <li>Bio có chứa "Generated for testing"</li>
+      </ul>
+    </div>
+    
+    <button id="scanBtn" onclick="scanFakeUsers()">
+      🔍 Quét User Ảo
+    </button>
+    
+    <button id="deleteBtn" onclick="deleteFakeUsers()" disabled style="display: none;">
+      🗑️ Xóa Tất Cả User Ảo
+    </button>
+    
+    <button class="btn-secondary" onclick="location.reload()">
+      🔄 Làm Mới
+    </button>
+    
+    <div class="stats" id="stats" style="display: none;">
+      <div class="stat-card">
+        <div class="stat-number" id="totalCount">0</div>
+        <div class="stat-label">User Ảo Tìm Thấy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="deletedCount">0</div>
+        <div class="stat-label">Đã Xóa</div>
+      </div>
+    </div>
+    
+    <div class="progress" id="progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+      </div>
+    </div>
+    
+    <div id="status"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, getDocs, deleteDoc, doc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyDXSUL_kvIE-r8aMxzJzjy5Oj-EnSQx-Ow",
+      authDomain: "tvu-connect.firebaseapp.com",
+      projectId: "tvu-connect",
+      storageBucket: "tvu-connect.firebasestorage.app",
+      messagingSenderId: "43871673395",
+      appId: "1:43871673395:web:e3c5e8e8f8e8e8e8e8e8e8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    let fakeUsers = [];
+    
+    window.scanFakeUsers = async function() {
+      const btn = document.getElementById('scanBtn');
+      const status = document.getElementById('status');
+      const stats = document.getElementById('stats');
+      const deleteBtn = document.getElementById('deleteBtn');
+      
+      btn.disabled = true;
+      btn.textContent = '🔍 Đang quét...';
+      status.className = 'info show';
+      status.textContent = 'Đang quét database...';
+      
+      try {
+        const profilesRef = collection(db, 'profiles');
+        const snapshot = await getDocs(profilesRef);
+        
+        fakeUsers = [];
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const email = data.email || '';
+          const fullName = data.fullName || '';
+          const bio = data.bio || '';
+          
+          // Kiểm tra tiêu chí user ảo
+          const isFake = 
+            email.includes('fakeuser') ||
+            email.includes('test') ||
+            fullName.includes('Test User') ||
+            fullName.includes('Fake') ||
+            bio.includes('Generated for testing');
+          
+          if (isFake) {
+            fakeUsers.push({
+              id: doc.id,
+              email: email,
+              fullName: fullName
+            });
+          }
+        });
+        
+        document.getElementById('totalCount').textContent = fakeUsers.length;
+        stats.style.display = 'grid';
+        
+        if (fakeUsers.length > 0) {
+          status.className = 'success show';
+          status.innerHTML = `
+            <strong>✅ Tìm thấy ${fakeUsers.length} user ảo</strong><br>
+            <div style="margin-top: 10px; max-height: 200px; overflow-y: auto;">
+              ${fakeUsers.map(u => `• ${u.fullName} (${u.email})`).join('<br>')}
+            </div>
+          `;
+          deleteBtn.style.display = 'block';
+          deleteBtn.disabled = false;
+        } else {
+          status.className = 'info show';
+          status.textContent = 'Không tìm thấy user ảo nào trong hệ thống.';
+          deleteBtn.style.display = 'none';
+        }
+        
+      } catch (error) {
+        console.error('Error:', error);
+        status.className = 'error show';
+        status.textContent = '❌ Lỗi: ' + error.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Quét User Ảo';
+      }
+    };
+    
+    window.deleteFakeUsers = async function() {
+      if (!confirm(`Bạn có CHẮC CHẮN muốn xóa ${fakeUsers.length} user ảo?\n\nThao tác này KHÔNG THỂ HOÀN TÁC!`)) {
+        return;
+      }
+      
+      const deleteBtn = document.getElementById('deleteBtn');
+      const status = document.getElementById('status');
+      const progress = document.getElementById('progress');
+      const progressFill = document.getElementById('progressFill');
+      const deletedCount = document.getElementById('deletedCount');
+      
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = '⏳ Đang xóa...';
+      progress.classList.add('show');
+      status.className = 'info show';
+      status.textContent = 'Đang xóa user ảo...';
+      
+      let deleted = 0;
+      const total = fakeUsers.length;
+      
+      try {
+        // Xóa từng user
+        for (let i = 0; i < fakeUsers.length; i++) {
+          const user = fakeUsers[i];
+          
+          try {
+            // Xóa profile từ Firestore
+            await deleteDoc(doc(db, 'profiles', user.id));
+            
+            deleted++;
+            deletedCount.textContent = deleted;
+            
+            const percent = Math.round((deleted / total) * 100);
+            progressFill.style.width = percent + '%';
+            progressFill.textContent = percent + '%';
+            
+            status.textContent = `Đang xóa... ${deleted}/${total}`;
+            
+          } catch (err) {
+            console.error(`Error deleting user ${user.id}:`, err);
+          }
+        }
+        
+        status.className = 'success show';
+        status.innerHTML = `
+          <strong>✅ Hoàn thành!</strong><br>
+          Đã xóa ${deleted}/${total} user ảo khỏi hệ thống.<br>
+          <small style="margin-top: 10px; display: block;">
+            ⚠️ Lưu ý: Bạn cần xóa users khỏi Firebase Authentication thủ công qua Firebase Console.
+          </small>
+        `;
+        
+        fakeUsers = [];
+        deleteBtn.style.display = 'none';
+        
+      } catch (error) {
+        console.error('Error:', error);
+        status.className = 'error show';
+        status.textContent = '❌ Lỗi: ' + error.message;
+      } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = '🗑️ Xóa Tất Cả User Ảo';
+      }
+    };
+  </script>
+</body>
+</html>

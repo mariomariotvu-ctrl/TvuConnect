@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="vi" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="google" content="notranslate" />
+    <meta http-equiv="Content-Language" content="vi" />
+    
+    <!-- SEO & Social Media Meta Tags -->
+    <title>TVU Connect - Kết nối sinh viên TVU</title>
+    <meta name="description" content="Nền tảng kết nối sinh viên Đại học Trà Vinh - Tìm bạn học, bạn cùng sở thích và người yêu" />
+    <meta name="author" content="TVU Connect" />
+    <meta name="keywords" content="TVU, Đại học Trà Vinh, sinh viên, kết nối, bạn bè, học tập" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://tvu-connect.vercel.app/" />
+    <meta property="og:title" content="TVU Connect" />
+    <meta property="og:description" content="Kết nối sinh viên Đại học Trà Vinh" />
+    <meta property="og:site_name" content="TVU Connect" />
+    <meta property="og:image" content="/logo.png" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Icons with modern SVG design -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='brand-g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234f46e5'/%3E%3Cstop offset='50%25' style='stop-color:%237c3aed'/%3E%3Cstop offset='100%25' style='stop-color:%233b82f6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='25' fill='url(%23brand-g)'/%3E%3Crect x='6' y='6' width='88' height='88' rx='18' fill='white'/%3E%3Ctext y='68' x='50' text-anchor='middle' font-family='sans-serif' font-weight='900' font-size='38' fill='url(%23brand-g)' style='letter-spacing: -2px;'%3ETVU%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='brand-g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234f46e5'/%3E%3Cstop offset='50%25' style='stop-color:%237c3aed'/%3E%3Cstop offset='100%25' style='stop-color:%233b82f6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='25' fill='url(%23brand-g)'/%3E%3Crect x='6' y='6' width='88' height='88' rx='18' fill='white'/%3E%3Ctext y='68' x='50' text-anchor='middle' font-family='sans-serif' font-weight='900' font-size='38' fill='url(%23brand-g)' style='letter-spacing: -2px;'%3ETVU%3C/text%3E%3C/svg%3E">
+    
+    <!-- Dark Mode Script - Must run before page renders to prevent flash -->
+    <script>
+      (function() {
+        // Helper function to determine theme based on time
+        function getAutoTheme() {
+          const hour = new Date().getHours();
+          return (hour >= 6 && hour < 18) ? 'light' : 'dark';
+        }
+        
+        // Check if user has manually set theme
+        const themeMode = localStorage.getItem('tvu-connect-theme-mode');
+        let theme;
+        
+        if (themeMode === 'manual') {
+          // User has manually chosen, use their preference
+          theme = localStorage.getItem('tvu-connect-theme') || 'light';
+        } else {
+          // Auto mode: determine by time
+          theme = getAutoTheme();
+        }
+        
+        // CRITICAL: Ensure clean state before applying theme
+        // Remove any existing dark class first to prevent conflicts
+        document.documentElement.classList.remove('dark');
+        
+        // Apply theme immediately to prevent flash
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+        
+        // Debug log for mobile testing (remove in production)
+        console.log('[Dark Mode Init]', {
+          themeMode: themeMode,
+          theme: theme,
+          hour: new Date().getHours(),
+          hasDarkClass: document.documentElement.classList.contains('dark')
+        });
+      })();
+    </script>
+  </head>
+  <body class="notranslate">
+    <div id="root"></div>
+    
+    <!-- Google API Script - Load before app -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      // Register optimized service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw-optimized.js')
+            .then((registration) => {
+              console.log('[SW] Registered successfully:', registration.scope);
+              
+              // Check for updates periodically
+              setInterval(() => {
+                registration.update();
+              }, 60 * 60 * 1000); // Check every hour
+              
+              // Handle updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New service worker available
+                    console.log('[SW] New version available');
+                    // Optionally show update notification to user
+                  }
+                });
+              });
+            })
+            .catch((error) => {
+              console.error('[SW] Registration failed:', error);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

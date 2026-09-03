@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Firebase Connection - Simple</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 text-gray-900">🔍 Test Firebase Connection</h1>
+    
+    <div id="status" class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-xl font-bold mb-4">Trạng thái</h2>
+      <div id="statusContent" class="space-y-2">
+        <p class="text-gray-600">Đang kiểm tra...</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-bold mb-4">Test Tạo User</h2>
+      <input 
+        type="text" 
+        id="userId" 
+        placeholder="Nhập User ID (ví dụ: test123)" 
+        class="w-full px-4 py-2 border rounded-lg mb-3"
+      />
+      <button 
+        id="testBtn"
+        class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-bold"
+      >
+        Tạo User
+      </button>
+      <div id="result" class="mt-4 p-4 bg-gray-100 rounded-lg hidden"></div>
+    </div>
+
+    <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <h3 class="font-bold text-yellow-800 mb-2">📋 Hướng dẫn debug:</h3>
+      <ol class="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
+        <li>Nhấn <strong>F12</strong> để mở DevTools</li>
+        <li>Chọn tab <strong>Console</strong></li>
+        <li>Xem các dòng log màu xanh/đỏ</li>
+        <li>Chụp màn hình và gửi cho Kiro nếu có lỗi</li>
+      </ol>
+    </div>
+  </div>
+
+  <script type="module">
+    // Log helper
+    function log(message, type = 'info') {
+      const colors = {
+        info: 'color: blue; font-weight: bold',
+        success: 'color: green; font-weight: bold',
+        error: 'color: red; font-weight: bold'
+      };
+      console.log(`%c[${type.toUpperCase()}] ${message}`, colors[type]);
+    }
+
+    function updateStatus(html, type = 'info') {
+      const statusContent = document.getElementById('statusContent');
+      const colors = {
+        info: 'text-blue-600',
+        success: 'text-green-600',
+        error: 'text-red-600'
+      };
+      statusContent.innerHTML = `<p class="${colors[type]}">${html}</p>`;
+    }
+
+    log('Script started', 'info');
+    updateStatus('Đang tải Firebase SDK...');
+
+    // Import Firebase
+    let initializeApp, getFirestore, doc, setDoc, serverTimestamp, Timestamp;
+    
+    try {
+      const firebaseApp = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+      const firebaseFirestore = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+      
+      initializeApp = firebaseApp.initializeApp;
+      getFirestore = firebaseFirestore.getFirestore;
+      doc = firebaseFirestore.doc;
+      setDoc = firebaseFirestore.setDoc;
+      serverTimestamp = firebaseFirestore.serverTimestamp;
+      Timestamp = firebaseFirestore.Timestamp;
+      
+      log('Firebase SDK loaded successfully', 'success');
+      updateStatus('✅ Firebase SDK đã tải xong', 'success');
+    } catch (error) {
+      log('Failed to load Firebase SDK: ' + error.message, 'error');
+      updateStatus('❌ Lỗi tải Firebase SDK: ' + error.message, 'error');
+      throw error;
+    }
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyByuf-sL2MfEE2zE4reYHxqAGlDg5CcJ9w",
+      authDomain: "gen-lang-client-0050597412.firebaseapp.com",
+      projectId: "gen-lang-client-0050597412",
+      storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
+      messagingSenderId: "43871673395",
+      appId: "1:43871673395:web:00e950c3694f2a49291746"
+    };
+
+    log('Initializing Firebase...', 'info');
+    updateStatus('Đang khởi tạo Firebase...');
+
+    let app, db;
+    
+    try {
+      app = initializeApp(firebaseConfig);
+      log('Firebase app initialized', 'success');
+      
+      db = getFirestore(app);
+      log('Firestore initialized', 'success');
+      
+      updateStatus('✅ Firebase đã sẵn sàng! Bạn có thể test tạo user.', 'success');
+    } catch (error) {
+      log('Firebase initialization failed: ' + error.message, 'error');
+      updateStatus('❌ Lỗi khởi tạo Firebase: ' + error.message, 'error');
+      throw error;
+    }
+
+    // Test button
+    document.getElementById('testBtn').addEventListener('click', async () => {
+      const userId = document.getElementById('userId').value.trim();
+      const resultDiv = document.getElementById('result');
+      const btn = document.getElementById('testBtn');
+      
+      if (!userId) {
+        alert('Vui lòng nhập User ID');
+        return;
+      }
+
+      log(`Starting test for user: ${userId}`, 'info');
+      btn.disabled = true;
+      btn.textContent = 'Đang xử lý...';
+      resultDiv.classList.add('hidden');
+      updateStatus('Đang tạo user...');
+
+      try {
+        log('Creating Firestore document...', 'info');
+        
+        const now = new Date();
+        const trialExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        
+        const userData = {
+          createdAt: serverTimestamp(),
+          trialExpiryDate: Timestamp.fromDate(trialExpiry),
+          isPremium: false,
+          premiumExpiryDate: null,
+          updatedAt: serverTimestamp(),
+        };
+        
+        log('User data prepared: ' + JSON.stringify({
+          ...userData,
+          createdAt: 'serverTimestamp()',
+          trialExpiryDate: trialExpiry.toISOString()
+        }), 'info');
+        
+        log('Calling setDoc...', 'info');
+        await setDoc(doc(db, 'users', userId), userData);
+        
+        log('User created successfully!', 'success');
+        
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = `
+          <p class="text-green-600 font-bold">✅ Thành công!</p>
+          <p class="text-sm mt-2">User ID: ${userId}</p>
+          <p class="text-sm">Trial hết hạn: ${trialExpiry.toLocaleString('vi-VN')}</p>
+          <p class="text-xs text-gray-500 mt-2">Kiểm tra Firebase Console để verify</p>
+        `;
+        updateStatus('✅ User đã được tạo thành công!', 'success');
+        
+      } catch (error) {
+        log('Error creating user: ' + error.message, 'error');
+        log('Error code: ' + error.code, 'error');
+        log('Full error: ' + JSON.stringify(error), 'error');
+        
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = `
+          <p class="text-red-600 font-bold">❌ Lỗi!</p>
+          <p class="text-sm mt-2"><strong>Message:</strong> ${error.message}</p>
+          <p class="text-sm"><strong>Code:</strong> ${error.code || 'N/A'}</p>
+          <p class="text-xs text-gray-500 mt-2">Xem Console (F12) để biết chi tiết</p>
+        `;
+        updateStatus('❌ Lỗi: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Tạo User';
+      }
+    });
+
+    log('All event listeners attached', 'success');
+    log('Ready to test!', 'success');
+  </script>
+</body>
+</html>
