@@ -2,7 +2,10 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// Firebase config - Updated with actual project config
+// Firebase config - Service Worker không đọc được env vars
+// Cần hardcode ở đây — đây là config PUBLIC (không phải secret key)
+// Firebase API key của web app là PUBLIC, không thể ẩn được
+// Bảo mật thực sự nằm ở Firestore Rules, không phải API key
 const firebaseConfig = {
   apiKey: "AIzaSyDbs3U6Meu68Oyi6kcz4v4bKi45TaNnqhQ",
   authDomain: "tvu-connect-1dc97.firebaseapp.com",

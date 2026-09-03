@@ -4,8 +4,20 @@ dist/
 coverage/
 .DS_Store
 *.log
+
+# Environment files - KHÔNG được push lên GitHub
 .env
+.env.local
 .env.development
 .env.production
-!.env.local
+.env.*.local
+
+# Chỉ push .env.example (file mẫu không có key thật)
 !.env.example
+
+# Firebase AI Studio config (chứa API key)
+firebase-applet-config.json
+firebase-blueprint.json
+
+# Build output files (không cần push)
+index.js

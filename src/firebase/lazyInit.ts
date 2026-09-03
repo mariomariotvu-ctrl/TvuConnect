@@ -11,12 +11,12 @@ import { logger } from '@/utils/logger';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDbs3U6Meu68Oyi6kcz4v4bKi45TaNnqhQ",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "tvu-connect-1dc97.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "tvu-connect-1dc97",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "tvu-connect-1dc97.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "239699222039",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:239699222039:web:7808d2f8b2d97618d4c652",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Singleton instances

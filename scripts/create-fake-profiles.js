@@ -1,4 +1,4 @@
-/**zyY4w9pT2ZMUzOGvF2qfwWrsptB2
+/**
  * Script tạo profiles cho fake users trong Firestore
  * Chạy sau khi đã tạo users trong Firebase Authentication
  * 
@@ -9,15 +9,18 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import * as dotenv from 'dotenv';
 
-// Firebase config
+// Load environment variables từ .env.local
+dotenv.config({ path: '.env.local' });
+
 const firebaseConfig = {
-  apiKey: "AIzaSyByuf-sL2MfEE2zE4reYHxqAGlDg5CcJ9w",
-  authDomain: "gen-lang-client-0050597412.firebaseapp.com",
-  projectId: "gen-lang-client-0050597412",
-  storageBucket: "gen-lang-client-0050597412.firebasestorage.app",
-  messagingSenderId: "43871673395",
-  appId: "1:43871673395:web:00e950c3694f2a49291746",
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
