@@ -21,3 +21,9 @@ firebase-blueprint.json
 
 # Build output files (không cần push)
 index.js
+
+# Service account credentials (TUYỆT ĐỐI không push lên GitHub)
+scripts/source-service-account.json
+scripts/target-service-account.json
+*-service-account*.json
+*-adminsdk-*.json
