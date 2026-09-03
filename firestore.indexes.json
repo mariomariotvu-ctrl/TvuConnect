@@ -7,16 +7,6 @@
         {
           "fieldPath": "createdAt",
           "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
         },
         {
           "fieldPath": "userId",
