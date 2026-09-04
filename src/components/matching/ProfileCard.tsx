@@ -127,14 +127,16 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
           <img
             src={profile.photoURL}
             alt={profile.fullName}
-            loading="lazy"
-            decoding="async"
+            loading="eager"
+            decoding="sync"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 block"
             referrerPolicy="no-referrer"
             style={{
-              imageRendering: '-webkit-optimize-contrast',
+              imageRendering: 'auto',
               backfaceVisibility: 'hidden',
               transform: 'translateZ(0)',
+              WebkitTransform: 'translateZ(0)',
+              filter: 'none',
             }}
           />
         ) : (
