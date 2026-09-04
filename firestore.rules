@@ -11,6 +11,7 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
     
+    // isParticipant: dùng để check xem user có trong danh sách participants không
     function isParticipant(participants) {
       return isAuthenticated() && request.auth.uid in participants;
     }
