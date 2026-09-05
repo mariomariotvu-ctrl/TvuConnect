@@ -16,7 +16,7 @@ interface ListenerEntry {
 
 class ListenerRegistry {
   private listeners = new Map<string, ListenerEntry>();
-  private readonly maxListeners = 10;
+  private readonly maxListeners = 50; // Tăng lên 50 cho Blaze plan
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {

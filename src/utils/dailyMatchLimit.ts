@@ -7,7 +7,7 @@ interface MatchLimitData {
 
 const STORAGE_KEY_PREFIX = 'match_limit_8h_';
 const RESET_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 tiếng = 8 hours
-const MATCHES_PER_PERIOD = 5; // 5 lượt mỗi ca
+const MATCHES_PER_PERIOD = 8; // 8 lượt mỗi ca
 
 /**
  * Get match limit data for a user

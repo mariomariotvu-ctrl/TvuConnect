@@ -121,6 +121,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "isPublic",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "startTime",
           "order": "ASCENDING"
         },

@@ -428,7 +428,13 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
       },
       (error) => {
         console.error('Error loading events:', error);
-        setError('Không thể tải danh sách sự kiện');
+        // Index đang build hoặc không có events - không show error, chỉ set empty
+        if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+          setEvents([]);
+          logger.log('Events index building, showing empty state');
+        } else {
+          setError('Không thể tải danh sách sự kiện');
+        }
       }
     );
 
