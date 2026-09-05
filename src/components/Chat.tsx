@@ -466,17 +466,6 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
         toast.error(validation.error || 'Tin nhắn không hợp lệ');
         return;
       }
-
-      // Content moderation - Check for inappropriate content
-      const moderationCheck = shouldBlockMessage(sanitizedText);
-      if (moderationCheck.blocked) {
-        toast.error(moderationCheck.reason || 'Tin nhắn chứa nội dung vi phạm');
-        
-        // Log violation for admin review
-        const moderationResult = moderateContent(sanitizedText);
-        logViolation(auth.currentUser.uid, sanitizedText, moderationResult);
-        return;
-      }
     }
 
     // Validate audio size
@@ -498,8 +487,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
     logger.log('[Chat] setSending(true) — bắt đầu gửi tin nhắn', { audioData: !!audioData });
 
     // ── OPTIMISTIC UI ────────────────────────────────────────────────────────
-    // Show message instantly in the UI before Firestore confirms.
-    // The real-time listener will replace this temp message once server confirms.
+    // Show message instantly BEFORE content moderation (rollback if blocked)
     const optimisticId = `optimistic_${Date.now()}`;
     const optimisticMsg: Message = {
       id: optimisticId,
@@ -516,6 +504,21 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
     // Inject optimistic message and clear input immediately (instant feedback)
     setOptimisticMessages(prev => [...prev, optimisticMsg]);
     if (!audioData) setNewMessage('');
+
+    // Content moderation check (after optimistic inject — rollback if blocked)
+    if (!audioData) {
+      const moderationCheck = shouldBlockMessage(sanitizedText);
+      if (moderationCheck.blocked) {
+        // Rollback optimistic message
+        setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId));
+        setNewMessage(sanitizedText);
+        toast.error(moderationCheck.reason || 'Tin nhắn chứa nội dung vi phạm');
+        const moderationResult = moderateContent(sanitizedText);
+        logViolation(auth.currentUser.uid, sanitizedText, moderationResult);
+        setSending(false);
+        return;
+      }
+    }
 
     // Fire-and-forget: clear typing status (non-blocking)
     const typingRef = doc(db, 'typing', conversationId);
@@ -1053,7 +1056,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
                   setNewMessage(e.target.value);
                   handleTyping();
                 }}
-                disabled={isRecording || sending}
+                disabled={isRecording}
                 placeholder={isRecording ? "Đang ghi âm..." : "Nhập tin nhắn..."}
                 className="flex-1 min-w-0 px-4 py-2.5 md:py-3 border-2 border-violet-200 dark:border-violet-800/50 rounded-2xl focus:ring-2 focus:ring-violet-400 focus:border-violet-400 outline-none transition-all disabled:opacity-50 text-sm md:text-base"
                 style={{
