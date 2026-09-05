@@ -5,7 +5,7 @@ import { FIRESTORE_LIMITS } from '../utils/constants';
 import { calculateMatchingScore, normalizeVietnameseText } from '../utils/matchingUtils';
 import { applyFilters, alternateRecentAndOld, getMockProfiles } from '../utils/matchingHelpers';
 import { getFallbackProfiles } from './fallbackProfilesService';
-import { markProfileAsViewedInCache, getViewedStatsFromCache } from '../utils/viewedProfilesCache';
+import { markProfileAsViewedInCache, getViewedStatsFromCache, filterViewedProfiles } from '../utils/viewedProfilesCache';
 import { MatchingFilters } from '../hooks/useMatchingFilters';
 import { toast } from 'sonner';
 import { hasReachedDailyLimit, incrementMatchCount, getRemainingMatches, getTimeUntilReset } from '../utils/dailyMatchLimit';
@@ -117,6 +117,9 @@ export const fetchMatchingProfiles = async (
 
     // Lưu cache để loadOneMoreProfile tái sử dụng — tránh N+1 reads
     setCachedProfiles(filters, allProfiles);
+
+    // Filter out already viewed profiles (24h cooldown) — prevent duplicate results
+    allProfiles = filterViewedProfiles(allProfiles, userUid);
 
     // Apply remaining filters (in-memory)
     allProfiles = applyFilters(allProfiles, filters, mode, currentProfile);
