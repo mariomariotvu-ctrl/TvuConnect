@@ -317,6 +317,9 @@ export const loadOneMoreProfile = async (
         !shownUids.has(p.uid)
       );
 
+    // Filter out viewed profiles from cache (24h cooldown)
+    allProfiles = filterViewedProfiles(allProfiles, userUid);
+
     // Apply remaining filters (in-memory)
     allProfiles = applyFilters(allProfiles, filters, mode, currentProfile);
 
