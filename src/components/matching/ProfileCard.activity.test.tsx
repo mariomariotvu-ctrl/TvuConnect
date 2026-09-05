@@ -5,6 +5,7 @@
  * Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.2
  */
 
+import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ProfileCard } from './ProfileCard';

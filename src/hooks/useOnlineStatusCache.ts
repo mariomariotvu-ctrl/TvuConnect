@@ -74,10 +74,10 @@ export function useOnlineStatusCached(userId: string | undefined) {
               const data = docSnap.data();
               const lastActiveDate = data.lastActive?.toDate() || null;
               
-              // Allow 5 minutes (300,000ms) threshold to account for 3-min heartbeat + clock skew
+              // Allow 7 minutes (420,000ms) threshold to account for 3-min heartbeat + clock skew + network delays
               // Math.abs handles cases where client clock is behind server clock
               const isRecentlyActive = lastActiveDate 
-                ? Math.abs(Date.now() - lastActiveDate.getTime()) < 300000 
+                ? Math.abs(Date.now() - lastActiveDate.getTime()) < 420000 
                 : false;
               
               const isActuallyOnline = (data.isOnline || false) && isRecentlyActive;

@@ -9,6 +9,7 @@
  * Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5
  */
 
+import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -464,7 +465,7 @@ describe('Property 2: Preservation — Match document hợp lệ hoạt động 
 
     it('[PBT] mọi kịch bản mảng rỗng → không render', () => {
       fc.assert(
-        fc.property(fc.constant([]), (matches: Match[]) => {
+        fc.property(fc.constant([] as Match[]), (matches: Match[]) => {
           const { container, unmount } = render(
             <MatchingHistory
               matches={matches}
