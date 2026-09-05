@@ -778,7 +778,11 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
         >
           <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-200" />
         </button>
-        <div className="flex items-center gap-3 flex-1">
+        <div 
+          className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity active:opacity-60"
+          onClick={() => setShowProfile(true)}
+          title="Xem hồ sơ"
+        >
           {receiverProfile?.photoURL ? (
             <div className="relative">
               <img 
