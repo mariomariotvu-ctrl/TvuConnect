@@ -82,9 +82,9 @@ const WARNING_KEYWORDS = [
 
 // Patterns nguy hiểm
 const DANGEROUS_PATTERNS = [
-  /\b\d{10,11}\b/g, // Số điện thoại
-  /https?:\/\/[^\s]+/gi, // Links
-  /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, // Email
+  /\b\d{10,11}\b/, // Số điện thoại (không dùng global flag để tránh lastIndex bug)
+  /https?:\/\/[^\s]+/i, // Links
+  /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i, // Email
 ];
 
 export interface ModerationResult {
@@ -241,9 +241,9 @@ export const detectAdvancedSpam = (content: string): boolean => {
   const digitRatio = (content.match(/\d/g) || []).length / content.length;
   if (digitRatio > 0.4 && content.length > 10) return true;
   
-  // 3. Quá nhiều ký tự đặc biệt
-  const specialCharRatio = (content.match(/[^a-zA-Z0-9\s\u00C0-\u1EF9]/g) || []).length / content.length;
-  if (specialCharRatio > 0.3 && content.length > 10) return true;
+  // 3. Quá nhiều ký tự đặc biệt (loại trừ dấu tiếng Việt và emoji thông thường)
+  const specialCharRatio = (content.match(/[^a-zA-Z0-9\s\u00C0-\u1EF9\u{1F000}-\u{1FFFF}]/gu) || []).length / content.length;
+  if (specialCharRatio > 0.5 && content.length > 10) return true;
   
   // 4. Toàn chữ hoa (CAPS LOCK abuse)
   const upperCaseRatio = (content.match(/[A-Z]/g) || []).length / content.length;
