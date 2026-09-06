@@ -2,12 +2,7 @@
   "rules": {
     "presence": {
       "$userId": {
-        ".read": "auth != null && (
-          auth.uid === $userId ||
-          root.child('presence').child($userId).child('settings').child('invisibleMode').val() === false &&
-          root.child('presence').child($userId).child('settings').child('privacyMode').val() === false ||
-          root.child('users').child($userId).child('friends').child(auth.uid).exists()
-        ) && !root.child('users').child($userId).child('blocked').child(auth.uid).exists()",
+        ".read": "auth != null && (auth.uid === $userId || (root.child('presence').child($userId).child('settings').child('invisibleMode').val() === false && !root.child('users').child($userId).child('blocked').child(auth.uid).exists()))",
         
         ".write": "auth != null && auth.uid === $userId",
         
