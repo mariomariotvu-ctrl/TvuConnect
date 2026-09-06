@@ -399,13 +399,20 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       // Direct write without quota check for comments
       await addDoc(collection(db, 'comments'), commentData);
       
-      // Update post comment count
-      const postRef = doc(db, 'posts', postId);
-      const postDoc = await getDoc(postRef);
-      const currentCount = postDoc.data()?.commentCount || 0;
-      await updateDoc(postRef, {
-        commentCount: currentCount + 1
-      });
+      // Update post comment count - fire and forget, don't block on failure
+      try {
+        const postRef = doc(db, 'posts', postId);
+        const postDoc = await getDoc(postRef);
+        if (postDoc.exists()) {
+          const currentCount = postDoc.data()?.commentCount || 0;
+          await updateDoc(postRef, {
+            commentCount: currentCount + 1
+          });
+        }
+      } catch (updateError) {
+        // Non-critical: ignore commentCount update failure
+        console.warn('Failed to update comment count:', updateError);
+      }
 
       // Create notification for post owner
       if (postOwnerId !== currentUser.uid) {
