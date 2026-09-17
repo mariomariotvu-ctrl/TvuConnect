@@ -318,8 +318,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                 <StudentMapCenter center={center} />
                 <TileLayer
                   attribution={MAP_TILE_ATTRIBUTION}
-                  url={getMapTileUrl(theme)}
+                  url={getMapTileUrl()}
                   maxZoom={19}
+                  className={theme === 'dark' ? 'map-tiles-dark' : undefined}
                 />
                 {locations.map((location) => {
                   const relation = relationFor(location);

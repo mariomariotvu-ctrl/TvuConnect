@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { User } from 'firebase/auth';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { Icon, LatLngBounds } from 'leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { divIcon, Icon, LatLngBounds, point } from 'leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Place, CheckIn, PlaceEvent, StudentProfile } from '../types';
 import { db, collection, query, where, onSnapshot, orderBy, limit } from '../firebase';
 import { MapPin, Users, Calendar, Bot, Navigation, Home, LocateFixed, Phone, Star, Utensils, X } from 'lucide-react';
@@ -30,6 +31,8 @@ import { QUERY_LIMITS, getQueryLimit } from '../config/queryLimits';
 import { queryPlacesInBounds } from '../utils/mapUtils';
 import { toast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
+import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css';
 
 // Fix Leaflet default icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -910,37 +913,54 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                   <MapFocusController position={mapFocus} />
                   <TileLayer
                     attribution={MAP_TILE_ATTRIBUTION}
-                    url={getMapTileUrl(theme)}
+                    url={getMapTileUrl()}
                     maxZoom={19}
                     minZoom={isMobile ? 12 : 13}
-                    keepBuffer={isMobile ? 1 : 2} // Mobile: giảm buffer để tăng performance
-                    updateInterval={isMobile ? 200 : 100} // Mobile: tăng interval
+                    keepBuffer={isMobile ? 1 : 2}
+                    updateInterval={isMobile ? 200 : 100}
+                    className={theme === 'dark' ? 'map-tiles-dark' : undefined}
                   />
 
-                  {/* Memoized markers - Task 5.4: Prevent re-renders on map pan/zoom */}
-                  {displayPlaces.slice(0, visibleMarkers).map(place => {
-                    const visitors = getPlaceVisitors(place.id!);
-                    const placeEvents = events.filter(e => e.placeId === place.id);
-                    const icon = getCategoryIcon(place.category);
+                  <MarkerClusterGroup
+                    chunkedLoading
+                    maxClusterRadius={isMobile ? 52 : 44}
+                    showCoverageOnHover={false}
+                    removeOutsideVisibleBounds
+                    iconCreateFunction={(cluster) => {
+                      const count = cluster.getChildCount();
+                      const size = count > 99 ? 50 : count > 9 ? 46 : 42;
+                      return divIcon({
+                        html: `<span>${count}</span>`,
+                        className: 'tvu-marker-cluster',
+                        iconSize: point(size, size, true),
+                      });
+                    }}
+                  >
+                    {/* Group nearby pins so dense Trà Vinh data stays readable. */}
+                    {displayPlaces.slice(0, visibleMarkers).map(place => {
+                      const visitors = getPlaceVisitors(place.id!);
+                      const placeEvents = events.filter(e => e.placeId === place.id);
+                      const icon = getCategoryIcon(place.category);
 
-                    return (
-                      <MemoizedMarker
-                        key={place.id}
-                        place={place}
-                        icon={icon}
-                        visitors={visitors}
-                        placeEvents={placeEvents}
-                        onMarkerClick={(place) => {
-                          setSelectedPlace(place);
-                          setPanelOpen(true);
-                        }}
-                        onCheckInClick={(place) => {
-                          setSelectedPlace(place);
-                          setShowCheckInModal(true);
-                        }}
-                      />
-                    );
-                  })}
+                      return (
+                        <MemoizedMarker
+                          key={place.id}
+                          place={place}
+                          icon={icon}
+                          visitors={visitors}
+                          placeEvents={placeEvents}
+                          onMarkerClick={(place) => {
+                            setSelectedPlace(place);
+                            setPanelOpen(true);
+                          }}
+                          onCheckInClick={(place) => {
+                            setSelectedPlace(place);
+                            setShowCheckInModal(true);
+                          }}
+                        />
+                      );
+                    })}
+                  </MarkerClusterGroup>
                 </MapContainer>
                 
                 {/* Add loading bar animation CSS */}

@@ -89,8 +89,9 @@ export const InlineLocationMap: React.FC<InlineLocationMapProps> = ({
           <CenterAndResize position={position} zoom={zoom} />
           <TileLayer
             attribution={MAP_TILE_ATTRIBUTION}
-            url={getMapTileUrl(theme)}
+            url={getMapTileUrl()}
             maxZoom={19}
+            className={theme === 'dark' ? 'map-tiles-dark' : undefined}
           />
           <Marker position={position} icon={locationIcon} />
         </MapContainer>

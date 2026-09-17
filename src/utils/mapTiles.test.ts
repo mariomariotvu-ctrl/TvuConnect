@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from './mapTiles';
+import {
+  getMapTileUrl,
+  MAP_TILE_ATTRIBUTION,
+} from './mapTiles';
 
 describe('map tile configuration', () => {
-  it('uses the reachable CARTO CDN for both themes', () => {
-    expect(getMapTileUrl('light')).toContain('basemaps.cartocdn.com/light_all');
-    expect(getMapTileUrl('dark')).toContain('basemaps.cartocdn.com/dark_all');
-    expect(getMapTileUrl('light')).not.toContain('tile.openstreetmap.org');
+  it('uses the same-origin cached tile endpoint', () => {
+    expect(getMapTileUrl()).toBe('/api/map-tile?z={z}&x={x}&y={y}');
+    expect(getMapTileUrl()).not.toContain('cartocdn.com');
   });
 
-  it('keeps both required data-source attributions', () => {
+  it('keeps the required OpenStreetMap attribution', () => {
     expect(MAP_TILE_ATTRIBUTION).toContain('OpenStreetMap');
-    expect(MAP_TILE_ATTRIBUTION).toContain('CARTO');
   });
 });

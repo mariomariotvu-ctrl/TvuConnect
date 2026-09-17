@@ -41,6 +41,9 @@ export default defineConfig({
           if (id.includes('node_modules/leaflet/') || id.includes('node_modules/react-leaflet/')) {
             return 'map-vendor';
           }
+          if (id.includes('node_modules/leaflet.markercluster/') || id.includes('node_modules/react-leaflet-cluster/')) {
+            return 'map-cluster-vendor';
+          }
           // UI libraries - frequently used
           if (id.includes('node_modules/lucide-react/') || id.includes('node_modules/sonner/') || id.includes('node_modules/react-joyride/')) {
             return 'ui-vendor';
@@ -75,6 +78,15 @@ export default defineConfig({
   server: {
     // CI/remote editors can disable HMR explicitly; local development keeps it on.
     hmr: process.env.DISABLE_HMR !== 'true',
+    // Root-level Vercel Functions are not mounted by `vite dev`. Proxy map
+    // tiles through the deployed same-origin endpoint so localhost behaves
+    // like production without exposing or duplicating an external provider.
+    proxy: {
+      '/api/map-tile': {
+        target: 'https://tvuconnect.vercel.app',
+        changeOrigin: true,
+      },
+    },
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
     },

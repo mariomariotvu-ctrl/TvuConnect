@@ -8,7 +8,8 @@ export interface ProfileValidationResult {
 
 /**
  * Kiểm tra tính đầy đủ của hồ sơ người dùng
- * Theo Feature Gating: chỉ cần 4 trường bắt buộc
+ * Feature gating only requires fields used for student identity and discovery.
+ * Private contact data such as a phone number is always optional.
  */
 export const validateProfile = (profile: StudentProfile | null): ProfileValidationResult => {
   const missingFields: string[] = [];
@@ -17,12 +18,12 @@ export const validateProfile = (profile: StudentProfile | null): ProfileValidati
   if (!profile) {
     return {
       isComplete: false,
-      missingFields: ['mssv', 'fullName', 'className', 'phone'],
-      missingFieldsVN: ['Mã số sinh viên', 'Họ và tên', 'Lớp', 'Số điện thoại'],
+      missingFields: ['mssv', 'fullName', 'className', 'major'],
+      missingFieldsVN: ['Mã số sinh viên', 'Họ và tên', 'Lớp', 'Ngành học'],
     };
   }
 
-  // Kiểm tra MSSV - chỉ cần có giá trị, không bắt buộc 9 chữ số
+  // Keep compatibility with existing numeric and letter-prefixed student IDs.
   const mssvTrimmed = profile.mssv?.trim();
   if (!mssvTrimmed || mssvTrimmed.length < 5) {
     missingFields.push('mssv');
@@ -43,11 +44,10 @@ export const validateProfile = (profile: StudentProfile | null): ProfileValidati
     missingFieldsVN.push('Lớp');
   }
 
-  // Kiểm tra Số điện thoại - chỉ cần có giá trị sau khi trim
-  const phoneTrimmed = profile.phone?.trim();
-  if (!phoneTrimmed || phoneTrimmed.length < 8) {
-    missingFields.push('phone');
-    missingFieldsVN.push('Số điện thoại');
+  const majorTrimmed = profile.major?.trim();
+  if (!majorTrimmed || majorTrimmed.length < 2) {
+    missingFields.push('major');
+    missingFieldsVN.push('Ngành học');
   }
 
   return {

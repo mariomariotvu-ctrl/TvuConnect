@@ -41,15 +41,15 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
     phone: '',
     major: '',
     interests: [],
-    gender: 'male',
+    gender: undefined,
     birthDate: '',
     academicYear: '',
     purpose: '',
     studyGoals: [],
     description: '',
-    showPhone: true,
+    showPhone: false,
     hometown: '',
-    showHometown: true,
+    showHometown: false,
     uid: user.uid,
     email: user.email || '',
     photoURL: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
@@ -291,9 +291,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       return;
     }
 
-    // Validate required fields
-    if (!profile.phone?.trim()) {
-      toast.error('Vui lòng điền Số điện thoại để có thể liên lạc qua Zalo.');
+    const phone = profile.phone?.trim() || '';
+    if (phone && !/^\d{10,11}$/.test(phone)) {
+      toast.error('Số điện thoại cần có 10–11 chữ số. Bạn cũng có thể để trống.');
       return;
     }
 
@@ -302,29 +302,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       return;
     }
 
-    if (!profile.hometown?.trim()) {
-      toast.error('Vui lòng điền Quê quán.');
-      return;
-    }
-
     if (!profile.major?.trim()) {
       toast.error('Vui lòng điền Ngành học.');
       return;
     }
 
-    // Kiểm tra độ dài tối thiểu - không cho phép viết tắt
-    if (profile.major.trim().length < 10) {
-      toast.error('Vui lòng viết đầy đủ tên ngành học. Ví dụ: "Công Nghệ Thông Tin" thay vì "CNTT"');
-      return;
-    }
-
-    if (!profile.academicYear?.trim()) {
-      toast.error('Vui lòng điền Niên khóa.');
-      return;
-    }
-
-    if (!profile.gender) {
-      toast.error('Vui lòng chọn Giới tính.');
+    if (profile.major.trim().length < 2) {
+      toast.error('Tên ngành học chưa hợp lệ.');
       return;
     }
 
@@ -349,7 +333,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       // Add optional string fields (only if they have a value)
       if (profile.nickname?.trim()) cleanData.nickname = profile.nickname.trim();
       if (profile.className?.trim()) cleanData.className = profile.className.trim();
-      if (profile.phone?.trim()) cleanData.phone = profile.phone.trim();
+      cleanData.phone = phone;
       if (profile.hometown?.trim()) cleanData.hometown = profile.hometown.trim();
       if (profile.major?.trim()) {
         cleanData.major = profile.major.trim();
@@ -375,8 +359,8 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       if (typeof profile.age === 'number' && profile.age > 0) cleanData.age = profile.age;
 
       // Add boolean fields
-      cleanData.showPhone = profile.showPhone !== false;
-      cleanData.showHometown = profile.showHometown !== false;
+      cleanData.showPhone = Boolean(phone) && profile.showPhone === true;
+      cleanData.showHometown = Boolean(profile.hometown?.trim()) && profile.showHometown === true;
       // Exact live coordinates belong only in the private server-managed
       // location collection. Saving a profile also removes legacy copies.
       cleanData.showLocation = false;
@@ -394,8 +378,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       const finalProfile = { ...profile, ...cleanData } as StudentProfile;
       delete finalProfile.location;
 
-      // Optimistic update: cập nhật UI & cache ngay lập tức, không đợi Firestore
-      // Cập nhật cache ngay — strip base64 photoURL
+      // Confirm the server write before showing success. This prevents the UI
+      // from claiming a saved profile when Firestore rules rejected it.
+      await setDoc(doc(db, 'profiles', user.uid), {
+        ...cleanData,
+        location: deleteField(),
+      }, { merge: true });
+
+      // Cache only data that the server accepted.
       try {
         const profileToCache = { ...finalProfile };
         if (profileToCache.photoURL?.startsWith('data:')) {
@@ -406,26 +396,10 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
           profileToCache
         );
       } catch (_) {}
-      // Tắt spinner và gọi onSave TRƯỚC khi await Firestore
-      setSaving(false);
+
       onSave(finalProfile);
       toast.success('Đã lưu hồ sơ thành công.');
-
-      // Ghi Firestore ngầm (fire-and-forget) — không block UI
-      setDoc(doc(db, 'profiles', user.uid), {
-        ...cleanData,
-        location: deleteField(),
-      }, { merge: true }).catch((error: any) => {
-        console.error('Profile save error (background):', error);
-        const errorMsg = error?.message || String(error);
-        if (errorMsg.includes('permission-denied') || errorMsg.includes('PERMISSION_DENIED')) {
-          toast.error('Không có quyền lưu hồ sơ. Vui lòng đăng nhập lại.');
-        } else if (errorMsg.includes('offline') || errorMsg.includes('unavailable')) {
-          toast.error('Không có kết nối mạng. Dữ liệu sẽ được đồng bộ khi có mạng.');
-        } else {
-          toast.error('Có lỗi khi đồng bộ dữ liệu. Vui lòng thử lại.');
-        }
-      });    } catch (error: any) {
+    } catch (error: any) {
       console.error('Profile save error:', error);
       const errorMsg = error?.message || String(error);
       if (errorMsg.includes('permission-denied') || errorMsg.includes('PERMISSION_DENIED')) {
@@ -648,39 +622,40 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
         {/* Số điện thoại */}
         <div className="space-y-1.5">
           <label className="text-sm md:text-base font-bold text-gray-700 flex items-center gap-2 ml-0.5">
-            <Phone className="w-4 h-4" /> Số điện thoại <span className="text-red-500">*</span>
+            <Phone className="w-4 h-4" /> Số điện thoại <span className="text-xs font-medium text-gray-400">(tùy chọn)</span>
           </label>
           <input
-            required
             name="phone"
-            value={profile.phone}
+            value={profile.phone || ''}
             onChange={handleChange}
             className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
             placeholder="0123456789"
             pattern="[0-9]{10,11}"
-            title="Vui lòng nhập số điện thoại hợp lệ (10-11 số)"
+            inputMode="tel"
+            title="Nhập 10-11 chữ số hoặc để trống"
           />
           <label className="flex items-center gap-2 mt-2 cursor-pointer">
             <input
               type="checkbox"
               name="showPhone"
-              checked={profile.showPhone}
+              checked={Boolean(profile.phone?.trim()) && profile.showPhone === true}
+              disabled={!profile.phone?.trim()}
               onChange={(e) => setProfile(prev => ({ ...prev, showPhone: e.target.checked }))}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <span className="text-sm text-gray-600">Hiển thị số điện thoại cho người khác</span>
+            <span className="text-sm text-gray-600">Cho phép người khác xem số điện thoại</span>
           </label>
+          <p className="text-xs leading-relaxed text-gray-500">TVU Connect đã có nhắn tin và gọi trong ứng dụng, nên bạn không bắt buộc chia sẻ số cá nhân.</p>
         </div>
 
         {/* Quê quán */}
         <div className="space-y-1.5">
           <label className="text-sm md:text-base font-bold text-gray-700 flex items-center gap-2 ml-0.5">
-            <MapPin className="w-4 h-4" /> Quê quán <span className="text-red-500">*</span>
+            <MapPin className="w-4 h-4" /> Quê quán <span className="text-xs font-medium text-gray-400">(tùy chọn)</span>
           </label>
           <select
-            required
             name="hometown"
-            value={profile.hometown}
+            value={profile.hometown || ''}
             onChange={handleChange}
             className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
           >
@@ -695,9 +670,10 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
             <input
               type="checkbox"
               name="showHometown"
-              checked={profile.showHometown}
+              checked={Boolean(profile.hometown?.trim()) && profile.showHometown === true}
+              disabled={!profile.hometown?.trim()}
               onChange={(e) => setProfile(prev => ({ ...prev, showHometown: e.target.checked }))}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <span className="text-sm text-gray-600">Hiển thị quê quán cho người khác</span>
           </label>
@@ -721,28 +697,23 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
         {/* Niên Khóa */}
         <div className="space-y-1.5">
           <label className="text-sm md:text-base font-bold text-gray-700 flex items-center gap-2 ml-0.5">
-            <Calendar className="w-4 h-4" /> Niên khóa <span className="text-red-500">*</span>
+            <Calendar className="w-4 h-4" /> Niên khóa <span className="text-xs font-medium text-gray-400">(tùy chọn)</span>
           </label>
           <input
-            required
             name="academicYear"
-            value={profile.academicYear}
+            value={profile.academicYear || ''}
             onChange={handleChange}
-            pattern="20[0-9]{2}\s*-\s*20[0-9]{2}"
-            maxLength={13}
             className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-            placeholder="Ví dụ: 2023 - 2027"
-            title="Niên khóa phải có định dạng: năm - năm (VD: 2023 - 2027)"
+            placeholder="Ví dụ: 2023 - 2027 hoặc K47"
           />
         </div>
 
         {/* Giới tính */}
         <div className="space-y-1.5">
-          <label className="text-sm md:text-base font-bold text-gray-700 flex items-center gap-2 ml-0.5">Giới tính <span className="text-red-500">*</span></label>
+          <label className="text-sm md:text-base font-bold text-gray-700 flex items-center gap-2 ml-0.5">Giới tính <span className="text-xs font-medium text-gray-400">(tùy chọn)</span></label>
           <select
-            required
             name="gender"
-            value={profile.gender}
+            value={profile.gender || ''}
             onChange={handleChange}
             className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
           >

@@ -2,7 +2,6 @@ import React from 'react';
 import { auth, googleProvider, signInWithPopup, signInWithRedirect, signOut } from '../firebase';
 import { LogIn, LogOut, AlertCircle, UserRound } from 'lucide-react';
 import { User, getRedirectResult } from 'firebase/auth';
-import { useTheme } from '../contexts/ThemeContext';
 import { logger } from '@/utils/logger';
 
 interface AuthProps {
@@ -13,7 +12,6 @@ interface AuthProps {
 }
 
 export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userProfile }) => {
-  const { theme } = useTheme();
   const [error, setError] = React.useState<string | null>(null);
   const [isWebView, setIsWebView] = React.useState(false);
   const [localLoading, setLocalLoading] = React.useState(false);
@@ -101,7 +99,7 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
         });
         setError('Lỗi kết nối Firebase. Vui lòng thử lại hoặc liên hệ admin.');
       } else {
-        setError(`Lỗi: ${error.message || 'Không thể kết nối. Hãy thử dùng Safari/Chrome.'}`);
+        setError('Không thể đăng nhập lúc này. Vui lòng thử lại bằng Safari hoặc Chrome.');
       }
     }
   };
@@ -189,9 +187,9 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
           className={`w-full min-h-12 flex items-center justify-center gap-3 px-6 py-3.5 text-base font-semibold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 rounded-xl shadow-sm border border-indigo-600 dark:border-indigo-400 ${localLoading ? 'opacity-70 cursor-wait' : 'cursor-pointer'}`}
         >
           {localLoading ? (
-            <div className="w-5 h-5 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin"></div>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true"></div>
           ) : (
-            <LogIn className="w-5 h-5 text-indigo-600" />
+            <LogIn className="h-5 w-5 text-white" aria-hidden="true" />
           )}
           <span>
             {localLoading ? 'Đang xử lý...' : 'Đăng nhập bằng Google'}
