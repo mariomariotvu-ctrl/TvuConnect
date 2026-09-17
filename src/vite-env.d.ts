@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_FUNCTIONS_REGION?: string;
   readonly VITE_GOOGLE_DRIVE_API_KEY?: string;
   readonly VITE_GOOGLE_CLIENT_ID?: string;
+  readonly VITE_GOOGLE_DRIVE_APP_ID?: string;
   readonly VITE_GOOGLE_DRIVE_FOLDER_ID?: string;
   // TURN credentials are intentionally optional. Do not use permanent credentials
   // here in production because VITE_ values are visible to the browser.

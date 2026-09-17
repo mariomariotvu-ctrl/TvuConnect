@@ -44,21 +44,21 @@
       "name": "Tìm bạn",
       "short_name": "Matching",
       "description": "Tìm bạn học hoặc bạn đời",
-      "url": "/?view=matching",
+      "url": "/friends",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Tin nhắn",
       "short_name": "Chat",
       "description": "Xem tin nhắn",
-      "url": "/?view=conversations",
+      "url": "/messages",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Bảng tin",
       "short_name": "Posts",
       "description": "Xem bảng tin",
-      "url": "/?view=posts",
+      "url": "/community",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ],

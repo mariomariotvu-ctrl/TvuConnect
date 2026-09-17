@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link2, X } from 'lucide-react';
+import { Cloud, Link2, Loader2, ShieldCheck, X } from 'lucide-react';
 import { DocumentFormData, ValidationError } from '../types/documentLink';
 import { validateDocumentForm } from '../utils/documentValidation';
 import { checkURLSecurity } from '../utils/urlValidation';
 import { User } from 'firebase/auth';
 import { useTheme } from '../contexts/ThemeContext';
+import {
+  buildGoogleDriveShareUrl,
+  GoogleDriveError,
+  pickGoogleDriveFile,
+} from '../utils/googleDriveClient';
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
@@ -95,6 +100,8 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [urlWarning, setUrlWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pickingFromDrive, setPickingFromDrive] = useState(false);
+  const [driveSelection, setDriveSelection] = useState<string | null>(null);
   const { theme } = useTheme();
 
   // Lock body scroll when modal is open (prevents background from scrolling on mobile)
@@ -108,7 +115,8 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
 
   if (!isOpen) return null;
 
-  const handleChange = (field: keyof DocumentFormData, value: string) => {    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field: keyof DocumentFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear errors for this field
     setErrors(prev => prev.filter(e => e.field !== field));
@@ -117,11 +125,38 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
     if (field === 'url' && value) {
       const security = checkURLSecurity(value);
       setUrlWarning(security.warning);
+      setDriveSelection(null);
     }
 
     // Reset subject when major changes
     if (field === 'major_id') {
       setFormData(prev => ({ ...prev, subject: '' }));
+    }
+  };
+
+  const handlePickFromDrive = async () => {
+    setPickingFromDrive(true);
+    setUrlWarning(null);
+
+    try {
+      const selected = await pickGoogleDriveFile();
+      if (!selected) return;
+
+      const driveUrl = buildGoogleDriveShareUrl(selected);
+      setFormData((current) => ({
+        ...current,
+        url: driveUrl,
+        title: current.title.trim() ? current.title : selected.name,
+      }));
+      setErrors((current) => current.filter((error) => error.field !== 'url' && error.field !== 'title'));
+      setDriveSelection(selected.name);
+    } catch (error) {
+      if (error instanceof GoogleDriveError && error.code === 'cancelled') return;
+      setUrlWarning(error instanceof GoogleDriveError
+        ? error.message
+        : 'Không thể kết nối Google Drive. Vui lòng thử lại.');
+    } finally {
+      setPickingFromDrive(false);
     }
   };
 
@@ -149,6 +184,7 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
       });
       setErrors([]);
       setUrlWarning(null);
+      setDriveSelection(null);
       onClose();
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -234,6 +270,32 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">Chọn trực tiếp từ Google Drive</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                  Chỉ cấp quyền cho file bạn chọn; TVU Connect không đọc toàn bộ Drive.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handlePickFromDrive()}
+                disabled={pickingFromDrive || submitting}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-indigo-800 dark:bg-slate-900 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+              >
+                {pickingFromDrive ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Cloud className="h-4 w-4" aria-hidden="true" />}
+                {pickingFromDrive ? 'Đang kết nối…' : 'Chọn từ Drive'}
+              </button>
+            </div>
+            {driveSelection && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 break-words">Đã chọn: {driveSelection}</span>
+              </div>
+            )}
           </div>
 
 
@@ -335,7 +397,7 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
               onChange={(e) => handleChange('url', e.target.value)}
               className="w-full px-3 py-2 border-2 rounded-xl font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
               style={{ ...inputStyle, borderColor: getFieldError('url') ? '#f87171' : inputBorder }}
-              placeholder="https://example.edu.vn/tai-lieu.pdf"
+              placeholder="https://example.edu.vn/tai-lieu.pdf hoặc chọn từ Google Drive"
             />
             {getFieldError('url') && (
               <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium">

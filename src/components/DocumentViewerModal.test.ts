@@ -1,7 +1,19 @@
-import { describe, expect, it } from 'vitest';
-import { getEmbeddedDocumentUrl } from './DocumentViewerModal';
+import { render, screen, waitFor } from '@testing-library/react';
+import { createElement } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DocumentViewerModal, getEmbeddedDocumentUrl } from './DocumentViewerModal';
+import {
+  buildGoogleDriveShareUrl,
+  canPreviewMimeType,
+  parseGoogleDriveReference,
+} from '../utils/googleDriveClient';
 
 describe('getEmbeddedDocumentUrl', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
   it('converts shared Google files to an in-app preview URL', () => {
     expect(getEmbeddedDocumentUrl('https://drive.google.com/file/d/file-id/view?usp=sharing'))
       .toBe('https://drive.google.com/file/d/file-id/preview');
@@ -16,5 +28,86 @@ describe('getEmbeddedDocumentUrl', () => {
 
   it('keeps direct PDF links intact', () => {
     expect(getEmbeddedDocumentUrl('https://example.edu/book.pdf')).toBe('https://example.edu/book.pdf');
+  });
+
+  it('extracts IDs from supported Google Drive and Workspace links', () => {
+    expect(parseGoogleDriveReference('https://drive.google.com/file/d/file-123/view?usp=sharing')).toEqual({
+      fileId: 'file-123',
+      kind: 'file',
+    });
+    expect(parseGoogleDriveReference('https://drive.google.com/open?id=query-456')).toEqual({
+      fileId: 'query-456',
+      kind: 'file',
+    });
+    expect(parseGoogleDriveReference('https://docs.google.com/spreadsheets/d/sheet-789/edit')).toEqual({
+      fileId: 'sheet-789',
+      kind: 'spreadsheet',
+    });
+    expect(parseGoogleDriveReference('https://example.edu/file.pdf')).toBeNull();
+  });
+
+  it('builds the canonical share URL for a Picker selection', () => {
+    expect(buildGoogleDriveShareUrl({
+      id: 'doc-123',
+      mimeType: 'application/vnd.google-apps.document',
+    })).toBe('https://docs.google.com/document/d/doc-123/edit');
+
+    expect(buildGoogleDriveShareUrl({
+      id: 'pdf-456',
+      mimeType: 'application/pdf',
+    })).toBe('https://drive.google.com/file/d/pdf-456/view');
+  });
+
+  it('only marks browser-renderable MIME types as inline previewable', () => {
+    expect(canPreviewMimeType('application/pdf')).toBe(true);
+    expect(canPreviewMimeType('image/png')).toBe(true);
+    expect(canPreviewMimeType('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe(false);
+  });
+
+  it('shows a safe permission screen instead of embedding a private Drive 403 page', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      error: { message: 'File not found' },
+    }), { status: 404, headers: { 'Content-Type': 'application/json' } }));
+
+    render(createElement(DocumentViewerModal, {
+      open: true,
+      title: 'Tài liệu riêng tư',
+      url: 'https://drive.google.com/file/d/private-file/view',
+      onClose: () => {},
+    }));
+
+    expect(await screen.findByRole('heading', { name: 'Tài liệu đang giới hạn quyền' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kết nối và chọn file trên Drive' })).toBeInTheDocument();
+    expect(screen.queryByTitle('Tài liệu: Tài liệu riêng tư')).not.toBeInTheDocument();
+  });
+
+  it('renders a public Drive PDF from a local blob URL', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:tvu-connect-pdf');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 'public-pdf',
+        name: 'Giáo trình.pdf',
+        mimeType: 'application/pdf',
+        size: '12',
+        capabilities: { canDownload: true },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('pdf-content', {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      }));
+
+    render(createElement(DocumentViewerModal, {
+      open: true,
+      title: 'Giáo trình',
+      url: 'https://drive.google.com/file/d/public-pdf/view',
+      onClose: () => {},
+    }));
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Tài liệu: Giáo trình')).toHaveAttribute('src', 'blob:tvu-connect-pdf');
+    });
   });
 });

@@ -84,5 +84,13 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-self.addEventListener('activate', (event) => event.waitUntil(clients.claim()));
+self.addEventListener('activate', (event) => event.waitUntil(
+  caches.keys()
+    .then((cacheNames) => Promise.all(
+      cacheNames
+        .filter((cacheName) => cacheName.startsWith('tvu-'))
+        .map((cacheName) => caches.delete(cacheName)),
+    ))
+    .then(() => clients.claim()),
+));
 self.addEventListener('install', () => self.skipWaiting());

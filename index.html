@@ -76,42 +76,10 @@
     <div id="root"></div>
     
     <!-- Google API Script - Load before app -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script id="google-api-client" src="https://apis.google.com/js/api.js"></script>
+    <script id="google-identity-services" src="https://accounts.google.com/gsi/client" async defer></script>
     
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Service Worker Registration -->
-    <script>
-      // Register optimized service worker
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw-optimized.js')
-            .then((registration) => {
-              console.log('[SW] Registered successfully:', registration.scope);
-              
-              // Check for updates periodically
-              setInterval(() => {
-                registration.update();
-              }, 60 * 60 * 1000); // Check every hour
-              
-              // Handle updates
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    // New service worker available
-                    console.log('[SW] New version available');
-                    // Optionally show update notification to user
-                  }
-                });
-              });
-            })
-            .catch((error) => {
-              console.error('[SW] Registration failed:', error);
-            });
-        });
-      }
-    </script>
   </body>
 </html>

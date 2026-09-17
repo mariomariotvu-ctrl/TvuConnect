@@ -27,6 +27,31 @@ npm run dev
 
 Điền các biến `VITE_FIREBASE_*` và `VITE_FIREBASE_VAPID_KEY` trong `.env.local` bằng cấu hình web app của Firebase. Đây là cấu hình public của ứng dụng, không phải khóa Gemini.
 
+## Kết nối Google Drive cho thư viện
+
+TVU Connect không nhúng thẳng trang Google Preview cho file riêng tư. File công khai được tải bằng Drive API; file riêng tư yêu cầu người dùng kết nối và chọn đúng file bằng Google Picker, sau đó nội dung được hiển thị từ blob URL trong phiên hiện tại. Ứng dụng dùng scope `drive.file`, không xin quyền đọc toàn bộ Drive và không lưu access token vào Firestore/localStorage.
+
+1. Trong cùng Google Cloud project, bật **Google Drive API** và **Google Picker API**.
+2. Cấu hình OAuth consent screen. Khi app còn ở chế độ Testing, thêm các tài khoản thử nghiệm vào **Test users**.
+3. Tạo OAuth Client ID loại **Web application**. Thêm chính xác các origin đang chạy vào **Authorized JavaScript origins**, ví dụ:
+
+```text
+http://localhost:3000
+http://localhost:3001
+https://ten-mien-production.example
+```
+
+4. Tạo API key dành cho trình duyệt, giới hạn theo website/referrer của localhost và tên miền production; giới hạn API cho Drive API và Picker API.
+5. Điền cấu hình vào `.env.local` rồi khởi động lại Vite:
+
+```bash
+VITE_GOOGLE_DRIVE_API_KEY=api_key_trinh_duyet
+VITE_GOOGLE_CLIENT_ID=oauth_web_client_id.apps.googleusercontent.com
+VITE_GOOGLE_DRIVE_APP_ID=google_cloud_project_number
+```
+
+`VITE_GOOGLE_DRIVE_APP_ID` là **Project number** dạng số, không phải Project ID dạng chữ. Nếu bỏ trống, ứng dụng thử suy ra số này từ OAuth Client ID. Firebase Google Sign-in và quyền Drive là hai consent khác nhau; đăng nhập TVU Connect không tự cấp quyền đọc file Drive.
+
 ## Cài AI miễn phí, an toàn
 
 TVU Buddy sử dụng `gemini-2.5-flash` qua server. Google hiện có free tier cho model này, nhưng hạn mức có thể thay đổi; xem [trang giá Gemini](https://ai.google.dev/gemini-api/docs/pricing) trước khi triển khai.

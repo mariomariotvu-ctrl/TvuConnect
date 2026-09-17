@@ -6,6 +6,7 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useTheme } from '../contexts/ThemeContext';
+import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '../utils/mapTiles';
 
 interface InlineLocationMapProps {
   latitude: number;
@@ -87,10 +88,8 @@ export const InlineLocationMap: React.FC<InlineLocationMapProps> = ({
         >
           <CenterAndResize position={position} zoom={zoom} />
           <TileLayer
-            attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
-            url={theme === 'dark'
-              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-              : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}
+            attribution={MAP_TILE_ATTRIBUTION}
+            url={getMapTileUrl(theme)}
             maxZoom={19}
           />
           <Marker position={position} icon={locationIcon} />

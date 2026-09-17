@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { divIcon } from 'leaflet';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '../utils/mapTiles';
 import {
   BellRing,
   Clock3,
@@ -316,10 +317,8 @@ export const StudentMap: React.FC<StudentMapProps> = ({
               <MapContainer center={center} zoom={15} className="h-full w-full" scrollWheelZoom>
                 <StudentMapCenter center={center} />
                 <TileLayer
-                  attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
-                  url={theme === 'dark'
-                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}
+                  attribution={MAP_TILE_ATTRIBUTION}
+                  url={getMapTileUrl(theme)}
                   maxZoom={19}
                 />
                 {locations.map((location) => {

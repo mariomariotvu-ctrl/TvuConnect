@@ -11,6 +11,7 @@ import { RentalList } from './RentalList';
 import { FoodNearby } from './FoodNearby';
 import { CommunityReviews } from './CommunityReviews';
 import { InlineLocationMap } from './InlineLocationMap';
+import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '../utils/mapTiles';
 import { StudentMap } from './StudentMap';
 import { LazyAIAssistant } from '../routes/lazyRoutes';
 import { CheckInModal } from './CheckInModal';
@@ -908,11 +909,8 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                   <BoundsTracker onBoundsChange={setMapBounds} />
                   <MapFocusController position={mapFocus} />
                   <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url={theme === 'dark' 
-                      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-                    }
+                    attribution={MAP_TILE_ATTRIBUTION}
+                    url={getMapTileUrl(theme)}
                     maxZoom={19}
                     minZoom={isMobile ? 12 : 13}
                     keepBuffer={isMobile ? 1 : 2} // Mobile: giảm buffer để tăng performance
