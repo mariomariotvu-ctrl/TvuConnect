@@ -1,362 +1,226 @@
-import React, { useState, useRef } from 'react';
-import { Plus } from 'lucide-react';
-import { User } from 'firebase/auth';
-import { SearchBar } from './SearchBar';
-import { FilterPanel } from './FilterPanel';
-import { DocumentGrid } from './DocumentGrid';
-import { CreateDocumentModal } from './CreateDocumentModal';
-import { EditDocumentModal } from './EditDocumentModal';
-import { FilterState, DocumentLink, DocumentFormData } from '../types/documentLink';
-import { useDocuments } from '../hooks/useDocuments';
-import { createDocument, updateDocument, deleteDocument } from '../services/documentService';
+import { useRef, useState } from 'react';
+import { BookOpen, Loader2, Plus, ShieldCheck } from 'lucide-react';
+import type { User } from 'firebase/auth';
 import { toast } from 'sonner';
+import { CreateDocumentModal } from './CreateDocumentModal';
+import { DocumentGrid } from './DocumentGrid';
+import { EditDocumentModal } from './EditDocumentModal';
+import { FilterPanel } from './FilterPanel';
+import { SearchBar } from './SearchBar';
+import { useDocuments } from '../hooks/useDocuments';
+import { createDocument, deleteDocument, updateDocument } from '../services/documentService';
+import type { DocumentFormData, DocumentLink, FilterState } from '../types/documentLink';
 
 interface DocumentRepositoryProps {
   currentUser: User;
   onProfileClick?: (uid: string) => void;
 }
 
+const CATEGORY_FILTERS = [
+  { value: null, label: 'Tất cả học liệu' },
+  { value: 'Sách PDF', label: 'Sách / sách mở' },
+  { value: 'Giáo trình', label: 'Giáo trình' },
+  { value: 'Tài liệu tham khảo', label: 'Tham khảo' },
+  { value: 'Slide bài giảng', label: 'Slide' },
+  { value: 'Đề thi', label: 'Đề thi' },
+  { value: 'Bài tập', label: 'Bài tập' },
+] as const;
+
 export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepositoryProps) {
-  // State
-  const [filters, setFilters] = useState<FilterState>({
-    major_id: null,
-    subject: null,
-    category: null
-  });
+  const [filters, setFilters] = useState<FilterState>({ major_id: null, subject: null, category: null });
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDocument, setEditingDocument] = useState<DocumentLink | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const deleteCancelledRef = useRef(false);
 
-  // Fetch documents using custom hook
-  const { documents, loading, error, refresh, removeDocumentOptimistic, restoreDocument } = useDocuments(filters, searchKeyword);
+  const {
+    documents,
+    loading,
+    error,
+    hasMore,
+    loadingMore,
+    loadMore,
+    refresh,
+    removeDocumentOptimistic,
+    restoreDocument,
+  } = useDocuments(filters, searchKeyword);
 
-  // Handle filter changes
   const handleFilterChange = (filterType: string, value: string | null) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: value
-    }));
+    setFilters((current) => ({ ...current, [filterType]: value }));
   };
 
-  // Handle search
-  const handleSearch = (keyword: string) => {
-    setSearchKeyword(keyword);
-  };
-
-  // Handle create document
   const handleCreateDocument = async (data: DocumentFormData) => {
     try {
       await createDocument(data, currentUser.uid);
-      toast.success('Đã thêm tài liệu thành công');
+      toast.success('Đã thêm tài liệu');
       refresh();
     } catch (error: any) {
-      toast.error(error.message || 'Đã xảy ra lỗi khi thêm tài liệu');
+      toast.error(error.message || 'Không thể thêm tài liệu');
       throw error;
     }
   };
 
-  // Handle edit document
-  const handleEditDocument = (document: DocumentLink) => {
-    setEditingDocument(document);
-    setShowEditModal(true);
-  };
-
-  // Handle update document
   const handleUpdateDocument = async (id: string, data: DocumentFormData) => {
     try {
       await updateDocument(id, data);
-      toast.success('Đã cập nhật tài liệu thành công');
+      toast.success('Đã cập nhật tài liệu');
       refresh();
     } catch (error: any) {
-      toast.error(error.message || 'Đã xảy ra lỗi khi cập nhật tài liệu');
+      toast.error(error.message || 'Không thể cập nhật tài liệu');
       throw error;
     }
   };
 
-  // Handle delete document - with 5-second undo window
   const handleDeleteDocument = async (id: string) => {
-    // Find the document to check ownership
-    const document = documents.find(d => d.id === id);
-    
-    // Client-side permission check
-    if (document && document.createdBy !== currentUser.uid) {
+    const selectedDocument = documents.find((item) => item.id === id);
+    if (!selectedDocument) return;
+    if (selectedDocument.createdBy !== currentUser.uid) {
       toast.error('Bạn không có quyền xóa tài liệu này');
       return;
     }
 
-    if (!document) return;
-
-    // ── STEP 1: XÓA KHỎI UI NGAY LẬP TỨC ───────────────────────────────────
     removeDocumentOptimistic(id);
-
-    // ── STEP 2: HIỆN TOAST HOÀN TÁC 5 GIÂY ─────────────────────────────────
     deleteCancelledRef.current = false;
     const toastId = `delete_${id}_${Date.now()}`;
 
     toast(
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Đã xóa tài liệu</span>
+        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Đã xóa tài liệu</span>
         <button
+          type="button"
           onClick={() => {
             deleteCancelledRef.current = true;
             toast.dismiss(toastId);
-            restoreDocument(document);
+            restoreDocument(selectedDocument);
           }}
-          className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 flex-shrink-0"
+          className="min-h-9 rounded-lg bg-indigo-600 px-3 text-xs font-semibold text-white hover:bg-indigo-700"
         >
           Hoàn tác
         </button>
       </div>,
-      { id: toastId, duration: 5000 }
+      { id: toastId, duration: 5000 },
     );
 
-    // ── STEP 3: CHỜ 5 GIÂY RỒI MỚI XÓA FIRESTORE ───────────────────────────
-    await new Promise(resolve => setTimeout(resolve, 5000));
-
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     if (deleteCancelledRef.current) return;
 
-    setIsDeleting(true);
     try {
       await deleteDocument(id);
-      // Xóa cache hẳn để lần tiếp theo fetch fresh từ Firestore
-      const cacheKey = `docs_${JSON.stringify(filters)}`;
-      localStorage.removeItem(cacheKey);
-      localStorage.removeItem(`${cacheKey}_timestamp`);
     } catch (error: any) {
-      // Firestore thất bại → khôi phục lại document
-      restoreDocument(document);
-      if (error.code === 'permission-denied') {
-        toast.error('Bạn không có quyền xóa tài liệu này');
-      } else {
-        toast.error(error.message || 'Đã xảy ra lỗi khi xóa tài liệu');
-      }
-    } finally {
-      setIsDeleting(false);
+      restoreDocument(selectedDocument);
+      toast.error(error.code === 'permission-denied'
+        ? 'Bạn không có quyền xóa tài liệu này'
+        : error.message || 'Không thể xóa tài liệu');
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 pt-4 pb-3 md:pb-3 pb-20">
-      {/* Hero Header Section - Mobile Optimized */}
-      <div className="relative mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-400 via-purple-400 to-blue-500 dark:from-purple-800 dark:via-blue-800 dark:to-indigo-900 p-3 md:p-4 shadow-xl">
-        {/* Decorative background pattern */}
-        <div className="absolute inset-0 opacity-10 dark:opacity-5">
-          <div className="absolute top-0 left-0 w-40 h-40 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute bottom-0 right-0 w-64 h-64 bg-white rounded-full translate-x-1/3 translate-y-1/3"></div>
-        </div>
-
-        <div className="relative z-10">
-          {/* Title and CTA Button Row - Mobile Optimized */}
-          <div className="flex items-center justify-between gap-2 md:gap-4 mb-2 md:mb-3">
-            <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-              {/* Enhanced Book Icon - Smaller on mobile */}
-              <div className="relative group flex-shrink-0">
-                {/* Glow effect background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-300 via-orange-300 to-pink-300 rounded-xl blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
-                
-                {/* Icon container with gradient background */}
-                <div className="relative p-1.5 md:p-2.5 bg-gradient-to-br from-white/30 via-white/20 to-white/10 backdrop-blur-md rounded-xl border border-white/30 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                  {/* Animated sparkles - slowed down */}
-                  <div className="absolute -top-1 -right-1 w-1.5 md:w-2 h-1.5 md:h-2 bg-yellow-300 rounded-full animate-pulse" style={{ animationDuration: '3s' }}></div>
-                  <div className="absolute -bottom-1 -left-1 w-1 md:w-1.5 h-1 md:h-1.5 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '0.5s', animationDuration: '4s' }}></div>
-                  
-                  {/* Book icon with enhanced design */}
-                  <svg className="w-5 h-5 md:w-6 md:h-6 text-white relative z-10" fill="currentColor" viewBox="0 0 24 24">
-                    {/* Book cover - left page */}
-                    <path d="M3 6c0-1.1.9-2 2-2h5a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" opacity="0.9"/>
-                    {/* Book cover - right page */}
-                    <path d="M14 4h5a2 2 0 012 2v14a2 2 0 01-2 2h-5a2 2 0 01-2-2V6a2 2 0 012-2z" opacity="0.7"/>
-                    {/* Book spine */}
-                    <path d="M12 4v16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
-                    {/* Decorative lines on pages */}
-                    <path d="M6 9h3M6 12h3M6 15h3" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.6"/>
-                    <path d="M15 9h3M15 12h3M15 15h3" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.4"/>
-                  </svg>
-                  
-                  {/* Shine effect */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
-              </div>
-              
-              <h1 className="text-lg md:text-2xl lg:text-3xl font-black text-white drop-shadow-lg truncate">
-                Kho Tài Liệu TVU
-              </h1>
-            </div>
-            
-            {/* Desktop CTA Button - Hidden on mobile */}
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="hidden md:flex group relative items-center gap-2.5 px-7 py-3.5 bg-white text-purple-700 rounded-2xl hover:shadow-2xl transition-all duration-500 font-bold flex-shrink-0 overflow-hidden border-2 border-purple-200 hover:border-purple-400 hover:scale-105"
-            >
-              {/* Animated gradient background on hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-              
-              {/* Floating particles */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-                <div className="absolute top-2 left-4 w-1.5 h-1.5 bg-yellow-300 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>
-                <div className="absolute top-3 right-6 w-1 h-1 bg-pink-300 rounded-full animate-bounce" style={{ animationDelay: '200ms', animationDuration: '1.8s' }}></div>
-                <div className="absolute bottom-3 left-8 w-1 h-1 bg-blue-300 rounded-full animate-bounce" style={{ animationDelay: '400ms', animationDuration: '2s' }}></div>
-                <div className="absolute bottom-2 right-4 w-1.5 h-1.5 bg-green-300 rounded-full animate-bounce" style={{ animationDelay: '100ms', animationDuration: '1.6s' }}></div>
-              </div>
-              
-              {/* Icon with glow */}
-              <div className="relative z-10 flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg group-hover:rotate-90 group-hover:scale-110 transition-all duration-500 shadow-lg group-hover:shadow-purple-400/50">
-                <Plus className="w-4 h-4 text-white" />
-              </div>
-              
-              {/* Text with color transition */}
-              <span className="relative z-10 group-hover:text-white transition-colors duration-500 tracking-wide">
-                Đóng góp tài liệu
-              </span>
-              
-              {/* Glow effect */}
-              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 -z-10"></div>
-            </button>
-          </div>
-
-          {/* Inspiring Description - Mobile Optimized */}
-          <div className="text-white">
-            <p className="text-xs md:text-sm lg:text-base leading-relaxed">
-              📚 <span className="font-bold">Sinh viên chúng ta cùng nhau xây dựng kho học liệu TVU bằng cách chia sẻ link liên kết từ Google Drive, OneDrive...</span>
+    <div className="mx-auto max-w-7xl px-3 pb-24 pt-3 sm:px-4 md:pb-6">
+      <section className="mb-5 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900" aria-labelledby="library-title">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+            <BookOpen className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h1 id="library-title" className="text-xl font-bold tracking-tight text-slate-950 md:text-2xl dark:text-white">Thư viện học liệu</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              Tìm sách mở, giáo trình và tài liệu theo ngành. Mọi tài liệu được xem trực tiếp trong TVU Connect.
             </p>
-            
-            {/* Info Cards - Mobile: Stack vertically, Desktop: 2 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 mt-3 md:mt-4">
-              {/* Card 1: Chia sẻ link tài liệu - Mobile Optimized */}
-              <div className="relative overflow-hidden rounded-lg md:rounded-xl bg-white/40 dark:bg-white/10 backdrop-blur-md border border-white/60 dark:border-white/20 shadow-lg p-2.5 md:p-3.5">
-                {/* Decorative gradient background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-orange-400/5 to-transparent dark:from-yellow-400/5 dark:via-orange-400/3"></div>
-                
-                {/* Content */}
-                <div className="relative z-10 flex items-center gap-2 md:gap-3">
-                  {/* Enhanced Icon Container - Smaller on mobile */}
-                  <div className="relative flex-shrink-0">
-                    {/* Glow background */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-300 via-orange-300 to-pink-300 rounded-lg blur-sm opacity-40 dark:opacity-30"></div>
-                    
-                    {/* Icon box */}
-                    <div className="relative p-1.5 md:p-2 bg-gradient-to-br from-yellow-400/20 to-orange-400/20 dark:from-yellow-400/30 dark:to-orange-400/30 rounded-lg border border-yellow-300/30 dark:border-yellow-300/40">
-                      <span className="text-xl md:text-2xl">📚</span>
-                    </div>
-                  </div>
-                  
-                  {/* Text Content */}
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-sm md:text-base text-white drop-shadow-md truncate">Chia sẻ link tài liệu</h3>
-                    <p className="text-xs md:text-sm text-white/90 mt-0.5 truncate">Google Drive, OneDrive...</p>
-                  </div>
-                </div>
-                
-                {/* Subtle shine effect (static) */}
-                <div className="absolute top-0 right-0 w-16 md:w-20 h-16 md:h-20 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl"></div>
-              </div>
-
-              {/* Card 2: Tìm kiếm thông minh - Mobile Optimized */}
-              <div className="relative overflow-hidden rounded-lg md:rounded-xl bg-white/40 dark:bg-white/10 backdrop-blur-md border border-white/60 dark:border-white/20 shadow-lg p-2.5 md:p-3.5">
-                {/* Decorative gradient background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-purple-400/5 to-transparent dark:from-blue-400/5 dark:via-purple-400/3"></div>
-                
-                {/* Content */}
-                <div className="relative z-10 flex items-center gap-2 md:gap-3">
-                  {/* Enhanced Icon Container - Smaller on mobile */}
-                  <div className="relative flex-shrink-0">
-                    {/* Glow background */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-300 via-purple-300 to-pink-300 rounded-lg blur-sm opacity-40 dark:opacity-30"></div>
-                    
-                    {/* Icon box */}
-                    <div className="relative p-1.5 md:p-2 bg-gradient-to-br from-blue-400/20 to-purple-400/20 dark:from-blue-400/30 dark:to-purple-400/30 rounded-lg border border-blue-300/30 dark:border-blue-300/40">
-                      <span className="text-xl md:text-2xl">🎯</span>
-                    </div>
-                  </div>
-                  
-                  {/* Text Content */}
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-sm md:text-base text-white drop-shadow-md truncate">Tìm kiếm thông minh</h3>
-                    <p className="text-xs md:text-sm text-white/90 mt-0.5 truncate">Lọc theo ngành học, tìm nhanh</p>
-                  </div>
-                </div>
-                
-                {/* Subtle shine effect (static) */}
-                <div className="absolute top-0 right-0 w-16 md:w-20 h-16 md:h-20 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl"></div>
-              </div>
-            </div>
           </div>
         </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="hidden min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 sm:inline-flex dark:bg-indigo-500 dark:hover:bg-indigo-400"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Đóng góp tài liệu
+        </button>
+      </section>
 
-      {/* Search Bar - Enhanced */}
       <div className="mb-4">
-        <SearchBar
-          value={searchKeyword}
-          onChange={handleSearch}
-          placeholder="🔍 Tìm theo tiêu đề, ngành học (VD: dược, CNTT, y khoa)..."
-        />
+        <SearchBar value={searchKeyword} onChange={setSearchKeyword} placeholder="Tìm theo tiêu đề, ngành học hoặc môn học" />
       </div>
 
-      {/* Filter Panel */}
-      <FilterPanel
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        availableSubjects={[]}
-      />
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/70" aria-label="Lọc loại học liệu">
+        <div className="mb-2 flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-indigo-600 dark:text-indigo-300" aria-hidden="true" />
+          <p className="text-sm font-bold text-slate-800 dark:text-white">Sách và tài liệu theo loại</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {CATEGORY_FILTERS.map((category) => {
+            const active = filters.category === category.value;
+            return (
+              <button
+                key={category.label}
+                type="button"
+                onClick={() => handleFilterChange('category', category.value)}
+                className={`min-h-10 shrink-0 rounded-xl px-3 text-xs font-semibold ${active
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-50 text-slate-600 hover:bg-indigo-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-indigo-950/40'}`}
+                aria-pressed={active}
+              >
+                {category.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          <span>Chỉ chia sẻ sách mở, giáo trình được cấp phép hoặc liên kết chính thức. TVU Connect không lưu bản sao sách chưa được cho phép.</span>
+        </div>
+      </section>
 
-      {/* Error Display */}
+      <FilterPanel filters={filters} onFilterChange={handleFilterChange} availableSubjects={[]} />
+
       {error && (
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-red-600 dark:text-red-400">
-            Đã xảy ra lỗi khi tải tài liệu. Vui lòng thử lại.
-          </p>
+        <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+          Không thể tải tài liệu. Vui lòng thử lại.
         </div>
       )}
 
-      {/* Document Grid */}
       <DocumentGrid
         documents={documents}
         loading={loading}
         currentUser={currentUser}
-        onEdit={handleEditDocument}
+        onEdit={(selectedDocument) => {
+          setEditingDocument(selectedDocument);
+          setShowEditModal(true);
+        }}
         onDelete={handleDeleteDocument}
         onProfileClick={onProfileClick}
       />
 
-      {/* Floating Action Button - Mobile Only */}
+      {!loading && hasMore && (
+        <div className="mt-5 flex justify-center">
+          <button
+            type="button"
+            onClick={() => void loadMore()}
+            disabled={loadingMore}
+            className="inline-flex min-h-11 min-w-44 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          >
+            {loadingMore && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {loadingMore ? 'Đang tải…' : 'Xem thêm học liệu'}
+          </button>
+        </div>
+      )}
+
       <button
+        type="button"
         onClick={() => setShowCreateModal(true)}
-        className="md:hidden fixed bottom-20 right-4 z-50 group"
+        className="fixed bottom-20 right-4 z-50 grid h-14 w-14 place-items-center rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 sm:hidden"
         aria-label="Đóng góp tài liệu"
       >
-        {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500 rounded-full blur-xl opacity-60 group-active:opacity-100 transition-opacity"></div>
-        
-        {/* Button */}
-        <div className="relative flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-600 rounded-full shadow-2xl group-active:scale-95 transition-transform">
-          {/* Animated ring - softened */}
-          <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-pulse" style={{ animationDuration: '3s' }}></div>
-          
-          {/* Icon */}
-          <Plus className="w-7 h-7 text-white relative z-10" strokeWidth={2.5} />
-          
-          {/* Sparkles - slowed down */}
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-300 rounded-full animate-bounce" style={{ animationDuration: '3s' }}></div>
-          <div className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-pink-300 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '3.5s' }}></div>
-        </div>
+        <Plus className="h-6 w-6" aria-hidden="true" />
       </button>
 
-      {/* Create Modal */}
       <CreateDocumentModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateDocument}
         currentUser={currentUser}
       />
-
-      {/* Edit Modal */}
       <EditDocumentModal
         isOpen={showEditModal}
         onClose={() => {

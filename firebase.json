@@ -11,8 +11,10 @@
   },
   "functions": {
     "source": "functions",
-    "predeploy": [],
-    "runtime": "nodejs18"
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" test"
+    ],
+    "runtime": "nodejs22"
   },
   "hosting": {
     "public": "dist",

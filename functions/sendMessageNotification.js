@@ -1,147 +1,113 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { getApps, initializeApp } = require('firebase-admin/app');
+const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { sendDataNotification } = require('./notificationHelpers');
 
-// Initialize Admin SDK if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
+if (!getApps().length) {
+  initializeApp();
 }
 
+const preview = (message) => {
+  const content = message.type === 'audio'
+    ? 'Tin nhắn thoại'
+    : String(message.text || 'Bạn có tin nhắn mới');
+  return content.length > 120 ? `${content.slice(0, 117)}...` : content;
+};
+
+const compareTimestamps = (left, right) => {
+  const secondsDifference = Number(left?.seconds || 0) - Number(right?.seconds || 0);
+  if (secondsDifference !== 0) return secondsDifference;
+  return Number(left?.nanoseconds || 0) - Number(right?.nanoseconds || 0);
+};
+
 /**
- * Send push notification when new message is created
- * Trigger: Firestore onCreate for conversations/{conversationId}/messages/{messageId}
+ * The web client writes directly to /messages, not a conversations subcollection.
+ * Listening to this canonical path fixes missing push notifications.
  */
-exports.sendMessageNotification = functions.firestore
-  .document('conversations/{conversationId}/messages/{messageId}')
-  .onCreate(async (snap, context) => {
-    try {
-      const message = snap.data();
-      const { conversationId, messageId } = context.params;
-      
-      console.log('📬 New message:', messageId, 'in conversation:', conversationId);
-      
-      // Get conversation to find recipient
-      const conversationRef = admin.firestore()
-        .collection('conversations')
-        .doc(conversationId);
-      
-      const conversationSnap = await conversationRef.get();
-      
-      if (!conversationSnap.exists) {
-        console.log('❌ Conversation not found');
-        return null;
-      }
-      
-      const conversation = conversationSnap.data();
-      const participants = conversation.participants || [];
-      
-      // Find recipient (not sender)
-      const recipientId = participants.find(id => id !== message.senderId);
-      
-      if (!recipientId) {
-        console.log('❌ No recipient found');
-        return null;
-      }
-      
-      console.log('👤 Recipient:', recipientId);
-      
-      // Get sender info
-      const senderSnap = await admin.firestore()
-        .collection('users')
-        .doc(message.senderId)
-        .get();
-      
-      if (!senderSnap.exists) {
-        console.log('❌ Sender not found');
-        return null;
-      }
-      
-      const sender = senderSnap.data();
-      const senderName = sender.displayName || sender.name || 'Người dùng TVU Connect';
-      const senderAvatar = sender.photoURL || sender.avatar || 'https://via.placeholder.com/150';
-      
-      console.log('👤 Sender:', senderName);
-      
-      // Get recipient's FCM tokens
-      const tokensSnap = await admin.firestore()
-        .collection('users')
-        .doc(recipientId)
-        .collection('fcmTokens')
-        .where('deleted', '==', false)
-        .get();
-      
-      if (tokensSnap.empty) {
-        console.log('❌ No FCM tokens found for recipient');
-        return null;
-      }
-      
-      const tokens = tokensSnap.docs.map(doc => doc.data().token);
-      console.log('📱 Found', tokens.length, 'device(s)');
-      
-      // Truncate message to 100 chars
-      const messageText = message.text || '';
-      const truncatedText = messageText.length > 100 
-        ? messageText.substring(0, 100) + '...' 
-        : messageText;
-      
-      // Prepare notification payload
-      const payload = {
-        notification: {
-          title: senderName,
-          body: truncatedText,
-          icon: senderAvatar,
-          badge: 'https://tvu-connect.vercel.app/logo.png',
-          click_action: `https://tvu-connect.vercel.app/messages?chat=${conversationId}`
-        },
-        data: {
-          type: 'message',
-          conversationId: conversationId,
-          senderId: message.senderId,
-          messageId: messageId,
-          timestamp: message.createdAt ? message.createdAt.toMillis().toString() : Date.now().toString()
-        }
-      };
-      
-      // Send to all tokens
-      const response = await admin.messaging().sendToDevice(tokens, payload, {
-        priority: 'high',
-        timeToLive: 60 * 60 * 24, // 24 hours
-        contentAvailable: true
-      });
-      
-      console.log('✅ Notifications sent:', response.successCount, 'success,', response.failureCount, 'failed');
-      
-      // Clean up invalid tokens
-      const tokensToRemove = [];
-      response.results.forEach((result, index) => {
-        const error = result.error;
-        if (error) {
-          console.error('❌ Error sending to token:', tokens[index].substring(0, 20) + '...', error.code);
-          
-          if (error.code === 'messaging/invalid-registration-token' ||
-              error.code === 'messaging/registration-token-not-registered') {
-            tokensToRemove.push(tokens[index]);
-          }
-        }
-      });
-      
-      // Remove invalid tokens
-      if (tokensToRemove.length > 0) {
-        const batch = admin.firestore().batch();
-        tokensToRemove.forEach(token => {
-          const tokenRef = admin.firestore()
-            .collection('users')
-            .doc(recipientId)
-            .collection('fcmTokens')
-            .doc(token);
-          batch.delete(tokenRef);
-        });
-        await batch.commit();
-        console.log('🗑️ Removed', tokensToRemove.length, 'invalid token(s)');
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('❌ Error sending notification:', error);
+exports.sendMessageNotification = onDocumentCreated('messages/{messageId}', async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return null;
+    const messageId = event.params.messageId;
+    const message = snapshot.data() || {};
+    const senderUid = message.senderUid;
+    const receiverUid = message.receiverUid;
+
+    if (!senderUid || !receiverUid || senderUid === receiverUid) {
+      console.log('Skip notification: invalid message participants', messageId);
       return null;
     }
+
+    try {
+      // Keep the latest conversation summary on the trusted server. The
+      // timestamp comparison prevents slower concurrent writes from winning.
+      const firestore = getFirestore();
+      const conversationId = message.conversationId || [senderUid, receiverUid].sort().join('_');
+      const conversationRef = firestore.collection('conversations').doc(conversationId);
+      const messageCreatedAt = message.createdAt || Timestamp.now();
+      let shouldSendNotification = false;
+      await firestore.runTransaction(async (transaction) => {
+        const [conversationSnapshot, currentMessageSnapshot] = await Promise.all([
+          transaction.get(conversationRef),
+          transaction.get(snapshot.ref),
+        ]);
+        const currentMessage = currentMessageSnapshot.data() || {};
+        if (!currentMessage.notificationClaimedAt) {
+          transaction.update(snapshot.ref, {
+            notificationClaimedAt: FieldValue.serverTimestamp(),
+          });
+          shouldSendNotification = true;
+        } else {
+          shouldSendNotification = false;
+        }
+
+        const currentLastMessageAt = conversationSnapshot.data()?.lastMessageAt;
+        const currentLastMessageId = conversationSnapshot.data()?.lastMessageId;
+        if (
+          currentLastMessageAt
+          && (
+            compareTimestamps(currentLastMessageAt, messageCreatedAt) > 0
+            || (
+              compareTimestamps(currentLastMessageAt, messageCreatedAt) === 0
+              && String(currentLastMessageId || '') >= messageId
+            )
+          )
+        ) return;
+
+        transaction.set(conversationRef, {
+          participants: [senderUid, receiverUid].sort(),
+          lastMessage: preview(message),
+          lastMessageAt: messageCreatedAt,
+          lastMessageId: messageId,
+        }, { merge: true });
+      });
+
+      if (!shouldSendNotification) {
+        console.log('Skip duplicate notification delivery', messageId);
+        return null;
+      }
+
+      const senderSnapshot = await firestore.collection('profiles').doc(senderUid).get();
+      const sender = senderSnapshot.exists ? senderSnapshot.data() : {};
+      const senderName = sender?.fullName || sender?.nickname || 'Sinh viên TVU';
+
+      const result = await sendDataNotification(receiverUid, {
+        type: 'message',
+        conversationId,
+        senderUid,
+        senderName,
+        messageId,
+        body: preview(message),
+      });
+
+      console.log('Message notification sent', {
+        messageId,
+        receiverUid,
+        ...result,
+      });
+    } catch (error) {
+      // A notification failure must never fail the message write itself.
+      console.error('Could not send message notification:', error);
+    }
+
+    return null;
   });

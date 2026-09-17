@@ -300,6 +300,7 @@ async function updateEnvironment(targetProjectId) {
     const storageBucket = await question('   VITE_FIREBASE_STORAGE_BUCKET: ');
     const messagingSenderId = await question('   VITE_FIREBASE_MESSAGING_SENDER_ID: ');
     const appId = await question('   VITE_FIREBASE_APP_ID: ');
+    const vapidKey = await question('   VITE_FIREBASE_VAPID_KEY (có thể để trống): ');
     
     const envContent = `# Firebase Configuration - Project: ${targetProjectId}
 VITE_FIREBASE_API_KEY=${apiKey}
@@ -308,9 +309,8 @@ VITE_FIREBASE_PROJECT_ID=${targetProjectId}
 VITE_FIREBASE_STORAGE_BUCKET=${storageBucket}
 VITE_FIREBASE_MESSAGING_SENDER_ID=${messagingSenderId}
 VITE_FIREBASE_APP_ID=${appId}
-
-# Gemini AI
-VITE_GEMINI_API_KEY=your_gemini_api_key
+VITE_FIREBASE_VAPID_KEY=${vapidKey}
+VITE_FIREBASE_FUNCTIONS_REGION=us-central1
 `;
     
     const envPath = path.join(__dirname, '..', '.env.local');

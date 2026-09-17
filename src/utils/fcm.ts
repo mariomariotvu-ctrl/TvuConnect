@@ -63,8 +63,10 @@ export const getFCMToken = async (userId: string): Promise<string | null> => {
       return null;
     }
 
-    // Get token
-    const token = await getToken(messaging, { vapidKey });
+    // Use the explicit app worker instead of relying on SDK timing/default
+    // registration. This is important on the first mobile visit.
+    const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration });
     
     if (token) {
       logger.log('✅ FCM Token:', token.substring(0, 20) + '...');

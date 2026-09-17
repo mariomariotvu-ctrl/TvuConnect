@@ -10,6 +10,9 @@ export interface StudentProfile {
   hometown?: string;
   showHometown?: boolean;
   major?: string;
+  majorNormalized?: string;
+  /** Prefix tokens for name/class/major discovery; never includes private data. */
+  searchTokens?: string[];
   interests?: string[];
   gender?: 'male' | 'female' | 'other';
   birthDate?: string;
@@ -24,18 +27,36 @@ export interface StudentProfile {
   email: string;
   isOnline?: boolean;
   lastSeen?: any;
+  /** @deprecated Legacy public profile coordinate. New writes purge this field. */
   location?: {
     lat: number;
     lng: number;
     address?: string;
     updatedAt?: Timestamp;
   };
-  showLocation?: boolean; // Privacy setting
+  /** @deprecated Live-location visibility is stored in private locationPreferences. */
+  showLocation?: boolean;
+  /**
+   * Nearby discovery is opt-in. These fields deliberately store an
+   * approximate cell centre, never the browser's exact coordinates.
+   */
+  nearbyOptIn?: boolean;
+  nearbyCell?: string;
+  nearbyLatitude?: number;
+  nearbyLongitude?: number;
+  nearbyUpdatedAt?: Timestamp;
+  /** Dating is opt-in and restricted to adult profiles. */
+  datingEnabled?: boolean;
+  /** Hide the profile photo inside the dating deck until the owner disables it. */
+  hideFaceInDating?: boolean;
+  datingBio?: string;
+  university?: string;
+  campus?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
-export type View = 'home' | 'profile' | 'matching' | 'results' | 'chat' | 'conversations' | 'settings' | 'posts' | 'explore' | 'documents';
+export type View = 'home' | 'profile' | 'matching' | 'students' | 'results' | 'chat' | 'conversations' | 'settings' | 'posts' | 'explore' | 'documents';
 
 export interface Message {
   id?: string;
@@ -70,6 +91,56 @@ export interface Block {
   blockerUid: string;
   blockedUid: string;
   createdAt: Timestamp;
+}
+
+export type FriendConnectionState = 'none' | 'incoming' | 'pending' | 'accepted';
+
+export interface FriendRequest {
+  id: string;
+  fromUid: string;
+  toUid: string;
+  participantUids: string[];
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface Friendship {
+  id: string;
+  participantUids: string[];
+  status: 'accepted';
+  acceptedAt?: Timestamp;
+}
+
+export type LocationVisibility = 'off' | 'friends' | 'major' | 'tvu';
+
+export interface LocationPreferences {
+  uid: string;
+  visibility: LocationVisibility;
+  encounterAlertsEnabled: boolean;
+  updatedAt?: Timestamp;
+}
+
+export interface VisibleStudentLocation {
+  uid: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  visibility: Exclude<LocationVisibility, 'off'>;
+  updatedAt: number;
+  expiresAt: number;
+  fullName: string;
+  photoURL?: string | null;
+  major?: string;
+  isFriend: boolean;
+  isOwn: boolean;
+}
+
+export interface StudentEncounter {
+  id: string;
+  participantUids: string[];
+  occurredAt?: Timestamp;
+  distanceBand: 'very-close' | 'nearby';
 }
 
 export interface Favorite {
@@ -197,9 +268,19 @@ export interface Place {
   checkInCount: number; // Total check-ins
   currentVisitors: number; // Current people here
   createdBy: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
   isVerified?: boolean;
+  /** Source metadata is transient for provider content and is never persisted by the client. */
+  dataSource?: 'community' | 'google_places';
+  sourceLabel?: 'Google Maps' | 'TVU Connect';
+  sourcePlaceId?: string;
+  primaryType?: string;
+  foodTags?: string[];
+  businessStatus?: string;
+  openingDate?: string | null;
+  isOpenNow?: boolean;
+  popularityScore?: number;
 }
 
 export interface CheckIn {
@@ -256,6 +337,21 @@ export interface PlaceReview {
   updatedAt?: Timestamp;
 }
 
+export type CommunityReviewTarget = 'place' | 'rental' | 'google_place';
+
+export interface CommunityReview {
+  id?: string;
+  targetKind: CommunityReviewTarget;
+  targetId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  content: string;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 // ===============================================================
 // RENTAL (TÌM TRỌ) FEATURE TYPES
 // ===============================================================
@@ -269,6 +365,12 @@ export interface RentalPost {
   price: number;           // VND/tháng
   area?: number;           // m²
   address: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
+  /** Indexed location key used by Firestore radius queries. */
+  geohash?: string;
   district?: string;
   description: string;
   amenities: string[];     // ['wifi', 'dieu-hoa', 'nha-ve-sinh-rieng', 'giu-xe', 'may-giat']
@@ -276,6 +378,13 @@ export interface RentalPost {
   contactPhone: string;
   images?: string[];
   isAvailable: boolean;
+  /** Optional costs make a listing comparable before students need to call. */
+  deposit?: number;
+  electricityPrice?: number;
+  waterPrice?: number;
+  genderPreference?: 'any' | 'male' | 'female';
+  availableFrom?: string;
+  utilitiesNote?: string;
   createdBy: string;
   createdAt: Timestamp;
   updatedAt?: Timestamp;

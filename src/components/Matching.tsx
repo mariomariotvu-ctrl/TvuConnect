@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, collection, getDocs, query, where, limit } from '../firebase';
 import { StudentProfile } from '../types';
 import { User } from 'firebase/auth';
-import { Heart, BookOpen, Smile, Zap, X } from 'lucide-react';
+import { BookOpen, Smile, X } from 'lucide-react';
 import { FIRESTORE_LIMITS, TIMING } from '../utils/constants';
 import { toast } from 'sonner';
 import { useTheme } from '../contexts/ThemeContext';
@@ -21,14 +21,19 @@ import { MatchingFilters } from './matching/MatchingFilters';
 import { MatchingResults } from './matching/MatchingResults';
 import { MatchingHistory } from './matching/MatchingHistory';
 import { MatchedProfilesSection } from './matching/MatchedProfilesSection';
+import { QuickVoiceMatch } from './QuickVoiceMatch';
+import { StudyRoomHub } from './StudyRoomHub';
+import { DatingDeck } from './DatingDeck';
 
 interface MatchingProps {
   currentUser: User;
   onMatchFound: (profile: StudentProfile) => void;
+  onStartChat: (uid: string) => void;
+  onStartCall: (profile: StudentProfile, kind: 'audio') => void;
   mode: 'lover' | 'study' | 'quick' | 'hobby';
 }
 
-export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, mode }) => {
+export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, onStartChat, onStartCall, mode }) => {
   const { theme } = useTheme();
   
   // Use custom hooks
@@ -87,8 +92,9 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
   }, [reasonsMap, currentUser.uid, onMatchFound]);
 
   const startMatching = useCallback(async () => {
+    const usesDailyLimit = mode === 'hobby';
     // Check if out of matches - just show toast, banner already visible
-    if (remainingMatches === 0) {
+    if (usesDailyLimit && remainingMatches === 0) {
       const { hours, minutes } = getTimeUntilReset(currentUser.uid);
       const displayHours = minutes > 0 ? hours + 1 : hours;
       toast.error(`Vui lòng đợi khoảng ${displayHours} tiếng nữa`);
@@ -109,7 +115,7 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
     await startCachedMatching();
     
     // Update remaining matches after matching
-    setRemainingMatches(getRemainingMatches(currentUser.uid));
+    if (usesDailyLimit) setRemainingMatches(getRemainingMatches(currentUser.uid));
   }, [remainingMatches, currentUser.uid, lastActionTime, mode, filters, startCachedMatching]);
 
   const loadOneMore = useCallback(async () => {
@@ -138,7 +144,7 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
         ));
         
         if (!profileDoc.empty) {
-          setCurrentProfile(profileDoc.docs[0].data() as StudentProfile);
+          setCurrentProfile({ ...profileDoc.docs[0].data(), uid: currentUser.uid } as StudentProfile);
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -157,49 +163,67 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
   
   // Show one-time toast when reaching 3 matches
   useEffect(() => {
-    if (remainingMatches === 3 && !hasShownLowMatchWarning) {
+    if (mode === 'hobby' && remainingMatches === 3 && !hasShownLowMatchWarning) {
       toast.warning('Bạn còn 3 lượt ghép hôm nay', {
         duration: 5000,
       });
       setHasShownLowMatchWarning(true);
       sessionStorage.setItem(`match_warning_shown_${currentUser.uid}`, 'true');
     }
-  }, [remainingMatches, hasShownLowMatchWarning, currentUser.uid]);
+  }, [remainingMatches, hasShownLowMatchWarning, currentUser.uid, mode]);
+
+  if (mode === 'quick') {
+    return <QuickVoiceMatch currentUser={currentUser} onStartCall={onStartCall} />;
+  }
+
+  if (mode === 'lover') {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <DatingDeck
+          currentUser={currentUser}
+          currentProfile={currentProfile}
+          profiles={matchedProfiles}
+          loading={isMatching}
+          onFindProfiles={() => { void startMatching(); }}
+          onLoadMore={() => { void loadOneMore(); }}
+          onStartChat={onStartChat}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl lg:max-w-4xl mx-auto">
-      <div className={`text-center ${mode === 'lover' ? 'mb-4' : mode === 'study' ? 'mb-4' : 'mb-10'}`}>
+      <div className={`text-center ${mode === 'study' ? 'mb-4' : 'mb-10'}`}>
         <h2 className="matching-heading text-3xl md:text-4xl font-black mb-2 tracking-tight">
-          {mode === 'lover' ? 'Tìm người yêu' :
-            mode === 'study' ? 'Bạn cùng học' :
-              mode === 'hobby' ? 'Sở thích chung' : 'Kết nối nhanh'}
+          {mode === 'study' ? 'Bạn cùng học' : 'Sở thích chung'}
         </h2>
         <p className="matching-subheading text-lg font-medium leading-relaxed">
-          {mode === 'lover' ? 'Tìm kiếm nửa kia tại TVU' :
-            mode === 'study' ? 'Tìm bạn cùng tiến trong học tập' :
-              mode === 'hobby' ? 'Kết nối với những người cùng đam mê' : 'Kết nối ngẫu nhiên với sinh viên TVU'}
+          {mode === 'study' ? 'Tìm bạn cùng tiến trong học tập' : 'Kết nối với những người cùng đam mê'}
         </p>
       </div>
 
+      {mode === 'study' && (
+        <StudyRoomHub currentUser={currentUser} currentProfile={currentProfile} />
+      )}
+
       <div 
         className={`rounded-[24px] shadow-xl border bg-white border-gray-100 dark:bg-gray-800/70 dark:border-gray-600/50 ${
-          mode === 'lover' ? 'pt-2 px-4 pb-4 md:pt-2 md:px-6 md:pb-6' : 
-          mode === 'hobby' ? 'pt-4 px-4 pb-3 md:pt-6 md:px-6 md:pb-3' : 
-          'pt-2 px-4 pb-4 md:pt-2 md:px-6 md:pb-6'
+          mode === 'hobby'
+            ? 'pt-4 px-4 pb-3 md:pt-6 md:px-6 md:pb-3'
+            : 'pt-2 px-4 pb-4 md:pt-2 md:px-6 md:pb-6'
         }`}
         style={{ backgroundColor: theme === 'dark' ? 'rgba(31,41,55,0.7)' : '#ffffff' }}
       >
         {/* Filters Component */}
-        {(mode === 'lover' || mode === 'hobby' || mode === 'study') && (
-          <MatchingFilters
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            onReset={resetFilters}
-            mode={mode}
-            showFilters={showFilters}
-            onToggle={() => setShowFilters(!showFilters)}
-          />
-        )}
+        <MatchingFilters
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          onReset={resetFilters}
+          mode={mode}
+          showFilters={showFilters}
+          onToggle={() => setShowFilters(!showFilters)}
+        />
 
         {/* Error Message */}
         {error && (
@@ -210,10 +234,10 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
         )}
 
         {/* Daily Limit Info */}
-        {remainingMatches === 0 ? (
+        {mode === 'hobby' && remainingMatches === 0 ? (
           <div className="mb-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-4 text-center shadow-lg">
             <p className="text-white text-lg font-bold mb-1">
-              ⏰ Đã hết lượt ghép
+              Đã hết lượt ghép hôm nay
             </p>
             {(() => {
               const { hours, minutes } = getTimeUntilReset(currentUser.uid);
@@ -225,10 +249,10 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
               );
             })()}
           </div>
-        ) : remainingMatches <= 3 && (
+        ) : mode === 'hobby' && remainingMatches <= 3 && (
           <div className="mb-4 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl p-3.5 text-center shadow-lg">
             <p className="text-white text-base font-bold">
-              ⚠️ Bạn còn <span className="text-white drop-shadow-md">{remainingMatches} lượt</span> ghép hôm nay
+              Bạn còn <span className="text-white">{remainingMatches} lượt</span> ghép hôm nay
             </p>
           </div>
         )}
@@ -236,9 +260,9 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
         {/* Start Matching Button */}
         <button
           onClick={startMatching}
-          disabled={isMatching || remainingMatches === 0}
+          disabled={isMatching || (mode === 'hobby' && remainingMatches === 0)}
           className={`w-full py-3.5 md:py-4 ${
-            remainingMatches === 0 
+            mode === 'hobby' && remainingMatches === 0
               ? 'bg-gray-400 cursor-not-allowed' 
               : 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 hover:opacity-95 hover:shadow-[0_8px_25px_-8px_rgba(99,102,241,0.6)]'
           } text-white font-bold text-[17px] rounded-[16px] overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2.5 relative group`}
@@ -251,17 +275,15 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 <span>Đang tìm kiếm...</span>
               </>
-            ) : remainingMatches === 0 ? (
+            ) : mode === 'hobby' && remainingMatches === 0 ? (
               <>
                 <X className="w-5 h-5" />
                 <span>Đã hết lượt ghép</span>
               </>
             ) : (
               <>
-                {mode === 'lover' && <Heart className="w-5 h-5 fill-white/20" />}
                 {mode === 'study' && <BookOpen className="w-5 h-5" />}
                 {mode === 'hobby' && <Smile className="w-5 h-5" />}
-                {mode === 'quick' && <Zap className="w-5 h-5 fill-white/20 text-yellow-300" />}
                 <span>Bắt đầu ghép cặp</span>
               </>
             )}
@@ -269,7 +291,7 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, m
         </button>
 
         {/* Matching Results Component */}
-        {remainingMatches === 0 && (
+        {mode === 'hobby' && remainingMatches === 0 && (
           <MatchedProfilesSection
             matchHistory={matchHistory}
             hasMoreHistory={hasMoreHistory}

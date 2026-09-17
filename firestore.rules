@@ -16,20 +16,28 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid in participants;
     }
     
-    // Kiểm tra isNotBlocked: dùng document ID dạng "blockerUid_blockedUid"
-    // Lưu ý: blocks collection dùng addDoc (auto ID), không dùng format này
-    // → Giữ nguyên logic cũ để tương thích với code hiện tại
+    // Block records use the deterministic ID "blockerUid_blockedUid", so this
+    // check is atomic and cannot be bypassed by a client-side UI error.
     function isNotBlocked(senderUid, receiverUid) {
       return !exists(/databases/$(database)/documents/blocks/$(senderUid + '_' + receiverUid)) &&
              !exists(/databases/$(database)/documents/blocks/$(receiverUid + '_' + senderUid));
     }
-    
+
     // ===============================================================
     // Profiles Collection Rules
     // ===============================================================
     match /profiles/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny(['location'])
+        && (!request.resource.data.keys().hasAny(['showLocation'])
+          || request.resource.data.showLocation == false);
+      allow update: if isOwner(userId)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
+          || !request.resource.data.keys().hasAny(['location']))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['showLocation'])
+          || request.resource.data.showLocation == false);
+      allow delete: if isOwner(userId);
     }
     
     // ===============================================================
@@ -38,6 +46,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId);
+
+      // FCM tokens are private device credentials. Cloud Functions reads them
+      // with Admin privileges; students can only manage their own tokens.
+      match /fcmTokens/{tokenId} {
+        allow read, write: if isOwner(userId);
+      }
     }
     
     // ===============================================================
@@ -52,18 +66,35 @@ service cloud.firestore {
          resource.data.receiverUid == request.auth.uid ||
          request.auth.uid in resource.data.participants);
       
-      // Tạo tin nhắn: phải là sender, không bị block
+      // Messages have exactly two participants and a bounded text/audio body.
       allow create: if isAuthenticated()
         && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.receiverUid is string
+        && request.resource.data.receiverUid != request.auth.uid
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.receiverUid in request.resource.data.participants
+        && request.resource.data.conversationId is string
+        && request.resource.data.type in ['text', 'audio']
+        && request.resource.data.read == false
+        && (
+          (request.resource.data.type == 'text'
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 2000)
+          ||
+          (request.resource.data.type == 'audio'
+            && request.resource.data.audioUrl is string)
+        )
         && isNotBlocked(request.auth.uid, request.resource.data.receiverUid);
-      
-      // Update: sender sửa nội dung, hoặc receiver đánh dấu đã đọc (read=true)
-      allow update: if isAuthenticated() && 
-        (resource.data.senderUid == request.auth.uid || 
-         resource.data.senderId == request.auth.uid ||
-         // Cho phép receiver đánh dấu đã đọc
-         (resource.data.receiverUid == request.auth.uid && 
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])));
+
+      // Message content and recipients are immutable. Only the recipient can
+      // move the read receipt from false to true.
+      allow update: if isAuthenticated()
+        && resource.data.receiverUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read == true;
       
       // Xóa: chỉ sender
       allow delete: if isAuthenticated() && 
@@ -76,8 +107,10 @@ service cloud.firestore {
     // ===============================================================
     match /conversations/{conversationId} {
       allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
-      allow update, delete: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      // Conversation summaries are maintained by the message Cloud Function,
+      // preventing concurrent clients from overwriting a newer last message.
+      allow create, update: if false;
+      allow delete: if isAuthenticated() && request.auth.uid in resource.data.participants;
     }
     
     // ===============================================================
@@ -148,8 +181,14 @@ service cloud.firestore {
         (resource.data.blockerUid == request.auth.uid || 
          resource.data.blockedUid == request.auth.uid);
       allow create: if isAuthenticated() && 
-        request.resource.data.blockerUid == request.auth.uid;
-      allow update, delete: if isAuthenticated() && 
+        request.resource.data.blockerUid == request.auth.uid &&
+        request.resource.data.blockedUid != request.auth.uid &&
+        blockId == request.auth.uid + '_' + request.resource.data.blockedUid;
+      allow update: if isAuthenticated() &&
+        resource.data.blockerUid == request.auth.uid &&
+        request.resource.data.blockerUid == resource.data.blockerUid &&
+        request.resource.data.blockedUid == resource.data.blockedUid;
+      allow delete: if isAuthenticated() &&
         resource.data.blockerUid == request.auth.uid;
     }
     
@@ -258,11 +297,264 @@ service cloud.firestore {
     match /rentalPosts/{postId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && 
-        request.resource.data.createdBy == request.auth.uid;
+        request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.location is map
+        && request.resource.data.location.lat is number
+        && request.resource.data.location.lng is number
+        && request.resource.data.geohash is string
+        && request.resource.data.geohash.size() >= 1
+        && request.resource.data.geohash.size() <= 12
+        && request.resource.data.location.lat >= 9.4
+        && request.resource.data.location.lat <= 10.2
+        && request.resource.data.location.lng >= 105.8
+        && request.resource.data.location.lng <= 106.8;
       allow update: if isAuthenticated() && 
         resource.data.createdBy == request.auth.uid;
       allow delete: if isAuthenticated() && 
         resource.data.createdBy == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Reviews for rentals and places. The deterministic document id allows
+    // exactly one editable review per account and target.
+    // ===============================================================
+    match /communityReviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.targetKind in ['place', 'rental', 'google_place']
+        && request.resource.data.targetId is string
+        && reviewId == request.resource.data.targetKind + '_' + request.resource.data.targetId + '_' + request.auth.uid
+        && request.resource.data.userName is string
+        && request.resource.data.userName.size() > 0
+        && request.resource.data.userName.size() <= 100
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.content is string
+        && request.resource.data.content.size() >= 5
+        && request.resource.data.content.size() <= 1000
+        && (
+          (request.resource.data.targetKind == 'place'
+            && exists(/databases/$(database)/documents/places/$(request.resource.data.targetId)))
+          ||
+          (request.resource.data.targetKind == 'rental'
+            && exists(/databases/$(database)/documents/rentalPosts/$(request.resource.data.targetId)))
+          ||
+          (request.resource.data.targetKind == 'google_place'
+            && request.resource.data.targetId.matches('google:[A-Za-z0-9_-]{5,250}'))
+        );
+      allow delete: if isAuthenticated()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Quick voice matching. Queue and session writes happen only in the
+    // trusted Cloud Function so clients cannot select or impersonate peers.
+    // ===============================================================
+    match /voiceMatchQueue/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if false;
+    }
+
+    match /voiceMatchSessions/{sessionId} {
+      allow read: if isAuthenticated()
+        && request.auth.uid in resource.data.participantUids;
+      allow create, update, delete: if false;
+    }
+
+    // ===============================================================
+    // Opt-in dating decisions. A match can only be created after two valid
+    // adult profiles have independently liked each other.
+    // ===============================================================
+    match /datingDecisions/{decisionId} {
+      allow read: if isAuthenticated()
+        && (resource.data.fromUid == request.auth.uid
+          || resource.data.toUid == request.auth.uid);
+      // The callable function validates age, opt-in, blocks and both sides of
+      // a mutual match in one retryable transaction.
+      allow create, update, delete: if false;
+    }
+
+    match /datingLikes/{likeId} {
+      allow read: if isAuthenticated()
+        && (resource.data.fromUid == request.auth.uid
+          || resource.data.toUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /datingMatches/{matchId} {
+      allow read: if isAuthenticated()
+        && request.auth.uid in resource.data.participantUids;
+      allow create, update, delete: if false;
+    }
+
+    // ===============================================================
+    // Explicit friend connections. Browsers can observe only records they
+    // participate in; all state transitions are validated by a transaction
+    // in manageFriendConnection.
+    // ===============================================================
+    match /friendRequests/{requestId} {
+      allow read: if isAuthenticated()
+        && (request.auth.uid == resource.data.fromUid
+          || request.auth.uid == resource.data.toUid);
+      allow create, update, delete: if false;
+    }
+
+    match /friendships/{friendshipId} {
+      allow read: if isAuthenticated()
+        && request.auth.uid in resource.data.participantUids;
+      allow create, update, delete: if false;
+    }
+
+    // ===============================================================
+    // Privacy-first student map. Exact points never leave trusted server
+    // code. The client receives only a server-filtered, audience-dependent
+    // projection from getVisibleStudentLocations.
+    // ===============================================================
+    match /privateLiveLocations/{uid} {
+      allow read, write: if false;
+    }
+
+    match /sharedStudentLocations/{uid} {
+      allow read, write: if false;
+    }
+
+    match /locationPreferences/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    match /studentEncounters/{encounterId} {
+      allow read: if isAuthenticated()
+        && request.auth.uid in resource.data.participantUids;
+      allow create, update, delete: if false;
+    }
+
+    // ===============================================================
+    // Voice-only study rooms. The app does not apply a duration timer;
+    // signalling is scoped to active room participants.
+    // ===============================================================
+    match /studyRooms/{roomId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3
+        && request.resource.data.title.size() <= 80
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() <= 80
+        && request.resource.data.status == 'open'
+        && request.resource.data.maxParticipants == 8
+        && request.resource.data.participantCount == 0;
+      allow update: if isAuthenticated()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['ownerLastSeenAt', 'status', 'closedAt'])
+        && request.resource.data.status in ['open', 'closed'];
+      allow delete: if false;
+
+      match /participants/{uid} {
+        allow read: if isAuthenticated();
+        // Joining and leaving are server-side transactions so concurrent
+        // clients cannot overbook the last room slot.
+        allow create, delete: if false;
+        allow update: if isOwner(uid)
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['updatedAt']);
+      }
+
+      match /signals/{signalId} {
+        allow read: if isAuthenticated()
+          && resource.data.toUid == request.auth.uid;
+        allow create: if isAuthenticated()
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.toUid is string
+          && request.resource.data.toUid != request.auth.uid
+          && request.resource.data.type in ['offer', 'answer', 'candidate']
+          && get(/databases/$(database)/documents/studyRooms/$(roomId)).data.status == 'open'
+          && exists(/databases/$(database)/documents/studyRooms/$(roomId)/participants/$(request.auth.uid))
+          && exists(/databases/$(database)/documents/studyRooms/$(roomId)/participants/$(request.resource.data.toUid))
+          && isNotBlocked(request.auth.uid, request.resource.data.toUid);
+        allow update: if false;
+        allow delete: if isAuthenticated()
+          && resource.data.toUid == request.auth.uid;
+      }
+    }
+
+    // ===============================================================
+    // Abuse reports are immutable and private to the reporter. Moderation
+    // tooling uses Admin privileges to review them.
+    // ===============================================================
+    match /reports/{reportId} {
+      allow read: if isAuthenticated()
+        && resource.data.reporterUid == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.reportedUid is string
+        && request.resource.data.reportedUid != request.auth.uid
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 100
+        && request.resource.data.details is string
+        && request.resource.data.details.size() <= 1000;
+      allow update, delete: if false;
+    }
+
+    // ===============================================================
+    // WebRTC call signalling. Media flows peer-to-peer; Firestore carries
+    // only short-lived offer/answer/ICE metadata between the two participants.
+    // ===============================================================
+    match /calls/{callId} {
+      // Using caller/callee directly lets Firestore prove incoming-call queries
+      // are safe when the client filters on calleeUid.
+      allow read: if isAuthenticated()
+        && (resource.data.callerUid == request.auth.uid
+          || resource.data.calleeUid == request.auth.uid);
+      // Creation is server-side so two callers cannot reserve the same user
+      // simultaneously. Browsers only exchange answer/status/ICE afterward.
+      allow create: if false;
+      allow update: if isAuthenticated()
+        && request.auth.uid in resource.data.participantUids
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['answer', 'status', 'updatedAt', 'endedAt', 'endedBy'])
+        && (
+          (resource.data.status == 'ringing'
+            && request.resource.data.status == 'connecting'
+            && request.auth.uid == resource.data.calleeUid
+            && request.resource.data.answer is map)
+          ||
+          (resource.data.status == 'connecting'
+            && request.resource.data.status == 'active')
+          ||
+          (resource.data.status in ['ringing', 'connecting', 'active']
+            && request.resource.data.status in ['declined', 'ended', 'failed'])
+        );
+      allow delete: if false;
+
+      match /callerCandidates/{candidateId} {
+        allow read: if isAuthenticated()
+          && request.auth.uid in get(/databases/$(database)/documents/calls/$(callId)).data.participantUids;
+        allow create: if isAuthenticated()
+          && request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.callerUid;
+        allow update, delete: if false;
+      }
+
+      match /calleeCandidates/{candidateId} {
+        allow read: if isAuthenticated()
+          && request.auth.uid in get(/databases/$(database)/documents/calls/$(callId)).data.participantUids;
+        allow create: if isAuthenticated()
+          && request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.calleeUid;
+        allow update, delete: if false;
+      }
+    }
+
+    // Per-user busy locks are maintained only by trusted call functions.
+    match /activeCallLocks/{uid} {
+      allow read, write: if false;
     }
     
     // ===============================================================

@@ -23,18 +23,18 @@ interface PlaceListProps {
 }
 
 const CATEGORY_LABELS: { [key: string]: string } = {
-  cafe: '☕ Quán nước',
-  restaurant: '🍜 Quán ăn',
-  vegetarian: '🥗 Quán chay',
-  pharmacy: '💊 Nhà thuốc',
-  flower: '💐 Tiệm hoa',
-  printing: '🖨️ In ấn',
-  clothing: '👔 Quần áo',
-  shop: '🛒 Cửa hàng',
-  bookstore: '📚 Nhà sách',
-  study: '✏️ Chỗ học',
-  sport: '⚽ Thể thao',
-  entertainment: '🎮 Vui chơi'  // Added 10/4/2026
+  cafe: 'Quán nước',
+  restaurant: 'Quán ăn',
+  vegetarian: 'Quán chay',
+  pharmacy: 'Nhà thuốc',
+  flower: 'Tiệm hoa',
+  printing: 'In ấn',
+  clothing: 'Quần áo',
+  shop: 'Cửa hàng',
+  bookstore: 'Nhà sách',
+  study: 'Chỗ học',
+  sport: 'Thể thao',
+  entertainment: 'Vui chơi'
 };
 
 export const PlaceList: React.FC<PlaceListProps> = ({
@@ -398,7 +398,7 @@ export const PlaceList: React.FC<PlaceListProps> = ({
   }, [sortedPlaces.length, displayLimit]);
 
   // Debug logging - DISABLED to reduce console spam
-  // logger.log('🔍 PlaceList Debug:', {
+  // Place list diagnostics can be enabled here when needed.
   //   totalPlaces: places.length,
   //   afterSearchAndCategory: filteredBySearchAndCategory.length,
   //   afterRadius: filteredByRadius.length,

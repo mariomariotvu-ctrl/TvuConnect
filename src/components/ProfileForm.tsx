@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, auth, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc, handleFirestoreError, OperationType, onSnapshot } from '../firebase';
 import { User } from 'firebase/auth';
+import { deleteField } from 'firebase/firestore';
 import { StudentProfile } from '../types';
 import { Save, User as UserIcon, Phone, BookOpen, GraduationCap, Heart, Calendar, FileText, Info, MapPin, Sparkles, ShieldOff, Trash2, X, Loader2, Camera, Upload } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 import { compressImage, formatFileSize } from '../utils/imageCompression';
 import { getCachedData, setCachedData } from '../utils/cacheManager';
+import { normalizeVietnameseText } from '../utils/matchingUtils';
+import { buildStudentSearchTokens } from '../utils/studentSearch';
 import { toast } from 'sonner';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -190,40 +193,22 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
     };
   }, [user.uid]);
 
-  const fetchBlockedUsers = async () => {
-    setLoadingBlocks(true);
-    try {
-      const blocksRef = collection(db, 'blocks');
-      const q = query(blocksRef, where('blockerUid', '==', user.uid));
-      const querySnapshot = await getDocs(q);
-
-      const blockedUids = querySnapshot.docs.map(doc => doc.data().blockedUid);
-
-      if (blockedUids.length === 0) {
-        setBlockedUsers([]);
-        return;
-      }
-
-      // Fetch all blocked profiles in ONE single query (Max 30)
-      const profilesRef = collection(db, 'profiles');
-      const profileQuery = query(profilesRef, where('uid', 'in', blockedUids.slice(0, 30)));
-      const profileSnapshot = await getDocs(profileQuery);
-
-      const profiles = profileSnapshot.docs.map(doc => doc.data() as StudentProfile);
-      setBlockedUsers(profiles);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'blocks', true);
-    } finally {
-      setLoadingBlocks(false);
-    }
-  };
-
   const handleUnblock = async () => {
     if (!userToUnblock) return;
     setUnblockingId(userToUnblock.uid);
     try {
       const blockId = `${user.uid}_${userToUnblock.uid}`;
-      await deleteDoc(doc(db, 'blocks', blockId));
+      const matchingBlocks = await getDocs(query(
+        collection(db, 'blocks'),
+        where('blockerUid', '==', user.uid),
+        where('blockedUid', '==', userToUnblock.uid),
+      ));
+      await Promise.all([
+        deleteDoc(doc(db, 'blocks', blockId)),
+        ...matchingBlocks.docs
+          .filter((blockDocument) => blockDocument.id !== blockId)
+          .map((blockDocument) => deleteDoc(blockDocument.ref)),
+      ]);
       setBlockedUsers(prev => prev.filter(u => u.uid !== userToUnblock.uid));
       setIsConfirmUnblockOpen(false);
       setUserToUnblock(null);
@@ -351,6 +336,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
         fullName: profile.fullName?.trim() || '',
         uid: user.uid,
         email: user.email || '',
+        university: profile.university?.trim() || 'Đại học Trà Vinh',
         updatedAt: serverTimestamp(),
       };
 
@@ -365,7 +351,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       if (profile.className?.trim()) cleanData.className = profile.className.trim();
       if (profile.phone?.trim()) cleanData.phone = profile.phone.trim();
       if (profile.hometown?.trim()) cleanData.hometown = profile.hometown.trim();
-      if (profile.major?.trim()) cleanData.major = profile.major.trim();
+      if (profile.major?.trim()) {
+        cleanData.major = profile.major.trim();
+        // Matching and friend discovery query this normalized field. Saving it
+        // with the profile keeps accents/case from breaking valid matches.
+        cleanData.majorNormalized = normalizeVietnameseText(cleanData.major);
+      }
       if (profile.academicYear?.trim()) cleanData.academicYear = profile.academicYear.trim();
       if (profile.purpose?.trim()) cleanData.purpose = profile.purpose.trim();
       if (profile.description?.trim()) cleanData.description = profile.description.trim();
@@ -386,14 +377,22 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       // Add boolean fields
       cleanData.showPhone = profile.showPhone !== false;
       cleanData.showHometown = profile.showHometown !== false;
-      cleanData.showLocation = profile.showLocation !== false;
+      // Exact live coordinates belong only in the private server-managed
+      // location collection. Saving a profile also removes legacy copies.
+      cleanData.showLocation = false;
 
-      // Add location if exists
-      if (profile.location) {
-        cleanData.location = profile.location;
-      }
+      cleanData.searchTokens = buildStudentSearchTokens([
+        profile.fullName,
+        profile.nickname,
+        profile.major,
+        profile.className,
+        profile.academicYear,
+        profile.university,
+        profile.campus,
+      ]);
 
       const finalProfile = { ...profile, ...cleanData } as StudentProfile;
+      delete finalProfile.location;
 
       // Optimistic update: cập nhật UI & cache ngay lập tức, không đợi Firestore
       // Cập nhật cache ngay — strip base64 photoURL
@@ -410,10 +409,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       // Tắt spinner và gọi onSave TRƯỚC khi await Firestore
       setSaving(false);
       onSave(finalProfile);
-      toast.success('Đã lưu hồ sơ thành công! ✓');
+      toast.success('Đã lưu hồ sơ thành công.');
 
       // Ghi Firestore ngầm (fire-and-forget) — không block UI
-      setDoc(doc(db, 'profiles', user.uid), cleanData, { merge: true }).catch((error: any) => {
+      setDoc(doc(db, 'profiles', user.uid), {
+        ...cleanData,
+        location: deleteField(),
+      }, { merge: true }).catch((error: any) => {
         console.error('Profile save error (background):', error);
         const errorMsg = error?.message || String(error);
         if (errorMsg.includes('permission-denied') || errorMsg.includes('PERMISSION_DENIED')) {

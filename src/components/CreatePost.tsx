@@ -125,7 +125,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, userProfile, onPos
           continue;
         }
         
-        // ⚠️ BASIC IMAGE DETECTION TẠM THỜI TẮT
+        // Basic image detection is temporarily disabled.
         // Lý do: False positive cao (15-20%) - Chặn nhầm ảnh tối màu bình thường
         // Giải pháp: Dựa vào user report + admin review thay vì tự động chặn
         // 
@@ -214,7 +214,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, userProfile, onPos
     if (banStatus.isBanned) {
       const timeRemaining = formatTimeRemaining(banStatus.timeRemaining);
       toast.error(banStatus.banInfo!.message, {
-        description: `${banStatus.banInfo!.description}\n⏱️ Còn lại: ${timeRemaining}`,
+        description: `${banStatus.banInfo!.description}\nCòn lại: ${timeRemaining}`,
         duration: 5000
       });
       return;

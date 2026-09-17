@@ -6,7 +6,7 @@
  */
 
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ProfileCard } from './ProfileCard';
 import type { ActivityData } from '../../utils/activityBooster';
@@ -362,7 +362,7 @@ describe('ProfileCard — Integration', () => {
     expect(screen.getByText('● Online')).toBeInTheDocument();
   });
 
-  it('gọi onProfileClick khi click vào card', async () => {
+  it('gọi onProfileClick khi click vào card', () => {
     const onProfileClick = vi.fn();
     render(
       <ProfileCard
@@ -372,8 +372,8 @@ describe('ProfileCard — Integration', () => {
       />
     );
 
-    screen.getByText('Nguyễn Văn A').closest('div[class*="flex"]')!.click();
-    // onProfileClick được gọi ít nhất 1 lần
-    // (click có thể bubble lên container ngoài)
+    fireEvent.click(screen.getByText('Nguyễn Văn A'));
+
+    expect(onProfileClick).toHaveBeenCalledWith(mockProfile);
   });
 });

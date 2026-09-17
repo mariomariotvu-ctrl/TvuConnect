@@ -15,12 +15,12 @@ interface CheckInModalProps {
 
 type CheckInStatus = 'studying' | 'working' | 'hanging_out' | 'waiting' | 'available';
 
-const STATUS_OPTIONS: { value: CheckInStatus; label: string; emoji: string }[] = [
-  { value: 'studying', label: 'Đang học bài', emoji: '📚' },
-  { value: 'working', label: 'Đang làm việc', emoji: '💼' },
-  { value: 'hanging_out', label: 'Đang chơi', emoji: '🎉' },
-  { value: 'waiting', label: 'Đang chờ bạn', emoji: '⏰' },
-  { value: 'available', label: 'Rảnh, muốn gặp người mới', emoji: '👋' }
+const STATUS_OPTIONS: { value: CheckInStatus; label: string }[] = [
+  { value: 'studying', label: 'Đang học bài' },
+  { value: 'working', label: 'Đang làm việc' },
+  { value: 'hanging_out', label: 'Đang thư giãn' },
+  { value: 'waiting', label: 'Đang chờ bạn' },
+  { value: 'available', label: 'Rảnh, muốn gặp người mới' }
 ];
 
 export const CheckInModal: React.FC<CheckInModalProps> = ({ place, currentUser, onClose }) => {
@@ -125,7 +125,6 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({ place, currentUser, 
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
-                  <span className="text-xl mr-2">{option.emoji}</span>
                   <span className="font-bold">{option.label}</span>
                 </button>
               ))}

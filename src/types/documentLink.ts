@@ -71,6 +71,7 @@ export interface UseDocumentsResult {
   loading: boolean;
   error: Error | null;
   hasMore: boolean;
+  loadingMore: boolean;
   loadMore: () => Promise<void>;
   refresh: () => void;
   removeDocumentOptimistic: (id: string) => void;

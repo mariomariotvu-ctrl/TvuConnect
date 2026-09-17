@@ -11,6 +11,8 @@ coverage/
 .env.development
 .env.production
 .env.*.local
+functions/.runtimeconfig.json
+functions/.secret.local
 
 # Chỉ push .env.example (file mẫu không có key thật)
 !.env.example

@@ -1,6 +1,29 @@
 // Export all Cloud Functions
 const sendMessageNotification = require('./sendMessageNotification');
+const sendCallNotification = require('./sendCallNotification');
+const askStudentAssistant = require('./askStudentAssistant');
+const matchVoicePartner = require('./matchVoicePartner');
+const manageStudyRoom = require('./manageStudyRoom');
+const recordDatingDecision = require('./recordDatingDecision');
+const manageDirectCall = require('./manageDirectCall');
+const manageFriendConnection = require('./manageFriendConnection');
+const manageLiveLocation = require('./manageLiveLocation');
+const discoverFoodPlaces = require('./discoverFoodPlaces');
 const deleteOldPosts = require('./deleteOldPosts');
 
 exports.sendMessageNotification = sendMessageNotification.sendMessageNotification;
+exports.sendCallNotification = sendCallNotification.sendCallNotification;
+exports.askStudentAssistant = askStudentAssistant.askStudentAssistant;
+exports.matchVoicePartner = matchVoicePartner.matchVoicePartner;
+exports.joinStudyRoom = manageStudyRoom.joinStudyRoom;
+exports.leaveStudyRoom = manageStudyRoom.leaveStudyRoom;
+exports.recordDatingDecision = recordDatingDecision.recordDatingDecision;
+exports.createDirectCall = manageDirectCall.createDirectCall;
+exports.releaseDirectCallLocks = manageDirectCall.releaseDirectCallLocks;
+exports.manageFriendConnection = manageFriendConnection.manageFriendConnection;
+exports.updateLiveLocation = manageLiveLocation.updateLiveLocation;
+exports.stopLiveLocation = manageLiveLocation.stopLiveLocation;
+exports.getVisibleStudentLocations = manageLiveLocation.getVisibleStudentLocations;
+exports.deleteExpiredLiveLocations = manageLiveLocation.deleteExpiredLiveLocations;
+exports.discoverFoodPlaces = discoverFoodPlaces.discoverFoodPlaces;
 exports.deleteOldPosts = deleteOldPosts.deleteOldPosts;

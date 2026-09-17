@@ -3,7 +3,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { StudentProfile } from '../types';
 import { FIRESTORE_LIMITS } from '../utils/constants';
 import { calculateMatchingScore, normalizeVietnameseText } from '../utils/matchingUtils';
-import { applyFilters, alternateRecentAndOld, getMockProfiles } from '../utils/matchingHelpers';
+import { applyFilters, alternateRecentAndOld } from '../utils/matchingHelpers';
 import { getFallbackProfiles } from './fallbackProfilesService';
 import { markProfileAsViewedInCache, getViewedStatsFromCache, filterViewedProfiles } from '../utils/viewedProfilesCache';
 import { MatchingFilters } from '../hooks/useMatchingFilters';
@@ -74,8 +74,10 @@ export const fetchMatchingProfiles = async (
   currentProfile: StudentProfile | null
 ): Promise<MatchingServiceResult> => {
   try {
-    // Check daily limit FIRST
-    if (hasReachedDailyLimit(userUid)) {
+    // Hobby discovery keeps the legacy quota guard. Voice matching, study
+    // rooms and the opt-in dating deck have their own abuse controls.
+    const usesDailyLimit = mode === 'hobby';
+    if (usesDailyLimit && hasReachedDailyLimit(userUid)) {
       const { hours, minutes } = getTimeUntilReset(userUid);
       toast.error(`Bạn đã hết lượt ghép cặp ca này (5/5). Reset sau ${hours}h${minutes}p.`, { duration: 5000 });
       return {
@@ -115,6 +117,14 @@ export const fetchMatchingProfiles = async (
       .map(doc => doc.data() as StudentProfile)
       .filter(p => p.uid !== userUid && !blockedSet.has(p.uid));
 
+    if (mode === 'lover') {
+      allProfiles = allProfiles.filter((profile) => (
+        profile.datingEnabled === true
+        && typeof profile.age === 'number'
+        && profile.age >= 18
+      ));
+    }
+
     // Lưu cache để loadOneMoreProfile tái sử dụng — tránh N+1 reads
     setCachedProfiles(filters, allProfiles);
 
@@ -126,7 +136,14 @@ export const fetchMatchingProfiles = async (
 
     if (allProfiles.length === 0) {
       // Try fallback profiles
-      const fallbackProfiles = await getFallbackProfiles(userUid, filters, blockedSet, mode, currentProfile);
+      let fallbackProfiles = await getFallbackProfiles(userUid, filters, blockedSet, mode, currentProfile);
+      if (mode === 'lover') {
+        fallbackProfiles = fallbackProfiles.filter((profile) => (
+          profile.datingEnabled === true
+          && typeof profile.age === 'number'
+          && profile.age >= 18
+        ));
+      }
       
       if (fallbackProfiles.length === 0) {
         return {
@@ -222,13 +239,17 @@ export const fetchMatchingProfiles = async (
     // Tránh tạo nhiều write operations đồng thời khi nhiều user ghép cặp cùng lúc
 
     // Increment match count AFTER successful match
-    incrementMatchCount(userUid);
-    const remaining = getRemainingMatches(userUid);
+    if (usesDailyLimit) incrementMatchCount(userUid);
+    const remaining = usesDailyLimit ? getRemainingMatches(userUid) : null;
 
     if (profilesWithBoost.length > 4) {
-      toast.success(`Tìm thấy ${profilesWithBoost.length} người! Hiển thị 4 người phù hợp nhất. (Còn ${remaining}/5 lượt)`, { duration: 4000 });
+      toast.success(usesDailyLimit
+        ? `Tìm thấy ${profilesWithBoost.length} người! Hiển thị 4 người phù hợp nhất. (Còn ${remaining}/5 lượt)`
+        : `Tìm thấy ${profilesWithBoost.length} người phù hợp.`, { duration: 4000 });
     } else {
-      toast.success(`Tìm thấy ${profiles.length} người phù hợp! (Còn ${remaining}/5 lượt ca này)`, { duration: 4000 });
+      toast.success(usesDailyLimit
+        ? `Tìm thấy ${profiles.length} người phù hợp! (Còn ${remaining}/5 lượt ca này)`
+        : `Tìm thấy ${profiles.length} người phù hợp!`, { duration: 4000 });
     }
 
     return {
@@ -243,12 +264,12 @@ export const fetchMatchingProfiles = async (
     console.error('Matching error:', err);
     
     if (err?.message && (err.message.toLowerCase().includes('quota') || err.message.toLowerCase().includes('permission'))) {
-      toast.warning('⚠️ Đã hết Data Firebase hôm nay (Quota Exceeded). Hiển thị danh sách giả lập để bạn tiếp tục duyệt UI!', { duration: 6000 });
+      toast.error('Dữ liệu tìm bạn đang tạm gián đoạn. Không có hồ sơ giả được hiển thị.', { duration: 5000 });
       return {
-        profiles: getMockProfiles(),
+        profiles: [],
         isShowingFallback: false,
         viewedStats: getViewedStatsFromCache(userUid),
-        error: null,
+        error: 'Chưa thể tải hồ sơ thật từ hệ thống. Vui lòng thử lại sau.',
         activityDataMap: new Map(),
         isInOnlineBatch: false,
       };
@@ -316,6 +337,14 @@ export const loadOneMoreProfile = async (
         !blockedSet.has(p.uid) &&
         !shownUids.has(p.uid)
       );
+
+    if (mode === 'lover') {
+      allProfiles = allProfiles.filter((profile) => (
+        profile.datingEnabled === true
+        && typeof profile.age === 'number'
+        && profile.age >= 18
+      ));
+    }
 
     // Filter out viewed profiles from cache (24h cooldown)
     allProfiles = filterViewedProfiles(allProfiles, userUid);

@@ -32,22 +32,28 @@ export const showNotification = (
 /**
  * Format message notification
  */
+export interface MessageNotificationData {
+  senderName?: string;
+  body?: string;
+  conversationId?: string;
+  senderUid?: string;
+}
+
 export const formatMessageNotification = (
-  senderName: string,
-  senderAvatar: string,
-  messageText: string,
-  conversationId: string
+  data: MessageNotificationData,
 ): { title: string; options: NotificationOptions } => {
-  // Truncate message to 100 chars
-  const truncatedMessage = messageText.length > 100 
-    ? messageText.substring(0, 100) + '...' 
+  const senderName = data.senderName || 'TVU Connect';
+  const messageText = data.body || 'Bạn có tin nhắn mới';
+  const conversationId = data.conversationId || 'messages';
+  const truncatedMessage = messageText.length > 100
+    ? `${messageText.substring(0, 97)}...`
     : messageText;
 
   return {
     title: senderName,
     options: {
       body: truncatedMessage,
-      icon: senderAvatar || '/logo.png',
+      icon: '/logo.png',
       badge: '/logo.png',
       tag: conversationId, // Same tag = replace previous notification
       requireInteraction: false,
@@ -55,7 +61,8 @@ export const formatMessageNotification = (
       data: {
         type: 'message',
         conversationId,
-        url: `/messages?chat=${conversationId}`
+        senderUid: data.senderUid,
+        url: data.senderUid ? `/#chat?with=${encodeURIComponent(data.senderUid)}` : '/#conversations',
       }
     }
   };

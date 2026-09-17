@@ -63,11 +63,18 @@ const mockTimestamp = {
 const arbStudentProfile: fc.Arbitrary<StudentProfile> = fc
   .record({
     uid: fc.uuid(),
-    fullName: fc.string({ minLength: 1, maxLength: 50 }).filter(s => s.trim().length > 0),
+    fullName: fc.string({ minLength: 1, maxLength: 50 })
+      .filter(s => s.trim().length > 0)
+      .map(s => s.trim()),
     mssv: fc.string({ minLength: 9, maxLength: 10 }),
     email: fc.emailAddress(),
     photoURL: fc.option(fc.webUrl(), { nil: undefined }),
-    major: fc.option(fc.string({ minLength: 1, maxLength: 80 }), { nil: undefined }),
+    major: fc.option(
+      fc.string({ minLength: 1, maxLength: 80 })
+        .filter(s => s.trim().length > 0)
+        .map(s => s.trim()),
+      { nil: undefined },
+    ),
   })
   .map(fields => ({
     ...fields,
@@ -135,7 +142,7 @@ describe('Property 2: Preservation — Match document hợp lệ hoạt động 
     it('[PBT] sinh ngẫu nhiên match hợp lệ → fullName luôn được render', () => {
       fc.assert(
         fc.property(arbValidMatch, (match) => {
-          const { queryByText, unmount } = render(
+          const { container, unmount } = render(
             <MatchingHistory
               matches={[match]}
               hasMore={false}
@@ -145,9 +152,9 @@ describe('Property 2: Preservation — Match document hợp lệ hoạt động 
           );
 
           const fullName = match.matchedProfile!.fullName;
-          const rendered = queryByText(fullName);
+          const rendered = container.textContent?.includes(fullName) ?? false;
           unmount();
-          return rendered !== null;
+          return rendered;
         }),
         { numRuns: 30 }
       );
@@ -166,11 +173,10 @@ describe('Property 2: Preservation — Match document hợp lệ hoạt động 
           );
 
           const expectedMajor = match.matchedProfile!.major || 'Chưa cập nhật';
-          const majorEl = container.querySelector('p.text-\\[12px\\]');
-          unmount();
-
           // Major text phải có trong rendered output
-          return container.textContent?.includes(expectedMajor) ?? false;
+          const rendered = container.textContent?.includes(expectedMajor) ?? false;
+          unmount();
+          return rendered;
         }),
         { numRuns: 30 }
       );

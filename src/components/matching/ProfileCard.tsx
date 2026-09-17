@@ -1,5 +1,5 @@
 import React from 'react';
-import { User as UserIcon } from 'lucide-react';
+import { ThumbsDown, ThumbsUp, User as UserIcon } from 'lucide-react';
 import { StudentProfile } from '../../types';
 import { ActivityData } from '../../utils/activityBooster';
 import { logger } from '@/utils/logger';
@@ -209,7 +209,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
               </div>
             ))
           ) : (
-            <span className="text-[10px] text-gray-400 italic font-medium">✨ Hồ sơ nổi bật</span>
+            <span className="text-[10px] text-gray-500 font-medium">Hồ sơ phù hợp</span>
           )}
         </div>
 
@@ -221,18 +221,18 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                 e.stopPropagation();
                 onFeedback(profile, 'like');
               }}
-              className="flex-1 py-2 px-3 bg-green-50 text-green-600 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors"
+              className="flex-1 py-2 px-3 bg-green-50 text-green-600 rounded-lg text-sm font-bold hover:bg-green-100 transition-colors inline-flex items-center justify-center gap-1.5"
             >
-              👍 Thích
+              <ThumbsUp className="w-4 h-4" /> Thích
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onFeedback(profile, 'dislike');
               }}
-              className="flex-1 py-2 px-3 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors"
+              className="flex-1 py-2 px-3 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors inline-flex items-center justify-center gap-1.5"
             >
-              👎 Bỏ qua
+              <ThumbsDown className="w-4 h-4" /> Bỏ qua
             </button>
           </div>
         )}

@@ -1,10 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import * as fc from 'fast-check';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { DocumentCard } from './DocumentCard';
 import { DocumentLink } from '../types/documentLink';
+
+vi.mock('../contexts/ThemeContext', () => ({
+  useTheme: () => ({
+    theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+    toggleTheme: vi.fn(),
+  }),
+}));
 
 /**
  * Bug Condition Exploration Test for Mobile Light Mode Display Failure

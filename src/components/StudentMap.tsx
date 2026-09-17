@@ -1,0 +1,376 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { User } from 'firebase/auth';
+import { divIcon } from 'leaflet';
+import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import {
+  BellRing,
+  Clock3,
+  GraduationCap,
+  LocateFixed,
+  MapPin,
+  MessageCircle,
+  Navigation,
+  ShieldCheck,
+  UserRound,
+  Users,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import type {
+  LocationPreferences,
+  LocationVisibility,
+  Place,
+  StudentProfile,
+  VisibleStudentLocation,
+} from '../types';
+import {
+  getVisibleStudentLocations,
+  requestPreciseLocation,
+  stopLiveLocation,
+  subscribeLocationPreferences,
+  updateLiveLocation,
+} from '../services/liveLocationService';
+import { calculateDistance } from '../utils/locationUtils';
+import { isMajorMatch } from '../utils/matchingUtils';
+import { useTheme } from '../contexts/ThemeContext';
+
+interface StudentMapProps {
+  currentUser: User;
+  currentProfile: StudentProfile | null;
+  places: Place[];
+  onProfileClick?: (uid: string) => void;
+}
+
+const TVU_CENTER: [number, number] = [9.9345, 106.3461];
+
+const VISIBILITY_OPTIONS: Array<{
+  value: Exclude<LocationVisibility, 'off'>;
+  title: string;
+  description: string;
+  precision: string;
+}> = [
+  {
+    value: 'friends',
+    title: 'Chỉ bạn bè',
+    description: 'Chỉ những người đã kết bạn hai chiều.',
+    precision: 'Làm tròn khoảng 10 m',
+  },
+  {
+    value: 'major',
+    title: 'Bạn bè và cùng ngành',
+    description: 'Sinh viên cùng ngành thấy khu vực gần đúng.',
+    precision: 'Người cùng ngành: khoảng 100 m',
+  },
+  {
+    value: 'tvu',
+    title: 'Sinh viên TVU',
+    description: 'Mọi sinh viên đã đăng nhập chỉ thấy khu vực rộng.',
+    precision: 'Toàn TVU: khoảng 1 km',
+  },
+];
+
+const markerIcon = (kind: 'own' | 'friend' | 'major' | 'tvu') => {
+  const colors = {
+    own: ['#4f46e5', '#c7d2fe'],
+    friend: ['#059669', '#a7f3d0'],
+    major: ['#7c3aed', '#ddd6fe'],
+    tvu: ['#475569', '#cbd5e1'],
+  } as const;
+  const [background, ring] = colors[kind];
+  return divIcon({
+    className: 'student-map-marker',
+    html: `<span style="display:block;width:22px;height:22px;border-radius:9999px;background:${background};border:4px solid white;box-shadow:0 0 0 4px ${ring},0 6px 16px rgba(15,23,42,.28)"></span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+};
+
+const formatLastShared = (timestamp: number) => {
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 1) return 'Vừa cập nhật';
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours} giờ trước` : `${Math.floor(hours / 24)} ngày trước`;
+};
+
+const StudentMapCenter: React.FC<{ center: [number, number] }> = ({ center }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    map.flyTo(center, Math.max(map.getZoom(), 15), { duration: 0.6 });
+  }, [center, map]);
+
+  return null;
+};
+
+export const StudentMap: React.FC<StudentMapProps> = ({
+  currentUser,
+  currentProfile,
+  places,
+  onProfileClick,
+}) => {
+  const { theme } = useTheme();
+  const [preferences, setPreferences] = useState<LocationPreferences>({
+    uid: currentUser.uid,
+    visibility: 'off',
+    encounterAlertsEnabled: false,
+  });
+  const [draftVisibility, setDraftVisibility] = useState<Exclude<LocationVisibility, 'off'>>('friends');
+  const [draftEncounters, setDraftEncounters] = useState(false);
+  const [locations, setLocations] = useState<VisibleStudentLocation[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<VisibleStudentLocation | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sharingActive = preferences.visibility !== 'off';
+
+  useEffect(() => subscribeLocationPreferences(currentUser.uid, (next) => {
+    setPreferences(next);
+    if (next.visibility !== 'off') setDraftVisibility(next.visibility);
+    setDraftEncounters(next.encounterAlertsEnabled);
+  }, (preferenceError) => {
+    console.warn('Could not load location preferences:', preferenceError);
+    setError('Chưa thể đọc cài đặt chia sẻ vị trí.');
+  }), [currentUser.uid]);
+
+  const loadLocations = useCallback(async () => {
+    if (!sharingActive) {
+      setLocations([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const nextLocations = await getVisibleStudentLocations();
+      setLocations(nextLocations.filter((location) => location.expiresAt > Date.now()));
+      setError(null);
+    } catch (locationError) {
+      console.error('Could not load student map:', locationError);
+      setError('Chưa thể tải vị trí bạn bè. Hãy thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  }, [sharingActive]);
+
+  useEffect(() => {
+    void loadLocations();
+    if (!sharingActive) return;
+    const interval = window.setInterval(() => { void loadLocations(); }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadLocations, sharingActive]);
+
+  const saveSharing = async () => {
+    setSaving(true);
+    try {
+      const position = await requestPreciseLocation();
+      await updateLiveLocation({
+        ...position,
+        visibility: draftVisibility,
+        encounterAlertsEnabled: draftEncounters,
+      });
+      setPreferences({
+        uid: currentUser.uid,
+        visibility: draftVisibility,
+        encounterAlertsEnabled: draftEncounters,
+      });
+      toast.success(sharingActive ? 'Đã cập nhật phạm vi chia sẻ.' : 'Đã bắt đầu chia sẻ vị trí an toàn.');
+      await loadLocations();
+    } catch (sharingError) {
+      toast.error(sharingError instanceof Error ? sharingError.message : 'Chưa thể bật chia sẻ vị trí.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const stopSharing = async () => {
+    setSaving(true);
+    try {
+      await stopLiveLocation();
+      setPreferences({ uid: currentUser.uid, visibility: 'off', encounterAlertsEnabled: false });
+      setLocations([]);
+      setSelectedLocation(null);
+      toast.success('Đã dừng chia sẻ và xóa vị trí sống khỏi bản đồ.');
+    } catch (sharingError) {
+      console.error('Could not stop live location:', sharingError);
+      toast.error('Chưa thể dừng chia sẻ. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ownLocation = locations.find((location) => location.isOwn);
+  const center = ownLocation
+    ? [ownLocation.latitude, ownLocation.longitude] as [number, number]
+    : TVU_CENTER;
+
+  const nearestPlace = useMemo(() => {
+    if (!selectedLocation) return null;
+    const nearby = places
+      .filter((place) => Number.isFinite(place.location?.lat) && Number.isFinite(place.location?.lng))
+      .map((place) => ({
+        place,
+        distance: calculateDistance(
+          { lat: selectedLocation.latitude, lng: selectedLocation.longitude },
+          { lat: place.location.lat, lng: place.location.lng },
+        ),
+      }))
+      .sort((left, right) => left.distance - right.distance)[0];
+    return nearby && nearby.distance <= 1 ? nearby : null;
+  }, [places, selectedLocation]);
+
+  const relationFor = (location: VisibleStudentLocation) => {
+    if (location.isOwn) return { label: 'Bạn', kind: 'own' as const };
+    if (location.isFriend) return { label: 'Bạn bè', kind: 'friend' as const };
+    if (currentProfile && isMajorMatch(currentProfile.major, location.major)) {
+      return { label: 'Cùng ngành', kind: 'major' as const };
+    }
+    return { label: 'Sinh viên TVU', kind: 'tvu' as const };
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-slate-50 p-3 pb-24 dark:bg-slate-950 sm:p-5">
+      <div className="mx-auto max-w-6xl space-y-4">
+        <section className="rounded-3xl border border-indigo-200 bg-white p-5 shadow-sm dark:border-indigo-900 dark:bg-slate-900">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-sm font-bold text-indigo-600 dark:text-indigo-300">
+                <ShieldCheck className="h-5 w-5" /> Bản đồ sinh viên có kiểm soát
+              </div>
+              <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Bạn bè quanh TVU</h1>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                Bạn quyết định ai được thấy mình. Tọa độ gốc không được gửi cho trình duyệt của người khác và tự hết hạn nếu ứng dụng ngừng cập nhật.
+              </p>
+            </div>
+            <div className={`rounded-2xl px-4 py-3 text-sm font-bold ${sharingActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+              <span className="inline-flex items-center gap-2"><LocateFixed className="h-4 w-4" />{sharingActive ? 'Đang chia sẻ' : 'Đang ẩn vị trí'}</span>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {VISIBILITY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setDraftVisibility(option.value)}
+                className={`rounded-2xl border p-4 text-left transition ${draftVisibility === option.value ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/15 dark:bg-indigo-950/30' : 'border-slate-200 hover:border-indigo-300 dark:border-slate-700 dark:hover:border-indigo-700'}`}
+              >
+                <strong className="block text-sm text-slate-900 dark:text-white">{option.title}</strong>
+                <span className="mt-1 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{option.description}</span>
+                <span className="mt-2 block text-[11px] font-bold text-indigo-600 dark:text-indigo-300">{option.precision}</span>
+              </button>
+            ))}
+          </div>
+
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
+            <input
+              type="checkbox"
+              checked={draftEncounters}
+              onChange={(event) => setDraftEncounters(event.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <strong className="flex items-center gap-2 text-sm text-slate-900 dark:text-white"><BellRing className="h-4 w-4 text-violet-600" /> Báo khi vừa chạm mặt</strong>
+              <span className="mt-1 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">Chỉ báo khi cả hai cùng bật, đều cho phép nhau xuất hiện và ở gần khoảng 35 m. Thiết bị hỗ trợ sẽ rung khi web đang hoạt động.</span>
+            </span>
+          </label>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void saveSharing()}
+              className="min-h-12 flex-1 rounded-xl bg-indigo-600 px-5 text-sm font-black text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {saving ? 'Đang cập nhật…' : sharingActive ? 'Lưu cài đặt chia sẻ' : 'Bắt đầu chia sẻ'}
+            </button>
+            {sharingActive && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void stopSharing()}
+                className="min-h-12 rounded-xl border border-rose-200 px-5 text-sm font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900 dark:hover:bg-rose-950/30"
+              >
+                Dừng và xóa vị trí
+              </button>
+            )}
+          </div>
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Web chỉ cập nhật khi TVU Connect đang mở. Điểm cuối tự biến mất sau khoảng 15 phút nếu không còn cập nhật.</p>
+        </section>
+
+        {!sharingActive ? (
+          <section className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900">
+            <Navigation className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" />
+            <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Bản đồ đang khóa để bảo vệ riêng tư</h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500 dark:text-slate-400">Bật một phạm vi chia sẻ ở trên để xem những người cũng đã tự nguyện xuất hiện. Không có chế độ xem ẩn danh vị trí của người khác.</p>
+          </section>
+        ) : (
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+              <div>
+                <h2 className="font-black text-slate-900 dark:text-white">Vị trí đang được chia sẻ</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{loading ? 'Đang làm mới…' : `${locations.length} người đang hiển thị`}</p>
+              </div>
+              <button type="button" onClick={() => void loadLocations()} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">Làm mới</button>
+            </div>
+            {error && <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{error}</p>}
+            <div className="relative h-[52vh] min-h-[380px] w-full">
+              <MapContainer center={center} zoom={15} className="h-full w-full" scrollWheelZoom>
+                <StudentMapCenter center={center} />
+                <TileLayer
+                  attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+                  url={theme === 'dark'
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'}
+                  maxZoom={19}
+                />
+                {locations.map((location) => {
+                  const relation = relationFor(location);
+                  return (
+                    <Marker
+                      key={location.uid}
+                      position={[location.latitude, location.longitude]}
+                      icon={markerIcon(relation.kind)}
+                      eventHandlers={{ click: () => setSelectedLocation(location) }}
+                    />
+                  );
+                })}
+              </MapContainer>
+              <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex flex-wrap gap-2 rounded-xl bg-white/90 p-2 text-[11px] font-bold text-slate-600 shadow-md backdrop-blur dark:bg-slate-900/90 dark:text-slate-300">
+                <span className="text-indigo-600">Bạn</span><span className="text-emerald-600">Bạn bè</span><span className="text-violet-600">Cùng ngành</span><span>Sinh viên TVU</span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {selectedLocation && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start gap-3">
+              {selectedLocation.photoURL ? (
+                <img src={selectedLocation.photoURL} alt="" className="h-14 w-14 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950"><UserRound className="h-7 w-7" /></div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-black text-slate-900 dark:text-white">{selectedLocation.fullName}</h3>
+                  <span className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{relationFor(selectedLocation).label}</span>
+                </div>
+                {selectedLocation.major && <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400"><GraduationCap className="h-4 w-4" />{selectedLocation.major}</p>}
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><Clock3 className="h-3.5 w-3.5" />Chia sẻ lần cuối: {formatLastShared(selectedLocation.updatedAt)}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><MapPin className="h-3.5 w-3.5" />{nearestPlace ? `Gần ${nearestPlace.place.name}` : 'Khu vực hiển thị trên bản đồ'} · vị trí đã làm mờ theo quyền chia sẻ</p>
+              </div>
+            </div>
+            {!selectedLocation.isOwn && onProfileClick && (
+              <button onClick={() => onProfileClick(selectedLocation.uid)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-black text-white hover:bg-indigo-700"><MessageCircle className="h-4 w-4" />Xem hồ sơ và trò chuyện</button>
+            )}
+          </section>
+        )}
+
+        <section className="grid gap-3 text-xs text-slate-600 dark:text-slate-300 md:grid-cols-3">
+          <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><ShieldCheck className="mb-2 h-5 w-5 text-emerald-600" /><strong className="block text-slate-900 dark:text-white">Không đọc tọa độ gốc</strong><span>Trình duyệt chỉ nhận điểm đã làm mờ và được server cho phép.</span></div>
+          <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><Users className="mb-2 h-5 w-5 text-indigo-600" /><strong className="block text-slate-900 dark:text-white">Quan hệ hai chiều</strong><span>Chế độ bạn bè chỉ hoạt động sau khi lời mời được chấp nhận.</span></div>
+          <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><BellRing className="mb-2 h-5 w-5 text-violet-600" /><strong className="block text-slate-900 dark:text-white">Chạm mặt có đồng thuận</strong><span>Không tạo sự kiện nếu một trong hai người tắt tính năng hoặc chặn nhau.</span></div>
+        </section>
+      </div>
+    </div>
+  );
+};

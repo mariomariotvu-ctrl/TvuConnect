@@ -1,8 +1,9 @@
 import { memo, useState, useEffect } from 'react';
-import { ExternalLink, Edit2, Trash2, GraduationCap, BookOpen, Pill, Stethoscope, Heart, Code, TrendingUp, Briefcase, BookText, Scale, Languages, BarChart3, Calculator } from 'lucide-react';
+import { Eye, Edit2, Trash2, GraduationCap, BookOpen, Pill, Stethoscope, Heart, Code, TrendingUp, Briefcase, BookText, Scale, Languages, BarChart3, Calculator } from 'lucide-react';
 import { DocumentLink } from '../types/documentLink';
 import { User } from 'firebase/auth';
 import { UploaderInfo } from './UploaderInfo';
+import { DocumentViewerModal } from './DocumentViewerModal';
 
 interface DocumentCardProps {
   document: DocumentLink;
@@ -18,40 +19,40 @@ const getMajorIcon = (majorText: string) => {
   
   // Răng Hàm Mặt - use Stethoscope icon (medical field)
   if (lowerText.includes('răng') || lowerText.includes('rang')) {
-    return Stethoscope; // 🦷 Răng Hàm Mặt
+    return Stethoscope;
   }
   if (lowerText.includes('dược') || lowerText.includes('duoc')) {
-    return Pill; // 💊 Dược
+    return Pill;
   }
   if (lowerText.includes('y khoa') || lowerText.includes('y ')) {
-    return Stethoscope; // 🩺 Y Khoa
+    return Stethoscope;
   }
   if (lowerText.includes('điều dưỡng') || lowerText.includes('dieu duong')) {
-    return Heart; // ❤️ Điều Dưỡng
+    return Heart;
   }
   if (lowerText.includes('cntt') || lowerText.includes('công nghệ thông tin')) {
-    return Code; // 💻 CNTT
+    return Code;
   }
   if (lowerText.includes('kinh tế') || lowerText.includes('kinh te')) {
-    return TrendingUp; // 📈 Kinh Tế
+    return TrendingUp;
   }
   if (lowerText.includes('quản trị') || lowerText.includes('quan tri')) {
-    return Briefcase; // 💼 Quản Trị
+    return Briefcase;
   }
   if (lowerText.includes('sư phạm') || lowerText.includes('su pham')) {
-    return BookText; // 📖 Sư Phạm
+    return BookText;
   }
   if (lowerText.includes('luật') || lowerText.includes('luat')) {
-    return Scale; // ⚖️ Luật
+    return Scale;
   }
   if (lowerText.includes('ngoại ngữ') || lowerText.includes('ngoai ngu')) {
-    return Languages; // 🌐 Ngoại Ngữ
+    return Languages;
   }
   if (lowerText.includes('marketing')) {
-    return BarChart3; // 📊 Marketing
+    return BarChart3;
   }
   if (lowerText.includes('kế toán') || lowerText.includes('ke toan')) {
-    return Calculator; // 🧮 Kế Toán
+    return Calculator;
   }
   
   // Default icon
@@ -131,6 +132,7 @@ function DocumentCardComponent({ document, currentUser, onEdit, onDelete, onProf
 
   const [isDark, setIsDark] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   useEffect(() => {
     const checkDark = () => {
@@ -161,12 +163,12 @@ function DocumentCardComponent({ document, currentUser, onEdit, onDelete, onProf
   }, []);
 
   const handleOpenDocument = () => {
-    window.open(document.url, '_blank', 'noopener,noreferrer');
+    setViewerOpen(true);
   };
 
   return (
     <article 
-      className="group relative overflow-hidden rounded-xl border transition-all duration-200 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/50 dark:hover:border-indigo-800 dark:hover:shadow-indigo-900/20"
+      className="group relative overflow-hidden rounded-xl border bg-white text-gray-900 transition-colors duration-200 hover:border-indigo-200 hover:shadow-md dark:bg-gray-800 dark:text-gray-100 dark:hover:border-indigo-800"
       aria-label={`Document: ${document.title}`}
       style={{
         backgroundColor: isDark ? '#1f2937' : '#ffffff',
@@ -238,8 +240,8 @@ function DocumentCardComponent({ document, currentUser, onEdit, onDelete, onProf
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md whitespace-nowrap bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
             aria-label="Mở tài liệu"
           >
-            <ExternalLink className="w-4 h-4" />
-            <span>Mở tài liệu</span>
+            <Eye className="w-4 h-4" />
+            <span>Xem trong web</span>
           </button>
  
           {isOwner && (
@@ -352,10 +354,16 @@ function DocumentCardComponent({ document, currentUser, onEdit, onDelete, onProf
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all duration-200 text-sm font-medium shadow-sm active:scale-[0.98] min-h-[44px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
           aria-label="Mở tài liệu"
         >
-          <ExternalLink className="w-4 h-4" />
-          <span>Mở tài liệu</span>
+          <Eye className="w-4 h-4" />
+          <span>Xem trong web</span>
         </button>
       </div>
+      <DocumentViewerModal
+        open={viewerOpen}
+        title={document.title}
+        url={document.url}
+        onClose={() => setViewerOpen(false)}
+      />
     </article>
   );
 }

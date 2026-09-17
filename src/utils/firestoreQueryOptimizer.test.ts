@@ -21,6 +21,12 @@ vi.mock('firebase/firestore', () => ({
   limit: vi.fn((count) => ({ _type: 'limit', count })),
   startAfter: vi.fn((doc) => ({ _type: 'startAfter', doc })),
   getDocs: vi.fn(),
+  Timestamp: {
+    fromMillis: vi.fn((milliseconds) => ({
+      toMillis: () => milliseconds,
+      toDate: () => new Date(milliseconds),
+    })),
+  },
 }));
 
 // Mock firebase
@@ -115,7 +121,7 @@ describe('FirestoreQueryOptimizer', () => {
       expect(whereClauses).toHaveLength(1);
       expect(whereClauses[0].field).toBe('createdAt');
       expect(whereClauses[0].operator).toBe('>');
-      expect(typeof whereClauses[0].value).toBe('number');
+      expect(typeof whereClauses[0].value.toMillis()).toBe('number');
     });
 
     it('should apply matching filters for gender', () => {
@@ -195,7 +201,7 @@ describe('FirestoreQueryOptimizer', () => {
       expect(whereClauses).toHaveLength(1);
       expect(whereClauses[0].field).toBe('expiresAt');
       expect(whereClauses[0].operator).toBe('>');
-      expect(typeof whereClauses[0].value).toBe('number');
+      expect(typeof whereClauses[0].value.toMillis()).toBe('number');
     });
 
     it('should filter past events', () => {
@@ -208,7 +214,7 @@ describe('FirestoreQueryOptimizer', () => {
       expect(whereClauses).toHaveLength(1);
       expect(whereClauses[0].field).toBe('startTime');
       expect(whereClauses[0].operator).toBe('>');
-      expect(typeof whereClauses[0].value).toBe('number');
+      expect(typeof whereClauses[0].value.toMillis()).toBe('number');
     });
 
     it('should return empty array when no filters apply', () => {

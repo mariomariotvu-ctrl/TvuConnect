@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, serverTimestamp, Timestamp, getDocFromServer, addDoc, orderBy, limit, startAfter, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, serverTimestamp, Timestamp, addDoc, orderBy, limit, startAfter, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { getDatabase, ref as dbRef, set as dbSet, update as dbUpdate, onValue, onDisconnect, serverTimestamp as dbServerTimestamp, get as dbGet, remove as dbRemove, query as dbQuery, orderByChild, equalTo } from 'firebase/database';
+import { getFunctions } from 'firebase/functions';
 
 import { quotaManager } from './utils/quotaManager';
 import { logger } from '@/utils/logger';
@@ -53,6 +54,11 @@ export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence);
 export const storage = getStorage(app, firebaseConfig.storageBucket);
 export const realtimeDb = getDatabase(app);
+// Callable functions keep provider keys and abuse controls on the server.
+export const functions = getFunctions(
+  app,
+  import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION || 'us-central1',
+);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
@@ -75,7 +81,6 @@ export {
   getDocs, 
   onSnapshot, 
   serverTimestamp,
-  getDocFromServer,
   addDoc,
   orderBy,
   limit,
@@ -154,26 +159,3 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
-
-// Test connection with timeout
-async function testConnection() {
-  try {
-    const testPromise = getDocFromServer(doc(db, 'test', 'connection'));
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Connection timeout')), 5000)
-    );
-    await Promise.race([testPromise, timeoutPromise]);
-    logger.log('✅ Firestore connected successfully');
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes('timeout')) {
-        logger.warn('⚠️ Firestore connection slow, using cache');
-      } else if (error.message.includes('offline')) {
-        logger.warn('⚠️ Firestore offline, will retry automatically');
-      } else {
-        logger.warn('⚠️ Firestore connection issue:', error.message);
-      }
-    }
-  }
-}
-testConnection();

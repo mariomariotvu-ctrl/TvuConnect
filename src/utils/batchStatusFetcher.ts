@@ -6,7 +6,7 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 6.4
  */
 
-import { ActivityData } from './activityBooster';
+import { parsePresenceData, type ActivityData } from './activityBooster';
 
 // ============================================================
 // Constants
@@ -119,7 +119,7 @@ function setCached(key: string, data: Map<string, ActivityData>): void {
  * - Trả về `Map<uid, ActivityData>` cho các UID có dữ liệu hợp lệ.
  * - UIDs rỗng → trả về `Map()` ngay, không gọi Firebase.
  * - Cache hit (trong TTL 60s) → trả về cached, không gọi Firebase.
- * - Timeout (>2s), lỗi Firebase, lỗi parse → trả về `Map()` rỗng, không throw.
+ * - Timeout, lỗi Firebase, lỗi parse → trả về `Map()` rỗng, không throw.
  *
  * Requirements: 2.1, 2.2, 2.3, 2.4, 6.4
  */
@@ -135,10 +135,9 @@ export async function batchFetchPresenceStatus(
   if (cached !== null) return cached;
 
   try {
-    // Import lazy để tránh lỗi circular dependency và dễ mock trong tests
+    // Firebase được nạp khi cần; bộ parse là hàm thuần và dùng import tĩnh.
     const { ref, get } = await import('firebase/database');
     const { realtimeDb } = await import('../firebase');
-    const { parsePresenceData } = await import('./activityBooster');
 
     // Fetch toàn bộ node 'presence' một lần duy nhất
     const fetchPromise = get(ref(realtimeDb, 'presence')).then((snapshot) => {
@@ -165,7 +164,7 @@ export async function batchFetchPresenceStatus(
       return result;
     });
 
-    // Timeout 2 giây theo Requirements 2.3
+    // Giới hạn thời gian để màn hình tìm bạn không bị chặn bởi presence.
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), BATCH_TIMEOUT_MS)
     );
@@ -174,7 +173,7 @@ export async function batchFetchPresenceStatus(
 
     if (result === null) {
       // Timeout
-      console.warn('[BatchStatusFetcher] Fetch timed out after 2s, falling back to empty map');
+      console.warn(`[BatchStatusFetcher] Fetch timed out after ${BATCH_TIMEOUT_MS}ms, falling back to empty map`);
       return new Map();
     }
 

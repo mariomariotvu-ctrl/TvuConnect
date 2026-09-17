@@ -1,6 +1,6 @@
 import React from 'react';
 import { Place, CheckIn, PlaceEvent } from '../types';
-import { MapPin, Star, Calendar, X } from 'lucide-react';
+import { BadgeDollarSign, Calendar, Clock3, MapPin, Star, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDistance, type Coordinates } from '../utils/locationUtils';
 
@@ -61,8 +61,8 @@ const PlaceCardComponent: React.FC<PlaceCardProps> = ({
       style={cardStyles}
       onClick={() => onPlaceSelect(place)}
     >
-      {/* Distance Badge - HIDDEN */}
-      {false && place.distance !== undefined && userLocation && (
+      {/* Khoảng cách được tính nội bộ từ vị trí chỉ giữ trong phiên. */}
+      {place.distance !== undefined && userLocation && (
         <div 
           className="absolute top-3 right-3 px-2.5 py-1 rounded-full backdrop-blur-md shadow-md"
           style={{
@@ -74,8 +74,9 @@ const PlaceCardComponent: React.FC<PlaceCardProps> = ({
               : '1px solid rgba(224, 231, 255, 0.5)'
           }}
         >
-          <span className="text-white text-xs font-bold drop-shadow-md">
-            📍 {formatDistance(place.distance)}
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-white">
+            <MapPin className="h-3 w-3" aria-hidden="true" />
+            {formatDistance(place.distance)}
           </span>
         </div>
       )}
@@ -100,7 +101,9 @@ const PlaceCardComponent: React.FC<PlaceCardProps> = ({
             {place.location?.address || 'Chưa có địa chỉ'}
           </p>
         </div>
-        <span className="text-2xl">{categoryLabel?.split(' ')[0] || '📍'}</span>
+        <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          {categoryLabel || 'Địa điểm'}
+        </span>
       </div>
 
       {/* Stats */}
@@ -124,7 +127,7 @@ const PlaceCardComponent: React.FC<PlaceCardProps> = ({
               borderColor: theme === 'dark' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(147, 51, 234, 0.3)'
             }}
           >
-            <span className="text-sm leading-none">🕐</span>
+            <Clock3 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
             <span 
               className="text-xs font-bold"
               style={{
@@ -143,7 +146,7 @@ const PlaceCardComponent: React.FC<PlaceCardProps> = ({
 
         {(place.priceRange || (place as any).price_range) && (
           <div className="place-badge place-badge-price inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-            <span className="text-sm leading-none">💰</span>
+            <BadgeDollarSign className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
             <span className="text-xs font-bold text-blue-700 dark:text-blue-400">
               {place.priceRange || (place as any).price_range}
             </span>
@@ -264,17 +267,7 @@ const PlaceCardComponent: React.FC<PlaceCardProps> = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (place.location?.lat && place.location?.lng) {
-              let mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.location.lat},${place.location.lng}`;
-              
-              if (userLocation) {
-                mapsUrl += `&origin=${userLocation.lat},${userLocation.lng}`;
-              }
-              
-              mapsUrl += '&travelmode=driving';
-              
-              window.open(mapsUrl, '_blank');
-            }
+            onPlaceSelect(place);
           }}
           disabled={!place.location?.lat || !place.location?.lng}
           className={`py-2.5 text-sm font-bold rounded-lg transition-all shadow-sm ${
@@ -288,7 +281,7 @@ const PlaceCardComponent: React.FC<PlaceCardProps> = ({
               : 'linear-gradient(135deg, #9333EA 0%, #0EA5E9 100%)'
           } : undefined}
         >
-          Chỉ đường
+          Xem bản đồ
         </button>
       </div>
     </div>

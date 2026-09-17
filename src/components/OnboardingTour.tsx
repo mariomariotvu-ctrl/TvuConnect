@@ -23,7 +23,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
       return;
     }
 
-    logger.log('🎯 Tour trigger: true | Mobile:', isMobile);
+    logger.log('Tour trigger | Mobile:', isMobile);
 
     // Poll until nav elements are in the DOM
     let attempts = 0;
@@ -32,100 +32,94 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
       const found = document.querySelectorAll('[data-tour]').length;
       attempts++;
 
-      logger.log(`🔍 Tour polling: found ${found} elements (attempt ${attempts})`);
+      logger.log(`Tour polling: found ${found} elements (attempt ${attempts})`);
 
       if (found >= 3 || attempts >= maxAttempts) {
         clearInterval(intervalId);
         setStepIndex(0);
         setRunTour(true);
-        logger.log('✅ Tour starting with', found, 'elements');
+        logger.log('Tour starting with', found, 'elements');
       }
     }, 100);
 
     return () => clearInterval(intervalId);
   }, [run, isMobile]);
 
-  // Mobile steps target the bottom nav bar (6 items, no "matching")
+  // Mobile steps follow the five-item bottom navigation.
   const mobileSteps: Step[] = [
     {
       target: '[data-tour="home"]',
-      title: '🏠 Trang chủ',
+      title: 'Trang chủ',
       content: 'Điểm bắt đầu của bạn — xem tổng quan và chọn chế độ kết nối.',
       placement: 'top',
     },
     {
+      target: '[data-tour="students"]',
+      title: 'Tìm bạn',
+      content: 'Tìm sinh viên cùng ngành, cùng lớp hoặc ở gần bạn.',
+      placement: 'top',
+    },
+    {
       target: '[data-tour="messages"]',
-      title: '💬 Tin nhắn',
+      title: 'Tin nhắn',
       content: 'Trò chuyện riêng tư với những người bạn đã kết nối.',
-      placement: 'top',
-    },
-    {
-      target: '[data-tour="posts"]',
-      title: '📰 Bảng tin',
-      content: 'Đăng bài, chia sẻ khoảnh khắc và tương tác với cộng đồng sinh viên.',
-      placement: 'top',
-    },
-    {
-      target: '[data-tour="documents"]',
-      title: '📚 Tài liệu',
-      content: 'Tìm và chia sẻ tài liệu học tập hữu ích với mọi người.',
       placement: 'top',
     },
     {
       target: '[data-tour="explore"]',
-      title: '📍 Khám phá',
+      title: 'Khám phá',
       content: 'Tìm địa điểm, quán ăn và sự kiện thú vị quanh trường.',
       placement: 'top',
     },
     {
-      target: '[data-tour="profile"]',
-      title: '👤 Hồ sơ',
-      content: 'Quản lý thông tin cá nhân để tăng khả năng được ghép cặp phù hợp.',
+      target: '[data-tour="more"]',
+      title: 'Thêm',
+      content: 'Mở cộng đồng, tài liệu, hồ sơ, cài đặt và các tiện ích sinh viên.',
       placement: 'top',
     },
   ];
 
-  // Desktop steps target the top nav bar (7 items including "matching")
+  // Desktop steps follow the primary top navigation.
   const desktopSteps: Step[] = [
     {
       target: '[data-tour="home"]',
-      title: '🏠 Trang chủ',
+      title: 'Trang chủ',
       content: 'Điểm bắt đầu — xem tổng quan và chọn chế độ kết nối.',
       placement: 'bottom',
     },
     {
-      target: '[data-tour="matching"]',
-      title: '💘 Ghép cặp',
-      content: 'Tìm bạn học, bạn cùng sở thích hoặc người yêu phù hợp với bạn.',
+      target: '[data-tour="students"]',
+      title: 'Tìm bạn',
+      content: 'Tìm sinh viên cùng ngành, cùng lớp hoặc ở gần bạn.',
       placement: 'bottom',
     },
     {
       target: '[data-tour="messages"]',
-      title: '💬 Tin nhắn',
+      title: 'Tin nhắn',
       content: 'Trò chuyện riêng tư với những người bạn đã kết nối.',
       placement: 'bottom',
     },
     {
       target: '[data-tour="posts"]',
-      title: '📰 Bảng tin',
+      title: 'Cộng đồng',
       content: 'Đăng bài và tương tác với cộng đồng sinh viên TVU.',
       placement: 'bottom',
     },
     {
       target: '[data-tour="documents"]',
-      title: '📚 Tài liệu',
+      title: 'Tài liệu',
       content: 'Tìm và chia sẻ tài liệu học tập hữu ích.',
       placement: 'bottom',
     },
     {
       target: '[data-tour="explore"]',
-      title: '📍 Khám phá',
+      title: 'Khám phá',
       content: 'Tìm địa điểm, quán ăn và sự kiện thú vị quanh trường.',
       placement: 'bottom',
     },
     {
       target: '[data-tour="profile"]',
-      title: '👤 Hồ sơ',
+      title: 'Hồ sơ',
       content: 'Quản lý thông tin cá nhân để tăng khả năng ghép cặp.',
       placement: 'bottom',
     },
@@ -136,7 +130,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
   const handleEvent = (data: EventData, _controls: Controls) => {
     const { status, type, index, action } = data;
 
-    logger.log('🎯 Joyride event:', type, '| status:', status, '| index:', index);
+    logger.log('Joyride event:', type, '| status:', status, '| index:', index);
 
     if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
       setRunTour(false);
@@ -147,10 +141,10 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     } else if (type === EVENTS.STEP_AFTER && action === 'prev') {
       setStepIndex(index - 1);
     } else if (type === EVENTS.TARGET_NOT_FOUND) {
-      logger.warn('⚠️ Tour target not found, skipping...');
+      logger.warn('Tour target not found, skipping...');
       setStepIndex(prev => prev + 1);
     } else if (type === EVENTS.ERROR) {
-      logger.warn('⚠️ Tour error, stopping tour:', data);
+      logger.warn('Tour error, stopping tour:', data);
       setRunTour(false);
       onComplete?.();
     }
@@ -218,7 +212,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
       locale={{
         back: '← Quay lại',
         close: 'Đóng',
-        last: '🎉 Bắt đầu!',
+        last: 'Bắt đầu',
         next: 'Tiếp →',
         skip: 'Bỏ qua',
         open: 'Mở',

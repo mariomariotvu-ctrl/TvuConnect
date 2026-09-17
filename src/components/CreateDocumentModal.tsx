@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ExternalLink } from 'lucide-react';
+import { Link2, X } from 'lucide-react';
 import { DocumentFormData, ValidationError } from '../types/documentLink';
 import { validateDocumentForm } from '../utils/documentValidation';
 import { checkURLSecurity } from '../utils/urlValidation';
 import { User } from 'firebase/auth';
 import { useTheme } from '../contexts/ThemeContext';
-
-// Shared Google Drive folder where users upload their files
-const DRIVE_FOLDER_URL = `https://drive.google.com/drive/folders/1xy-liEmL_JZzarKrpO5Z3jqwdQNC2jP1`;
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
@@ -98,7 +95,6 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [urlWarning, setUrlWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'link' | 'drive'>('link');
   const { theme } = useTheme();
 
   // Lock body scroll when modal is open (prevents background from scrolling on mobile)
@@ -176,8 +172,6 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
   const labelColor = isDark ? '#ffffff' : '#1f2937';
   const footerBg   = isDark ? '#111827' : '#f9fafb';
   const footerBorder= isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb';
-  const tabInactBg = isDark ? '#374151' : '#f3f4f6';
-  const tabInactColor= isDark ? '#d1d5db' : '#374151';
 
   const inputStyle = {
     backgroundColor: inputBg,
@@ -226,136 +220,18 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
         {/* Form - Scrollable with max height */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0">
 
-          {/* Tab Switcher */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('link')}
-              className={`flex-1 px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-                activeTab === 'link'
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                  : ''
-              }`}
-              style={activeTab !== 'link' ? { backgroundColor: tabInactBg, color: tabInactColor } : {}}
-            >
-              🔗 Gắn link tài liệu
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('drive')}
-              className={`flex-1 px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-                activeTab === 'drive'
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                  : ''
-              }`}
-              style={activeTab !== 'drive' ? { backgroundColor: tabInactBg, color: tabInactColor } : {}}
-            >
-              📁 Kho Drive
-            </button>
-          </div>
-
-          {/* TAB: Kho Drive */}
-          {activeTab === 'drive' && (
-            <div className="space-y-3 py-2">
-              {/* Giới thiệu */}
-              <div className="rounded-xl p-3" style={{
-                background: isDark ? 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))' : 'linear-gradient(135deg, #eef2ff, #f5f3ff)',
-                border: `1px solid ${isDark ? '#4f46e5' : '#c7d2fe'}`
-              }}>
-                <div className="flex items-start gap-2">
-                  <span className="text-2xl flex-shrink-0">📚</span>
-                  <div>
-                    <p className="text-sm font-bold mb-1" style={{ color: isDark ? '#a5b4fc' : '#3730a3' }}>
-                      Kho Tài Liệu Học Tập TVU Connect
-                    </p>
-                    <p className="text-xs leading-relaxed" style={{ color: isDark ? '#c7d2fe' : '#4338ca' }}>
-                      Thư mục Google Drive chung — mọi sinh viên TVU đều có thể upload và xem tài liệu. Miễn phí, không cần tài khoản đặc biệt.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hướng dẫn các bước */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold" style={{ color: isDark ? '#d1d5db' : '#374151' }}>📋 Cách upload file lên Kho Drive:</p>
-                {[
-                  { step: '1', icon: '👆', text: 'Nhấn nút "Mở Kho Drive TVU Connect" bên dưới' },
-                  { step: '2', icon: '🔑', text: 'Đăng nhập tài khoản Google nếu được yêu cầu' },
-                  { step: '3', icon: '⬆️', text: 'Nhấn "+ Mới" → chọn "Tải tệp lên" → chọn file từ máy' },
-                  { step: '4', icon: '🔓', text: 'Chuột phải vào file vừa upload → "Chia sẻ" → đặt quyền "Bất kỳ ai có đường liên kết" để mọi người xem được' },
-                  { step: '5', icon: '✅', text: 'File đã lưu trong kho — mọi người vào đây đều xem và tải được' },
-                ].map(({ step, icon, text }) => (
-                  <div key={step} className="flex items-start gap-2 p-2 rounded-lg" style={{
-                    backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                    border: `1px solid ${isDark ? '#374151' : '#f3f4f6'}`
-                  }}>
-                    <span className="flex-shrink-0 w-5 h-5 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center">{step}</span>
-                    <span className="text-xs" style={{ color: isDark ? '#d1d5db' : '#374151' }}>{icon} {text}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Ghi chú phân biệt */}
-              <div className="rounded-lg p-2" style={{
-                backgroundColor: isDark ? 'rgba(234,179,8,0.1)' : '#fefce8',
-                border: `1px solid ${isDark ? '#854d0e' : '#fde68a'}`
-              }}>
-                <p className="text-[11px] font-medium" style={{ color: isDark ? '#fde68a' : '#854d0e' }}>
-                  ⚠️ <strong>Lưu ý:</strong> Upload file lên Kho Drive và Gắn link tài liệu là 2 việc <strong>độc lập</strong>. Upload lên Drive để lưu trữ file — Gắn link để đăng bài hiển thị trên web.
-                </p>
-              </div>
-
-              {/* Nút mở Drive */}
-              <a
-                href={DRIVE_FOLDER_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-bold text-sm transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Mở Kho Drive TVU Connect
-              </a>
-
-              <p className="text-center text-[11px]" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
-                Muốn đăng bài lên web? Chuyển sang tab <strong style={{ color: isDark ? '#a78bfa' : '#7c3aed' }}>"Gắn link tài liệu"</strong>
-              </p>
-            </div>
-          )}
-
-          {/* TAB: Gắn link — toàn bộ form gốc */}
-          {activeTab === 'link' && (<>
-          {/* Info Banner */}
+          {/* In-app library guidance */}
           <div className="rounded-xl p-2.5" style={{
             backgroundColor: isDark ? 'rgba(59,130,246,0.1)' : '#ffffff',
             border: `1px solid ${isDark ? '#1d4ed8' : '#e5e7eb'}`
           }}>
             <div className="flex items-start gap-2">
-              <span className="text-base flex-shrink-0">💡</span>
-              <div className="text-xs space-y-1.5">
-                <p className="font-bold" style={{ color: isDark ? '#f3f4f6' : '#1f2937' }}>Cách đăng tài liệu lên web:</p>
-                <div className="space-y-1">
-                  {[
-                    { icon: '🔗', text: 'Bạn đã có link tài liệu từ bất kỳ trang web nào (Google Drive, OneDrive, trang web trường, diễn đàn...) → dán vào ô bên dưới' },
-                    { icon: '📝', text: 'Điền tiêu đề, chọn ngành học và mô tả tài liệu' },
-                    { icon: '✅', text: 'Nhấn "Đóng góp tài liệu" → bài đăng hiển thị trên web để mọi người tìm kiếm' },
-                  ].map(({ icon, text }, i) => (
-                    <div key={i} className="flex items-start gap-1.5">
-                      <span className="flex-shrink-0 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center" style={{ backgroundColor: isDark ? 'rgba(139,92,246,0.3)' : '#ede9fe', color: isDark ? '#c4b5fd' : '#6d28d9' }}>{i + 1}</span>
-                      <span style={{ color: isDark ? '#d1d5db' : '#374151' }}>{icon} {text}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1.5 pt-0.5" style={{ borderTop: `1px solid ${isDark ? '#1e3a5f' : '#dbeafe'}` }}>
-                  <span className="text-[10px]" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>📁 Chưa có file?</span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('drive')}
-                    className="text-[10px] font-bold underline"
-                    style={{ color: isDark ? '#a78bfa' : '#7c3aed' }}
-                  >
-                    Vào Kho Drive để upload file →
-                  </button>
-                </div>
+              <Link2 className="h-4 w-4 flex-shrink-0 text-indigo-500" />
+              <div className="text-xs">
+                <p className="font-bold" style={{ color: isDark ? '#f3f4f6' : '#1f2937' }}>Đóng góp nguồn học liệu hợp pháp</p>
+                <p className="mt-1 leading-relaxed" style={{ color: isDark ? '#d1d5db' : '#4b5563' }}>
+                  Dán liên kết trực tiếp đến PDF, tài liệu công khai hoặc thư viện số. Người đọc sẽ xem ngay trong TVU Connect khi nguồn cho phép nhúng.
+                </p>
               </div>
             </div>
           </div>
@@ -365,7 +241,6 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
           {/* Title */}
           <div>
             <label className="flex items-center gap-1.5 text-sm font-bold mb-1" style={{ color: labelColor }}>
-              <span className="text-purple-600">📝</span>
               Tiêu đề <span className="text-red-500">*</span>
             </label>
             <input
@@ -378,7 +253,7 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
             />
             {getFieldError('title') && (
               <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('title')}
+                {getFieldError('title')}
               </p>
             )}
           </div>
@@ -386,7 +261,6 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
           {/* Major */}
           <div>
             <label className="flex items-center gap-1.5 text-sm font-bold mb-1" style={{ color: labelColor }}>
-              <span className="text-purple-600">🎓</span>
               Ngành học <span className="text-red-500">*</span>
             </label>
             <select
@@ -395,7 +269,7 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
               className="w-full px-3 py-2 border-2 rounded-xl font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 cursor-pointer text-sm"
               style={{ ...inputStyle, borderColor: getFieldError('major_id') ? '#f87171' : inputBorder }}
             >
-              <option value="">🎓 Chọn ngành học</option>
+              <option value="">Chọn ngành học</option>
               {MAJOR_GROUPS.map((group) => (
                 <optgroup key={group.group} label={`━━━━ ${group.group} ━━━━`}>
                   {group.majors.map((major) => (
@@ -406,16 +280,54 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
             </select>
             {getFieldError('major_id') && (
               <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('major_id')}
+                {getFieldError('major_id')}
               </p>
             )}
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-bold mb-1" style={{ color: labelColor }}>
+                Học phần / môn học
+              </label>
+              <input
+                list="create-document-subjects"
+                value={formData.subject}
+                onChange={(e) => handleChange('subject', e.target.value)}
+                className="w-full px-3 py-2 border-2 rounded-xl font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
+                style={inputStyle}
+                placeholder="Ví dụ: Cơ sở dữ liệu"
+              />
+              <datalist id="create-document-subjects">
+                {subjectOptions.map((subject) => <option key={subject} value={subject} />)}
+              </datalist>
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-bold mb-1" style={{ color: labelColor }}>
+                Loại học liệu
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => handleChange('category', e.target.value)}
+                className="w-full px-3 py-2 border-2 rounded-xl font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
+                style={inputStyle}
+              >
+                <option value="">Chưa phân loại</option>
+                {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {(formData.category === 'Sách PDF' || formData.category === 'Giáo trình') && (
+            <p className="rounded-xl px-3 py-2 text-xs leading-relaxed" style={{ backgroundColor: isDark ? 'rgba(16,185,129,.12)' : '#ecfdf5', color: isDark ? '#a7f3d0' : '#065f46' }}>
+              Chỉ đăng sách mở, giáo trình được phép chia sẻ hoặc liên kết chính thức của nhà trường/nhà xuất bản.
+            </p>
+          )}
+
           {/* URL Input */}
           <div>
             <label className="flex items-center gap-1.5 text-sm font-bold mb-1" style={{ color: labelColor }}>
-              <span className="text-purple-600">🔗</span>
-              Link tài liệu (từ Google Drive) <span className="text-red-500">*</span>
+              Liên kết tài liệu <span className="text-red-500">*</span>
             </label>
             <input
               type="url"
@@ -423,16 +335,16 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
               onChange={(e) => handleChange('url', e.target.value)}
               className="w-full px-3 py-2 border-2 rounded-xl font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
               style={{ ...inputStyle, borderColor: getFieldError('url') ? '#f87171' : inputBorder }}
-              placeholder="https://drive.google.com/file/d/..."
+              placeholder="https://example.edu.vn/tai-lieu.pdf"
             />
             {getFieldError('url') && (
               <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('url')}
+                {getFieldError('url')}
               </p>
             )}
             {urlWarning && (
               <p className="mt-1 text-xs text-yellow-600 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {urlWarning}
+                {urlWarning}
               </p>
             )}
           </div>
@@ -440,7 +352,6 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
           {/* Description */}
           <div className="pb-2">
             <label className="flex items-center gap-1.5 text-sm font-bold mb-1" style={{ color: labelColor }}>
-              <span className="text-purple-600">💬</span>
               Mô tả (không bắt buộc)
             </label>
             <textarea
@@ -453,11 +364,10 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit, currentUser }: 
             />
             {getFieldError('description') && (
               <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('description')}
+                {getFieldError('description')}
               </p>
             )}
           </div>
-          </>)}
         </form>
         {/* Footer Actions - Sticky */}
         <div className="px-2 py-1.5 flex-shrink-0" style={{ borderTop: `1px solid ${footerBorder}`, backgroundColor: footerBg }}>

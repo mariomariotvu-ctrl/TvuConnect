@@ -1,5 +1,6 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import {BrowserRouter} from 'react-router';
 import App from './App.tsx';
 import { ThemeProvider } from './contexts/ThemeContext.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
@@ -25,19 +26,21 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <App />
-        <Toaster 
-          position="top-right" 
-          expand={false}
-          richColors 
-          closeButton
-          duration={2000}
-          toastOptions={{
-            style: {
-              maxWidth: '400px',
-            },
-          }}
-        />
+        <BrowserRouter>
+          <App />
+          <Toaster
+            position="top-right"
+            expand={false}
+            richColors
+            closeButton
+            duration={2000}
+            toastOptions={{
+              style: {
+                maxWidth: '400px',
+              },
+            }}
+          />
+        </BrowserRouter>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>

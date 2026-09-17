@@ -122,7 +122,7 @@ import {
   beforeEach as beforeEachP2,
   afterEach as afterEachP2,
 } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useOnlineStatusCached, cleanupAllOnlineStatusListeners } from './useOnlineStatusCache';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -156,6 +156,13 @@ function makeFakeDocSnap(userId: string, isOnline = true, ageMs = 10_000) {
     id: userId,
   };
 }
+
+const flushHookEffects = async () => {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+};
 
 // ─── Suite ───────────────────────────────────────────────────────────────────
 
@@ -197,10 +204,9 @@ describeP2('useOnlineStatusCached — Property 2: Cache deduplication', () => {
       );
 
       // Chờ tất cả hooks resolve
-      await waitFor(() => {
-        hooks.forEach(({ result }) => {
-          expectP2(result.current.loading).toBe(false);
-        });
+      await flushHookEffects();
+      hooks.forEach(({ result }) => {
+        expectP2(result.current.loading).toBe(false);
       });
 
       // Chỉ 1 network request dù có N hooks
@@ -239,10 +245,9 @@ describeP2('useOnlineStatusCached — Property 2: Cache deduplication', () => {
             renderHook(() => useOnlineStatusCached(userId))
           );
 
-          await waitFor(() => {
-            hooks.forEach(({ result }) => {
-              expectP2(result.current.loading).toBe(false);
-            });
+          await flushHookEffects();
+          hooks.forEach(({ result }) => {
+            expectP2(result.current.loading).toBe(false);
           });
 
           // Invariant: số requests luôn = 1 bất kể N
@@ -271,19 +276,19 @@ describeP2('useOnlineStatusCached — Property 2: Cache deduplication', () => {
       const { result, unmount } = renderHook(() => useOnlineStatusCached(userId));
 
       // Chờ lần fetch đầu tiên hoàn thành
-      await waitFor(() => {
-        expectP2(result.current.loading).toBe(false);
-      });
+      await flushHookEffects();
+      expectP2(result.current.loading).toBe(false);
 
       expectP2(mockGetDoc).toHaveBeenCalledTimes(1);
 
       // Tiến thời gian qua TTL (30s + 1ms) để cache expire và interval trigger
-      vi.advanceTimersByTime(30_001);
-
-      // Chờ setInterval trigger fetchStatus lần 2
-      await waitFor(() => {
-        expectP2(mockGetDoc.mock.calls.length).toBeGreaterThanOrEqual(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_001);
       });
+      await flushHookEffects();
+
+      // setInterval triggered fetchStatus lần 2.
+      expectP2(mockGetDoc.mock.calls.length).toBeGreaterThanOrEqual(2);
 
       unmount();
     }
@@ -313,11 +318,10 @@ describeP2('useOnlineStatusCached — Property 2: Cache deduplication', () => {
       const hookB = renderHook(() => useOnlineStatusCached(userB));
       const hookC = renderHook(() => useOnlineStatusCached(userC));
 
-      await waitFor(() => {
-        expectP2(hookA.result.current.loading).toBe(false);
-        expectP2(hookB.result.current.loading).toBe(false);
-        expectP2(hookC.result.current.loading).toBe(false);
-      });
+      await flushHookEffects();
+      expectP2(hookA.result.current.loading).toBe(false);
+      expectP2(hookB.result.current.loading).toBe(false);
+      expectP2(hookC.result.current.loading).toBe(false);
 
       // 3 userId khác nhau → 3 requests riêng biệt
       expectP2(mockGetDoc).toHaveBeenCalledTimes(3);
@@ -346,7 +350,8 @@ describeP2('useOnlineStatusCached — Property 2: Cache deduplication', () => {
       const { result: r1, unmount: u1 } = renderHook(() =>
         useOnlineStatusCached(userId)
       );
-      await waitFor(() => expectP2(r1.current.loading).toBe(false));
+      await flushHookEffects();
+      expectP2(r1.current.loading).toBe(false);
       expectP2(mockGetDoc).toHaveBeenCalledTimes(1);
       u1();
 
@@ -354,7 +359,8 @@ describeP2('useOnlineStatusCached — Property 2: Cache deduplication', () => {
       const { result: r2, unmount: u2 } = renderHook(() =>
         useOnlineStatusCached(userId)
       );
-      await waitFor(() => expectP2(r2.current.loading).toBe(false));
+      await flushHookEffects();
+      expectP2(r2.current.loading).toBe(false);
 
       // Vẫn chỉ 1 lần gọi getDoc — lần 2 là cache hit
       expectP2(mockGetDoc).toHaveBeenCalledTimes(1);

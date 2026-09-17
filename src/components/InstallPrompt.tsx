@@ -45,34 +45,32 @@ export const InstallPrompt: React.FC = () => {
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.9 }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
           className="fixed bottom-24 left-4 right-4 md:left-auto md:right-8 md:bottom-8 md:w-80 z-[100]"
         >
-          <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-5 shadow-2xl border border-white/20 relative overflow-hidden group">
-            {/* Background Decoration */}
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-            
+          <div className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
             <button 
               onClick={handleDismiss}
-              className="absolute top-3 right-3 p-1 text-white/60 hover:text-white transition-colors"
+              className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label="Đóng gợi ý cài đặt"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950">
                 <Download className="w-6 h-6 text-indigo-600" />
               </div>
               <div className="flex-1">
-                <h4 className="text-white font-black text-lg leading-tight mb-1">Cài đặt TVU Connect</h4>
-                <p className="text-white/80 text-xs font-medium leading-snug mb-4">
-                  Trải nghiệm mượt mà hơn, nhận thông báo tức thì như ứng dụng thật! 🚀
+                <h4 className="mb-1 pr-8 text-lg font-bold leading-tight text-slate-950 dark:text-white">Cài đặt TVU Connect</h4>
+                <p className="mb-4 text-xs font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+                  Mở nhanh từ màn hình chính và nhận thông báo tin nhắn.
                 </p>
                 <button
                   onClick={handleInstall}
-                  className="w-full py-2.5 bg-white text-indigo-600 font-black text-sm rounded-xl hover:bg-indigo-50 transition-colors shadow-md active:scale-95"
+                  className="min-h-11 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
                 >
                   Cài đặt ngay
                 </button>

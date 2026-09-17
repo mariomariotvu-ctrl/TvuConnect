@@ -1,23 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User } from 'firebase/auth';
-import { collection, query, limit, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, limit, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { RentalPost, RentalType } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
-import { Plus, X, Phone, MapPin, Wifi, Wind, Bath, Car, WashingMachine, Home, Search, Trash2, Building2, Users, Hotel, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Plus, X, Phone, MapPin, Wifi, Wind, Bath, Car, WashingMachine, Home, Search, Trash2, Building2, Users, Hotel, ChevronDown, ChevronUp, Info, LocateFixed, Copy, Star } from 'lucide-react';
 import { listenerRegistry } from '../utils/listenerRegistry';
+import { calculateDistance, Coordinates, formatDistance } from '../utils/locationUtils';
+import { CommunityReviews } from './CommunityReviews';
+import { subscribeToNearbyRentals } from '../services/rentalSearchService';
+import { createRentalGeohash } from '../utils/rentalGeo';
+import { InlineLocationMap } from './InlineLocationMap';
 
 interface RentalListProps {
   currentUser: User;
+  userLocation: Coordinates | null;
+  locating: boolean;
+  onRequestLocation: () => Promise<Coordinates | null>;
 }
 
 const RENTAL_TYPE_LABELS: Record<RentalType, string> = {
-  'nha-tro':   '🏠 Nhà trọ',
-  'o-ghep':    '👥 Ở ghép',
-  'nha-nghi':  '🏨 Nhà nghỉ',
-  'khach-san': '🏩 Khách sạn',
-  'khac':      '📦 Khác',
+  'nha-tro':   'Nhà trọ',
+  'o-ghep':    'Ở ghép',
+  'nha-nghi':  'Nhà nghỉ',
+  'khach-san': 'Khách sạn',
+  'khac':      'Khác',
 };
 
 const RENTAL_TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -26,6 +34,7 @@ const RENTAL_TYPE_ICONS: Record<string, React.ReactNode> = {
   'o-ghep':    <Users className="w-3.5 h-3.5" />,
   'nha-nghi':  <Hotel className="w-3.5 h-3.5" />,
   'khach-san': <Hotel className="w-3.5 h-3.5" />,
+  'khac':      <Home className="w-3.5 h-3.5" />,
 };
 
 const AMENITY_ICONS: Record<string, { icon: React.ReactNode; label: string }> = {
@@ -54,6 +63,8 @@ const formatPrice = (price: number): string => {
   return `${(price / 1000).toFixed(0)}k/tháng`;
 };
 
+const formatVnd = (amount: number): string => new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+
 interface PostFormState {
   title: string;
   type: RentalType;
@@ -64,6 +75,14 @@ interface PostFormState {
   contactName: string;
   contactPhone: string;
   amenities: string[];
+  deposit: string;
+  electricityPrice: string;
+  waterPrice: string;
+  genderPreference: 'any' | 'male' | 'female';
+  availableFrom: string;
+  utilitiesNote: string;
+  latitude: string;
+  longitude: string;
 }
 
 const INITIAL_FORM: PostFormState = {
@@ -76,13 +95,21 @@ const INITIAL_FORM: PostFormState = {
   contactName: '',
   contactPhone: '',
   amenities: [],
+  deposit: '',
+  electricityPrice: '',
+  waterPrice: '',
+  genderPreference: 'any',
+  availableFrom: '',
+  utilitiesNote: '',
+  latitude: '',
+  longitude: '',
 };
 
 // Gradient chính của nền tảng TVU Connect
 const GRADIENT_MAIN = 'linear-gradient(135deg, #9333EA 0%, #0EA5E9 100%)';
 const GRADIENT_DARK = 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)';
 
-export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
+export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocation, locating, onRequestLocation }) => {
   const { theme } = useTheme();
   const [posts, setPosts] = useState<RentalPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,12 +121,18 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
   const [form, setForm] = useState<PostFormState>(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Partial<PostFormState>>({});
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [radius, setRadius] = useState<'all' | 1 | 3 | 5 | 10>('all');
+  const [selectedPost, setSelectedPost] = useState<(RentalPost & { distance?: number }) | null>(null);
+  const [nearbyPosts, setNearbyPosts] = useState<RentalPost[] | null>(null);
+  const [isNearbyLoading, setIsNearbyLoading] = useState(false);
 
   // Fetch rental posts realtime
   useEffect(() => {
     const q = query(
       collection(db, 'rentalPosts'),
-      limit(30)
+      orderBy('createdAt', 'desc'),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(
@@ -109,12 +142,6 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
           id: d.id,
           ...d.data(),
         })) as RentalPost[];
-        // Sort client-side by createdAt desc (tránh cần Firestore index)
-        data.sort((a, b) => {
-          const aTime = (a.createdAt as any)?.seconds ?? 0;
-          const bTime = (b.createdAt as any)?.seconds ?? 0;
-          return bTime - aTime;
-        });
         setPosts(data);
         setIsLoading(false);
       },
@@ -128,7 +155,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
     const listenerId = listenerRegistry.register({
       unsubscribe,
       collection: 'rentalPosts',
-      query: 'limit(30)',
+      query: 'orderBy(createdAt, desc), limit(100)',
       priority: 5,
       componentName: 'RentalList',
     });
@@ -138,17 +165,86 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
     };
   }, []);
 
-  const filteredPosts = posts.filter((p) => {
-    if (typeFilter !== 'all' && p.type !== typeFilter) return false;
-    if (priceFilter === 'duoi-1-5' && p.price >= 1_500_000) return false;
-    if (priceFilter === '1-5-den-2-5' && (p.price < 1_500_000 || p.price > 2_500_000)) return false;
-    if (priceFilter === 'tren-2-5' && p.price <= 2_500_000) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return p.title.toLowerCase().includes(q) || p.address.toLowerCase().includes(q);
+  useEffect(() => {
+    if (!userLocation || radius === 'all') {
+      setNearbyPosts(null);
+      setIsNearbyLoading(false);
+      return;
     }
-    return true;
-  });
+
+    setIsNearbyLoading(true);
+    const unsubscribe = subscribeToNearbyRentals(
+      userLocation,
+      radius,
+      (nextPosts) => {
+        setNearbyPosts(nextPosts);
+        setIsNearbyLoading(false);
+      },
+      (error) => {
+        console.error('Error loading nearby rentals:', error);
+        setIsNearbyLoading(false);
+        toast.error('Không thể cập nhật trọ quanh vị trí hiện tại.');
+      },
+    );
+
+    return unsubscribe;
+  }, [radius, userLocation]);
+
+  const sourcePosts = useMemo(() => {
+    if (!userLocation || radius === 'all') return posts;
+
+    // Keep recent legacy listings visible until the one-time geohash migration
+    // has populated their index field.
+    const merged = new Map<string, RentalPost>();
+    (nearbyPosts || []).forEach((post) => post.id && merged.set(post.id, post));
+    posts
+      .filter((post) => !post.geohash && post.location)
+      .filter((post) => calculateDistance(userLocation, post.location!) <= radius)
+      .forEach((post) => post.id && merged.set(post.id, post));
+    return [...merged.values()];
+  }, [nearbyPosts, posts, radius, userLocation]);
+
+  const filteredPosts = useMemo(() => sourcePosts
+    .map((post) => ({
+      ...post,
+      distance: userLocation && post.location
+        ? calculateDistance(userLocation, post.location)
+        : undefined,
+    }))
+    .filter((post) => {
+      if (post.isAvailable === false) return false;
+      if (typeFilter !== 'all' && post.type !== typeFilter) return false;
+      if (priceFilter === 'duoi-1-5' && post.price >= 1_500_000) return false;
+      if (priceFilter === '1-5-den-2-5' && (post.price < 1_500_000 || post.price > 2_500_000)) return false;
+      if (priceFilter === 'tren-2-5' && post.price <= 2_500_000) return false;
+      if (radius !== 'all' && (post.distance === undefined || post.distance > radius)) return false;
+      if (searchQuery.trim()) {
+        const keyword = searchQuery.toLocaleLowerCase('vi');
+        return [post.title, post.address, post.district, post.description, post.utilitiesNote, post.genderPreference]
+          .filter(Boolean)
+          .some((value) => String(value).toLocaleLowerCase('vi').includes(keyword));
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (!userLocation) return 0;
+      return (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY);
+    }), [priceFilter, radius, searchQuery, sourcePosts, typeFilter, userLocation]);
+
+  const listLoading = isLoading || (radius !== 'all' && Boolean(userLocation) && isNearbyLoading);
+
+  const updateCurrentLocation = async (forListing = false) => {
+    const coordinates = await onRequestLocation();
+    if (coordinates && forListing) {
+      setForm((current) => ({
+        ...current,
+        latitude: coordinates.lat.toFixed(6),
+        longitude: coordinates.lng.toFixed(6),
+      }));
+      setLocationError(null);
+    }
+    if (coordinates && !forListing && radius === 'all') setRadius(5);
+  };
 
   const handleDelete = async (postId: string) => {
     if (!window.confirm('Bạn có chắc muốn xóa tin này?')) return;
@@ -163,30 +259,63 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
 
   const validateForm = (): boolean => {
     const errors: Partial<PostFormState> = {};
+    let nextLocationError: string | null = null;
     if (!form.title.trim()) errors.title = 'Vui lòng nhập tiêu đề';
+    else if (form.title.trim().length > 120) errors.title = 'Tiêu đề tối đa 120 ký tự';
     if (!form.address.trim()) errors.address = 'Vui lòng nhập địa chỉ';
-    if (!form.contactPhone.trim()) errors.contactPhone = 'Vui lòng nhập số điện thoại';
+    const phone = form.contactPhone.replace(/[\s.-]/g, '');
+    if (!phone) errors.contactPhone = 'Vui lòng nhập số điện thoại';
+    else if (!/^0\d{9,10}$/.test(phone)) errors.contactPhone = 'Nhập số điện thoại Việt Nam hợp lệ (10–11 số)';
     if (!form.price.trim() || isNaN(Number(form.price)) || Number(form.price) <= 0)
       errors.price = 'Vui lòng nhập giá hợp lệ';
+    if (form.area && (!Number.isFinite(Number(form.area)) || Number(form.area) <= 0))
+      errors.area = 'Diện tích phải lớn hơn 0';
+    if (form.deposit && (!Number.isFinite(Number(form.deposit)) || Number(form.deposit) < 0))
+      errors.deposit = 'Tiền cọc không hợp lệ';
+    if (form.electricityPrice && (!Number.isFinite(Number(form.electricityPrice)) || Number(form.electricityPrice) < 0))
+      errors.electricityPrice = 'Giá điện không hợp lệ';
+    if (form.waterPrice && (!Number.isFinite(Number(form.waterPrice)) || Number(form.waterPrice) < 0))
+      errors.waterPrice = 'Giá nước không hợp lệ';
+    const latitude = Number(form.latitude);
+    const longitude = Number(form.longitude);
+    if (!form.latitude || !form.longitude) {
+      nextLocationError = 'Hãy ghim vị trí để sinh viên có thể tìm trọ quanh đây.';
+    } else if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < 9.4 || latitude > 10.2 || longitude < 105.8 || longitude > 106.8) {
+      nextLocationError = 'Tọa độ chưa hợp lệ hoặc nằm ngoài khu vực Trà Vinh mở rộng.';
+    }
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    setLocationError(nextLocationError);
+    return Object.keys(errors).length === 0 && !nextLocationError;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
+    const phone = form.contactPhone.replace(/[\s.-]/g, '');
     setIsSubmitting(true);
     try {
+      const location = {
+        lat: Number(form.latitude),
+        lng: Number(form.longitude),
+      };
       const postData = {
         title: form.title.trim(),
         type: form.type,
         price: Number(form.price),
-        area: form.area ? Number(form.area) : null,
+        ...(form.area ? { area: Number(form.area) } : {}),
         address: form.address.trim(),
+        location,
+        geohash: createRentalGeohash(location),
         description: form.description.trim(),
         contactName: form.contactName.trim() || currentUser.displayName || '',
-        contactPhone: form.contactPhone.trim(),
+        contactPhone: phone,
         amenities: form.amenities,
+        ...(form.deposit ? { deposit: Number(form.deposit) } : {}),
+        ...(form.electricityPrice ? { electricityPrice: Number(form.electricityPrice) } : {}),
+        ...(form.waterPrice ? { waterPrice: Number(form.waterPrice) } : {}),
+        genderPreference: form.genderPreference,
+        ...(form.availableFrom ? { availableFrom: form.availableFrom } : {}),
+        ...(form.utilitiesNote.trim() ? { utilitiesNote: form.utilitiesNote.trim().slice(0, 300) } : {}),
         isAvailable: true,
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
@@ -197,6 +326,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
       setShowModal(false);
       setForm(INITIAL_FORM);
       setFormErrors({});
+      setLocationError(null);
     } catch (err) {
       console.error(err);
       toast.error('Đăng tin thất bại, vui lòng thử lại');
@@ -212,6 +342,15 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
         ? prev.amenities.filter(a => a !== key)
         : [...prev.amenities, key],
     }));
+  };
+
+  const copyPhone = async (phone: string) => {
+    try {
+      await navigator.clipboard.writeText(phone);
+      toast.success('Đã sao chép số điện thoại.');
+    } catch {
+      toast.error(`Không thể sao chép tự động. Số liên hệ: ${phone}`);
+    }
   };
 
   const isDark = theme === 'dark';
@@ -248,7 +387,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
               </div>
               <div className="min-w-0">
                 <h1 className={`text-sm sm:text-base font-black tracking-tight leading-tight ${textPrimary}`}>Tìm Trọ</h1>
-                <p className={`text-[11px] sm:text-xs mt-0.5 ${textSecondary}`}>Phòng trọ quanh khu vực TVU</p>
+                <p className={`text-[11px] sm:text-xs mt-0.5 ${textSecondary}`}>Trọ quanh bạn tại Trà Vinh · có review sinh viên</p>
               </div>
             </div>
 
@@ -287,17 +426,17 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
             >
               <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {[
-                  { icon: '🔍', title: 'Tìm phòng', desc: 'Dùng thanh tìm kiếm hoặc bộ lọc loại phòng & giá' },
-                  { icon: '📞', title: 'Liên hệ chủ trọ', desc: 'Nhấn vào tin để xem số điện thoại liên hệ' },
-                  { icon: '✍️', title: 'Đăng tin cho thuê', desc: 'Nhấn nút + ở góc phải màn hình để đăng tin mới' },
-                  { icon: '🗑️', title: 'Quản lý tin của bạn', desc: 'Nhấn biểu tượng thùng rác để xóa tin đã đăng' },
+                  { icon: <LocateFixed className="h-4 w-4" />, title: 'Tìm quanh đây', desc: 'Cấp vị trí và lọc phòng trong bán kính 1–10 km' },
+                  { icon: <Star className="h-4 w-4" />, title: 'Review thật', desc: 'Xem và viết đánh giá ngay trong TVU Connect' },
+                  { icon: <Plus className="h-4 w-4" />, title: 'Đăng tin cho thuê', desc: 'Nhấn nút + ở góc phải màn hình để đăng tin mới' },
+                  { icon: <Trash2 className="h-4 w-4" />, title: 'Quản lý tin của bạn', desc: 'Nhấn biểu tượng thùng rác để xóa tin đã đăng' },
                 ].map(({ icon, title, desc }) => (
                   <div
                     key={title}
                     className="flex items-start gap-2.5 px-3 py-2 rounded-xl"
                     style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)' }}
                   >
-                    <span className="text-sm leading-none mt-0.5 flex-shrink-0">{icon}</span>
+                    <span className="mt-0.5 flex-shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden="true">{icon}</span>
                     <div>
                       <p className={`text-xs font-bold leading-tight ${textPrimary}`}>{title}</p>
                       <p className={`text-[11px] leading-tight mt-0.5 ${textSecondary}`}>{desc}</p>
@@ -339,7 +478,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
         >
           {/* Type chips */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {(['all', 'nha-tro', 'o-ghep', 'nha-nghi', 'khach-san'] as const).map(t => {
+            {(['all', 'nha-tro', 'o-ghep', 'nha-nghi', 'khach-san', 'khac'] as const).map(t => {
               const isActive = typeFilter === t;
               return (
                 <button
@@ -355,7 +494,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                   style={isActive ? { background: gradient } : {}}
                 >
                   {RENTAL_TYPE_ICONS[t]}
-                  {t === 'all' ? 'Tất cả' : RENTAL_TYPE_LABELS[t as RentalType].replace(/^[^\s]+ /, '')}
+                  {t === 'all' ? 'Tất cả' : RENTAL_TYPE_LABELS[t as RentalType]}
                 </button>
               );
             })}
@@ -387,6 +526,30 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
               );
             })}
           </div>
+
+          {/* Nearby location controls */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              type="button"
+              disabled={locating}
+              onClick={() => void updateCurrentLocation(false)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-600 text-white inline-flex items-center gap-1.5 disabled:opacity-60"
+            >
+              <LocateFixed className={`w-3.5 h-3.5 ${locating ? 'animate-pulse' : ''}`} />
+              {userLocation ? 'Cập nhật vị trí' : 'Tìm trọ quanh tôi'}
+            </button>
+            {(['all', 1, 3, 5, 10] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                disabled={value !== 'all' && !userLocation}
+                onClick={() => setRadius(value)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-40 ${radius === value ? 'bg-indigo-600 text-white' : isDark ? 'bg-gray-700 text-gray-300' : 'bg-white border border-gray-200 text-gray-600'}`}
+              >
+                {value === 'all' ? 'Mọi khoảng cách' : `≤ ${value} km`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -394,7 +557,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
       <div className="flex-1 overflow-y-auto p-3 space-y-3 pb-20">
 
         {/* Loading skeleton */}
-        {isLoading && (
+        {listLoading && (
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
               <div key={i} className={`${cardBg} border rounded-2xl p-4 animate-pulse`}>
@@ -413,18 +576,18 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
         )}
 
         {/* Empty state */}
-        {!isLoading && filteredPosts.length === 0 && (
+        {!listLoading && filteredPosts.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
               <Home className="w-8 h-8 text-indigo-500" />
             </div>
             <h3 className={`text-base font-bold mb-2 ${textPrimary}`}>
-              {searchQuery || typeFilter !== 'all' || priceFilter !== 'all'
+              {searchQuery || typeFilter !== 'all' || priceFilter !== 'all' || radius !== 'all'
                 ? 'Không tìm thấy tin phù hợp'
                 : 'Chưa có tin trọ nào'}
             </h3>
             <p className={`text-sm ${textSecondary}`}>
-              {searchQuery || typeFilter !== 'all' || priceFilter !== 'all'
+              {searchQuery || typeFilter !== 'all' || priceFilter !== 'all' || radius !== 'all'
                 ? 'Thử thay đổi bộ lọc để tìm kết quả khác'
                 : 'Hãy là người đầu tiên đăng tin tìm trọ!'}
             </p>
@@ -432,7 +595,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
         )}
 
         {/* Rental cards */}
-        {!isLoading && filteredPosts.map(post => (
+        {!listLoading && filteredPosts.map(post => (
           <div
             key={post.id}
             className={`${cardBg} border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow`}
@@ -493,6 +656,11 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                     {post.area} m²
                   </span>
                 )}
+                {post.distance !== undefined && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                    <LocateFixed className="w-3 h-3 inline mr-1" />{formatDistance(post.distance)}
+                  </span>
+                )}
               </div>
 
               {/* Address */}
@@ -500,6 +668,24 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                 <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-purple-400" />
                 <span className="line-clamp-2">{post.address}</span>
               </div>
+
+              {post.description && (
+                <p className={`text-xs leading-relaxed line-clamp-3 ${textSecondary}`}>{post.description}</p>
+              )}
+
+              {(post.deposit || post.electricityPrice || post.waterPrice || post.availableFrom || post.genderPreference && post.genderPreference !== 'any') && (
+                <div className={`rounded-xl p-2.5 text-xs grid grid-cols-1 sm:grid-cols-2 gap-1.5 ${isDark ? 'bg-gray-700/50 text-gray-300' : 'bg-slate-50 text-slate-600'}`}>
+                  {post.deposit ? <span>Tiền cọc: <strong>{formatVnd(post.deposit)}</strong></span> : null}
+                  {post.electricityPrice ? <span>Điện: <strong>{formatVnd(post.electricityPrice)}/kWh</strong></span> : null}
+                  {post.waterPrice ? <span>Nước: <strong>{formatVnd(post.waterPrice)}</strong></span> : null}
+                  {post.availableFrom ? <span>Nhận phòng: <strong>{new Date(`${post.availableFrom}T00:00:00`).toLocaleDateString('vi-VN')}</strong></span> : null}
+                  {post.genderPreference && post.genderPreference !== 'any' ? <span>Phù hợp: <strong>{post.genderPreference === 'male' ? 'Nam' : 'Nữ'}</strong></span> : null}
+                </div>
+              )}
+
+              {post.utilitiesNote && (
+                <p className={`text-xs leading-relaxed ${textSecondary}`}><Info className="w-3.5 h-3.5 inline mr-1 text-indigo-400" />{post.utilitiesNote}</p>
+              )}
 
               {/* Amenities */}
               {post.amenities?.length > 0 && (
@@ -522,19 +708,74 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                 </div>
               )}
 
-              {/* Contact button */}
-              <a
-                href={`tel:${post.contactPhone}`}
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 mt-1"
-                style={{ background: gradient }}
-              >
-                <Phone className="w-4 h-4" />
-                Liên hệ{post.contactName ? ` · ${post.contactName}` : ''} · {post.contactPhone}
-              </a>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPost(post)}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
+                  style={{ background: gradient }}
+                >
+                  <Star className="w-4 h-4" /> Chi tiết, bản đồ & review
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void copyPhone(post.contactPhone)}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border ${isDark ? 'border-gray-600 text-gray-200' : 'border-gray-200 text-gray-700'}`}
+                >
+                  <Copy className="w-4 h-4" /> Sao chép SĐT
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Chi tiết và đánh giá đều hiển thị nội bộ, không điều hướng sang web khác. */}
+      {selectedPost && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-slate-950/65 p-0 sm:p-4" onClick={(event) => { if (event.target === event.currentTarget) setSelectedPost(null); }}>
+          <div className={`w-full sm:max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className="p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div><p className="text-xs font-black uppercase tracking-wider text-purple-500">{RENTAL_TYPE_LABELS[selectedPost.type]}</p><h2 className={`mt-1 text-2xl font-black ${textPrimary}`}>{selectedPost.title}</h2></div>
+                <button onClick={() => setSelectedPost(null)} className={`p-2 rounded-xl ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-600'}`} aria-label="Đóng"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-black">{formatPrice(selectedPost.price)}</span>
+                {selectedPost.area && <span className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-sm font-bold text-slate-600 dark:text-slate-200">{selectedPost.area} m²</span>}
+                {selectedPost.distance !== undefined && <span className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-sm font-bold text-emerald-700 dark:text-emerald-300"><LocateFixed className="w-4 h-4 inline mr-1" />{formatDistance(selectedPost.distance)}</span>}
+              </div>
+
+              <p className={`mt-4 flex items-start gap-2 text-sm ${textSecondary}`}><MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-purple-500" />{selectedPost.address}</p>
+              {selectedPost.location && (
+                <InlineLocationMap
+                  latitude={selectedPost.location.lat}
+                  longitude={selectedPost.location.lng}
+                  title={selectedPost.title}
+                  address={selectedPost.address}
+                />
+              )}
+              {selectedPost.description && <p className={`mt-4 text-sm leading-relaxed whitespace-pre-wrap ${textSecondary}`}>{selectedPost.description}</p>}
+
+              <div className={`mt-4 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm ${isDark ? 'bg-gray-700/60 text-gray-200' : 'bg-slate-50 text-slate-700'}`}>
+                {selectedPost.deposit ? <span>Tiền cọc: <strong>{formatVnd(selectedPost.deposit)}</strong></span> : null}
+                {selectedPost.electricityPrice ? <span>Điện: <strong>{formatVnd(selectedPost.electricityPrice)}/kWh</strong></span> : null}
+                {selectedPost.waterPrice ? <span>Nước: <strong>{formatVnd(selectedPost.waterPrice)}</strong></span> : null}
+                {selectedPost.availableFrom ? <span>Nhận phòng: <strong>{new Date(`${selectedPost.availableFrom}T00:00:00`).toLocaleDateString('vi-VN')}</strong></span> : null}
+                {selectedPost.utilitiesNote ? <span className="sm:col-span-2">Chi phí khác: <strong>{selectedPost.utilitiesNote}</strong></span> : null}
+              </div>
+
+              <div className={`mt-4 rounded-2xl border p-4 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <p className={`text-xs font-bold uppercase ${textSecondary}`}>Liên hệ được hiển thị ngay trong web</p>
+                <p className={`mt-1 font-black ${textPrimary}`}><Phone className="w-4 h-4 inline mr-2" />{selectedPost.contactName || 'Người đăng'} · {selectedPost.contactPhone}</p>
+                <button onClick={() => void copyPhone(selectedPost.contactPhone)} className="mt-3 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-black inline-flex items-center gap-2"><Copy className="w-4 h-4" /> Sao chép số</button>
+              </div>
+
+              {selectedPost.id && <CommunityReviews targetKind="rental" targetId={selectedPost.id} currentUser={currentUser} />}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── FAB ── */}
       <button
@@ -551,7 +792,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); } }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setLocationError(null); } }}
         >
           <div
             className={`w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col ${
@@ -569,7 +810,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                 <h2 className="font-bold text-base">Đăng tin tìm trọ</h2>
               </div>
               <button
-                onClick={() => { setShowModal(false); setForm(INITIAL_FORM); setFormErrors({}); }}
+                onClick={() => { setShowModal(false); setForm(INITIAL_FORM); setFormErrors({}); setLocationError(null); }}
                 className="text-white/80 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -607,7 +848,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                   >
                     {(Object.keys(RENTAL_TYPE_LABELS) as RentalType[]).map(t => (
                       <option key={t} value={t}>
-                        {RENTAL_TYPE_LABELS[t].replace(/^[^\s]+ /, '')}
+                        {RENTAL_TYPE_LABELS[t]}
                       </option>
                     ))}
                   </select>
@@ -642,6 +883,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                     className={inputClass}
                     min="0"
                   />
+                  {formErrors.area && <p className="text-red-500 text-xs mt-1">{formErrors.area}</p>}
                 </div>
                 <div>
                   <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>
@@ -673,6 +915,22 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                 {formErrors.address && <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>}
               </div>
 
+              <div className={`rounded-2xl border p-4 ${isDark ? 'border-gray-700 bg-gray-900/30' : 'border-indigo-100 bg-indigo-50/60'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className={`text-sm font-black ${textPrimary}`}>Ghim vị trí phòng trọ <span className="text-red-500">*</span></p><p className={`mt-1 text-xs ${textSecondary}`}>Đứng tại phòng trọ rồi lấy vị trí, hoặc nhập tọa độ chính xác.</p></div>
+                  <button type="button" disabled={locating} onClick={() => void updateCurrentLocation(true)} className="flex-shrink-0 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black inline-flex items-center gap-1.5 disabled:opacity-60"><LocateFixed className={`w-4 h-4 ${locating ? 'animate-pulse' : ''}`} /> Vị trí hiện tại</button>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <label className={`text-xs font-semibold ${textSecondary}`}>Vĩ độ
+                    <input type="number" step="any" value={form.latitude} onChange={(event) => { setForm((current) => ({ ...current, latitude: event.target.value })); setLocationError(null); }} placeholder="9.934500" className={`${inputClass} mt-1`} />
+                  </label>
+                  <label className={`text-xs font-semibold ${textSecondary}`}>Kinh độ
+                    <input type="number" step="any" value={form.longitude} onChange={(event) => { setForm((current) => ({ ...current, longitude: event.target.value })); setLocationError(null); }} placeholder="106.346100" className={`${inputClass} mt-1`} />
+                  </label>
+                </div>
+                {locationError && <p className="mt-2 text-xs font-semibold text-red-500">{locationError}</p>}
+              </div>
+
               {/* Tên liên hệ */}
               <div>
                 <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>
@@ -687,6 +945,39 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>Tiền cọc (VNĐ)</label>
+                  <input type="number" min="0" placeholder="VD: 1000000" value={form.deposit} onChange={e => setForm(p => ({ ...p, deposit: e.target.value }))} className={inputClass} />
+                  {formErrors.deposit && <p className="text-red-500 text-xs mt-1">{formErrors.deposit}</p>}
+                </div>
+                <div>
+                  <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>Có thể vào ở từ</label>
+                  <input type="date" value={form.availableFrom} onChange={e => setForm(p => ({ ...p, availableFrom: e.target.value }))} className={inputClass} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>Điện/kWh</label>
+                  <input type="number" min="0" placeholder="3500" value={form.electricityPrice} onChange={e => setForm(p => ({ ...p, electricityPrice: e.target.value }))} className={inputClass} />
+                  {formErrors.electricityPrice && <p className="text-red-500 text-xs mt-1">{formErrors.electricityPrice}</p>}
+                </div>
+                <div>
+                  <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>Nước</label>
+                  <input type="number" min="0" placeholder="10000" value={form.waterPrice} onChange={e => setForm(p => ({ ...p, waterPrice: e.target.value }))} className={inputClass} />
+                  {formErrors.waterPrice && <p className="text-red-500 text-xs mt-1">{formErrors.waterPrice}</p>}
+                </div>
+                <div>
+                  <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>Phù hợp</label>
+                  <select value={form.genderPreference} onChange={e => setForm(p => ({ ...p, genderPreference: e.target.value as PostFormState['genderPreference'] }))} className={inputClass}>
+                    <option value="any">Mọi người</option>
+                    <option value="male">Nam</option>
+                    <option value="female">Nữ</option>
+                  </select>
+                </div>
+              </div>
+
               {/* Mô tả */}
               <div>
                 <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>
@@ -698,6 +989,18 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                   rows={3}
                   className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ${textSecondary}`}>Ghi chú chi phí khác</label>
+                <input
+                  type="text"
+                  maxLength={300}
+                  placeholder="VD: Wifi 50k/người, rác 20k/tháng..."
+                  value={form.utilitiesNote}
+                  onChange={e => setForm(p => ({ ...p, utilitiesNote: e.target.value }))}
+                  className={inputClass}
                 />
               </div>
 
@@ -737,7 +1040,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser }) => {
               <div className="flex gap-3 pt-2 pb-2">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); setForm(INITIAL_FORM); setFormErrors({}); }}
+                  onClick={() => { setShowModal(false); setForm(INITIAL_FORM); setFormErrors({}); setLocationError(null); }}
                   className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors ${
                     isDark
                       ? 'border-gray-600 text-gray-300 hover:bg-gray-700'

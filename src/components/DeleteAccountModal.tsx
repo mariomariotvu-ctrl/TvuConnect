@@ -169,7 +169,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
               <div className="p-6">
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
                   <p className="text-sm text-red-800 dark:text-red-200 font-semibold mb-3">
-                    ⚠️ Hành động này KHÔNG THỂ hoàn tác. Khi xóa tài khoản:
+                    Hành động này không thể hoàn tác. Khi xóa tài khoản:
                   </p>
                   <ul className="text-sm text-red-700 dark:text-red-300 space-y-2 ml-4">
                     <li>• Toàn bộ thông tin cá nhân sẽ bị xóa vĩnh viễn</li>
@@ -182,7 +182,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
 
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
                   <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold mb-2">
-                    💡 Bạn có thể thử các lựa chọn khác:
+                    Bạn có thể thử các lựa chọn khác:
                   </p>
                   <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-4">
                     <li>• Đăng xuất tạm thời và quay lại sau</li>
@@ -308,7 +308,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
 
                 <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-4 mb-4">
                   <p className="text-sm text-red-800 dark:text-red-200 font-semibold mb-3">
-                    ⚠️ Để xác nhận, vui lòng nhập chính xác:
+                    Để xác nhận, vui lòng nhập chính xác:
                   </p>
                   <p className="text-center text-lg font-black text-red-600 dark:text-red-400 mb-3 bg-white dark:bg-gray-800 py-2 rounded-lg">
                     XÓA TÀI KHOẢN

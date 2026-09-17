@@ -177,26 +177,20 @@ export function EditDocumentModal({ isOpen, onClose, onSubmit, document }: EditD
         className="relative bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full flex flex-col animate-slideUp shadow-2xl"
         style={{ maxHeight: 'min(95dvh, 95vh)' }}
       >
-        {/* Header with Gradient */}
-        <div className="relative bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 p-3">
-          {/* Decorative circles */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full translate-x-1/4 -translate-y-1/4"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full -translate-x-1/3 translate-y-1/3"></div>
-          </div>
-          
-          <div className="relative flex items-start justify-between">
+        <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+          <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-xl font-bold text-white">
+              <h2 className="text-xl font-bold text-slate-950 dark:text-white">
                 Chỉnh sửa tài liệu
               </h2>
-              <p className="text-sm text-white/90 mt-1">
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                 Cập nhật thông tin tài liệu học thuật của bạn
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-all duration-200 flex-shrink-0"
+              className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label="Đóng"
             >
               <X className="w-5 h-5" />
             </button>
@@ -206,13 +200,10 @@ export function EditDocumentModal({ isOpen, onClose, onSubmit, document }: EditD
         {/* Form - Scrollable */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-2 space-y-1.5">
           {/* Info Banner */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 dark:border-blue-400 rounded-xl p-3">
-            <div className="flex items-start gap-2.5">
-              <span className="text-xl flex-shrink-0">✏️</span>
-              <div className="text-sm font-semibold">
-                <p className="mb-0.5" style={{ color: '#1a1a1a' }}>Cập nhật thông tin:</p>
-                <p style={{ color: '#1a1a1a' }}>Chỉnh sửa các thông tin cần thiết và nhấn "Cập nhật" để lưu thay đổi!</p>
-              </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
+            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              <p className="mb-0.5 font-semibold">Cập nhật thông tin</p>
+              <p>Chỉnh sửa các trường cần thiết, sau đó chọn “Cập nhật” để lưu.</p>
             </div>
           </div>
 
@@ -234,16 +225,15 @@ export function EditDocumentModal({ isOpen, onClose, onSubmit, document }: EditD
               placeholder="Ví dụ: Đề thi kết thúc học phần"
             />
             {getFieldError('title') && (
-              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('title')}
+              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 font-medium" role="alert">
+                {getFieldError('title')}
               </p>
             )}
           </div>
 
           {/* Major */}
           <div>
-            <label className="flex items-center gap-2 text-[15px] font-bold text-gray-800 dark:text-white mb-1.5">
-              <span className="text-purple-600 dark:text-purple-300">🎓</span>
+            <label className="text-[15px] font-bold text-gray-800 dark:text-white mb-1.5">
               Ngành học <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <select
@@ -255,7 +245,7 @@ export function EditDocumentModal({ isOpen, onClose, onSubmit, document }: EditD
                   : 'border-gray-200 dark:border-gray-500'
               } rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 cursor-pointer`}
             >
-              <option value="" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">🎓 Chọn ngành học</option>
+              <option value="" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">Chọn ngành học</option>
               {MAJOR_GROUPS.map((group) => (
                 <optgroup key={group.group} label={`━━━━ ${group.group} ━━━━`} className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-sm">
                   {group.majors.map((major) => (
@@ -267,16 +257,52 @@ export function EditDocumentModal({ isOpen, onClose, onSubmit, document }: EditD
               ))}
             </select>
             {getFieldError('major_id') && (
-              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('major_id')}
+              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 font-medium" role="alert">
+                {getFieldError('major_id')}
               </p>
             )}
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[15px] font-bold text-gray-800 dark:text-white mb-1.5">
+                Học phần / môn học
+              </label>
+              <input
+                list="edit-document-subjects"
+                value={formData.subject}
+                onChange={(e) => handleChange('subject', e.target.value)}
+                className="w-full px-3.5 py-2.5 border-2 border-gray-200 dark:border-gray-500 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-400"
+                placeholder="Ví dụ: Cơ sở dữ liệu"
+              />
+              <datalist id="edit-document-subjects">
+                {subjectOptions.map((subject) => <option key={subject} value={subject} />)}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-[15px] font-bold text-gray-800 dark:text-white mb-1.5">
+                Loại học liệu
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => handleChange('category', e.target.value)}
+                className="w-full px-3.5 py-2.5 border-2 border-gray-200 dark:border-gray-500 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+              >
+                <option value="">Chưa phân loại</option>
+                {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {(formData.category === 'Sách PDF' || formData.category === 'Giáo trình') && (
+            <p className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs leading-relaxed text-emerald-800 dark:text-emerald-200">
+              Chỉ giữ liên kết đến sách mở, giáo trình được phép chia sẻ hoặc nguồn chính thức.
+            </p>
+          )}
+
           {/* URL */}
           <div>
             <label className="flex items-center gap-2 text-[15px] font-bold text-gray-800 dark:text-white mb-1.5">
-              <span className="text-purple-600 dark:text-purple-300">🔗</span>
               Đường link (URL) dẫn đến tài liệu <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <input
@@ -288,24 +314,23 @@ export function EditDocumentModal({ isOpen, onClose, onSubmit, document }: EditD
                   ? 'border-red-300 dark:border-red-500' 
                   : 'border-gray-200 dark:border-gray-500'
               } rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-400`}
-              placeholder="https://drive.google.com/file/d/..."
+              placeholder="https://example.edu.vn/tai-lieu.pdf"
             />
             {getFieldError('url') && (
-              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('url')}
+              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 font-medium" role="alert">
+                {getFieldError('url')}
               </p>
             )}
             {urlWarning && (
-              <p className="mt-1.5 text-sm text-yellow-600 dark:text-yellow-300 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {urlWarning}
+              <p className="mt-1.5 text-sm text-yellow-700 dark:text-yellow-300 font-medium" role="status">
+                {urlWarning}
               </p>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <label className="flex items-center gap-2 text-[15px] font-bold text-gray-800 dark:text-white mb-1.5">
-              <span className="text-purple-600 dark:text-purple-300">💬</span>
+            <label className="text-[15px] font-bold text-gray-800 dark:text-white mb-1.5">
               Mô tả (không bắt buộc)
             </label>
             <textarea
@@ -316,8 +341,8 @@ export function EditDocumentModal({ isOpen, onClose, onSubmit, document }: EditD
               placeholder="Mô tả ngắn về tài liệu (tùy chọn)..."
             />
             {getFieldError('description') && (
-              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 flex items-center gap-1 font-medium">
-                <span>⚠️</span> {getFieldError('description')}
+              <p className="mt-1.5 text-sm text-red-600 dark:text-red-300 font-medium" role="alert">
+                {getFieldError('description')}
               </p>
             )}
           </div>

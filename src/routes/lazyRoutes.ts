@@ -46,6 +46,11 @@ export const LazyMatching = lazyWithRetry(() =>
   'matching'
 );
 
+export const LazyStudentDirectory = lazyWithRetry(() =>
+  import(/* webpackChunkName: "student-directory" */ '../components/StudentDirectory').then(module => ({ default: module.StudentDirectory })),
+  'student-directory'
+);
+
 export const LazyChat = lazyWithRetry(() => 
   import(/* webpackChunkName: "chat" */ '../components/Chat').then(module => ({ default: module.Chat })),
   'chat'

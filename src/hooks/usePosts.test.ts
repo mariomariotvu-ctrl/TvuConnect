@@ -22,6 +22,12 @@ vi.mock('firebase/firestore', () => ({
   orderBy: vi.fn(),
   limit: vi.fn(),
   onSnapshot: vi.fn(),
+  Timestamp: {
+    fromMillis: vi.fn((milliseconds) => ({
+      toMillis: () => milliseconds,
+      toDate: () => new Date(milliseconds),
+    })),
+  },
 }));
 
 vi.mock('../firebase', () => ({

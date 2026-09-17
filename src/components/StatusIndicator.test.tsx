@@ -24,6 +24,11 @@ function getStatusDot(container: HTMLElement): HTMLElement {
   return dot;
 }
 
+const cssColor = (hex: string) => {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return `rgb(${value >> 16}, ${(value >> 8) & 255}, ${value & 255})`;
+};
+
 // ─── Property 1: Màu sắc nhất quán với trạng thái đầu vào ───────────────────
 
 describe('StatusIndicator — Property 1: Màu sắc nhất quán', () => {
@@ -59,11 +64,11 @@ describe('StatusIndicator — Property 1: Màu sắc nhất quán', () => {
       const dot = getStatusDot(container);
 
       // Phải render đúng màu tương ứng với trạng thái
-      expect(dot.style.backgroundColor).toBe(expectedColor);
+      expect(dot.style.backgroundColor).toBe(cssColor(expectedColor));
 
       // KHÔNG được render màu của trạng thái khác (tính loại trừ)
       for (const wrongColor of otherColors) {
-        expect(dot.style.backgroundColor).not.toBe(wrongColor);
+        expect(dot.style.backgroundColor).not.toBe(cssColor(wrongColor));
       }
     }
   );
@@ -106,11 +111,11 @@ describe('StatusIndicator — Prop không hợp lệ (Requirement 5.7)', () => {
     const dot = getStatusDot(container);
 
     // Phải fallback về màu offline
-    expect(dot.style.backgroundColor).toBe(STATUS_COLORS.offline);
+    expect(dot.style.backgroundColor).toBe(cssColor(STATUS_COLORS.offline));
 
     // Không được render màu online hoặc away
-    expect(dot.style.backgroundColor).not.toBe(STATUS_COLORS.online);
-    expect(dot.style.backgroundColor).not.toBe(STATUS_COLORS.away);
+    expect(dot.style.backgroundColor).not.toBe(cssColor(STATUS_COLORS.online));
+    expect(dot.style.backgroundColor).not.toBe(cssColor(STATUS_COLORS.away));
 
     warnSpy.mockRestore();
   });
@@ -148,7 +153,7 @@ describe('StatusIndicator — Prop không hợp lệ (Requirement 5.7)', () => {
       );
       const dot = getStatusDot(container);
 
-      expect(dot.style.backgroundColor).toBe(STATUS_COLORS.offline);
+      expect(dot.style.backgroundColor).toBe(cssColor(STATUS_COLORS.offline));
 
       vi.restoreAllMocks();
     }

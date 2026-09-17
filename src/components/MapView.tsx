@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { User } from 'firebase/auth';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import { Icon, LatLngBounds } from 'leaflet';
-import { Place, CheckIn, PlaceEvent } from '../types';
+import { Place, CheckIn, PlaceEvent, StudentProfile } from '../types';
 import { db, collection, query, where, onSnapshot, orderBy, limit } from '../firebase';
-import { MapPin, Users, Calendar, Bot, Navigation, Home } from 'lucide-react';
+import { MapPin, Users, Calendar, Bot, Navigation, Home, LocateFixed, Phone, Star, Utensils, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { PlaceList } from './PlaceList';
 import { RentalList } from './RentalList';
+import { FoodNearby } from './FoodNearby';
+import { CommunityReviews } from './CommunityReviews';
+import { InlineLocationMap } from './InlineLocationMap';
+import { StudentMap } from './StudentMap';
 import { LazyAIAssistant } from '../routes/lazyRoutes';
 import { CheckInModal } from './CheckInModal';
 import { CreateEventModal } from './CreateEventModal';
@@ -17,6 +21,7 @@ import {
   calculateDistance,
   sortByDistance
 } from '../utils/locationUtils';
+import { requestBrowserLocation } from '../utils/proximity';
 import { FirestoreQueryOptimizer } from '../utils/firestoreQueryOptimizer';
 import { FirestoreCacheManager } from '../utils/firestoreCacheManager';
 import { listenerRegistry } from '../utils/listenerRegistry';
@@ -30,6 +35,8 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import { logger } from '@/utils/logger';
+import { useNavigate } from 'react-router';
+import { pathForExplore } from '../routes/appRoutes';
 
 const DefaultIcon = new Icon({
   iconUrl: icon,
@@ -49,10 +56,12 @@ Icon.Default.mergeOptions({
 
 interface MapViewProps {
   currentUser: User;
+  currentProfile?: StudentProfile | null;
   onProfileClick?: (uid: string) => void;
+  initialTab?: ExploreTab;
 }
 
-type TabMode = 'map' | 'list' | 'ai' | 'rental';
+export type ExploreTab = 'map' | 'people' | 'list' | 'food' | 'ai' | 'rental';
 
 // TVU Campus coordinates
 const TVU_CENTER: [number, number] = [9.9345, 106.3461];
@@ -69,69 +78,90 @@ const BoundsTracker: React.FC<{ onBoundsChange: (bounds: LatLngBounds) => void }
   return null;
 };
 
+const MapFocusController: React.FC<{ position: Coordinates | null }> = ({ position }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!position) return;
+    map.flyTo([position.lat, position.lng], 17, { duration: 0.5 });
+  }, [map, position]);
+
+  return null;
+};
+
 // Task 7.1 — PlaceInfoBottomSheet component
 // Bug_Condition: activeTab = 'map' AND isMobile = true AND selectedPlace != null AND panel overlaps map
 // Expected_Behavior: Place info trong bottom sheet riêng, bản đồ vẫn tương tác được phía sau
-const PlaceInfoBottomSheet: React.FC<{ place: Place; onClose: () => void }> = ({ place, onClose }) => {
+const PlaceInfoBottomSheet: React.FC<{
+  place: Place & { distance?: number };
+  currentUser: User;
+  onClose: () => void;
+  onOpenMap: () => void;
+}> = ({ place, currentUser, onClose, onOpenMap }) => {
   const { theme } = useTheme();
-  const [panelHeight, setPanelHeight] = useState<'peek' | 'half' | 'full'>('peek');
-  const heights = { peek: '15%', half: '50%', full: '90%' };
+  const isGooglePlace = place.dataSource === 'google_places';
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[1000] transition-all duration-300 ease-out"
+      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-slate-950/65 p-0 sm:p-4"
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div
+      className="w-full sm:max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-[2rem] sm:rounded-[2rem] transition-all duration-300 ease-out"
       style={{
-        height: heights[panelHeight],
-        borderRadius: '1.5rem 1.5rem 0 0',
         backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
         boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
-        transform: 'translateZ(0)', // GPU layer
       }}
     >
-      {/* Drag handle — tap để chuyển giữa peek / half / full */}
-      <div
-        className="flex justify-center pt-2 pb-1"
-        onClick={() => {
-          setPanelHeight(h => h === 'peek' ? 'half' : h === 'half' ? 'full' : 'peek');
-        }}
-      >
-        <div className="w-10 h-1 bg-gray-300 rounded-full cursor-pointer" />
-      </div>
-
-      {/* Nội dung cuộn được, tôn trọng safe-area-inset-bottom (iPhone notch) */}
-      <div
-        className="overflow-y-auto h-full"
-        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
-      >
-        <div className="px-4 pb-4">
-          {/* Tên địa điểm */}
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-            {place.name}
-          </h3>
-
-          {/* Địa chỉ */}
-          {place.location?.address && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {place.location.address}
-            </p>
+        {place.images?.[0] && <img src={place.images[0]} alt={`Ảnh ${place.name}`} className="w-full h-52 object-cover" />}
+        <div className="p-5 sm:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+          <div className="flex items-start justify-between gap-4">
+            <div><h3 className="text-2xl font-black text-gray-900 dark:text-white">{place.name}</h3><p className="mt-2 text-sm text-gray-500 dark:text-gray-400 inline-flex items-start gap-1.5"><MapPin className="w-4 h-4 mt-0.5" /> {place.location?.address || 'Chưa có địa chỉ'}</p></div>
+            <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" aria-label="Đóng"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
+            {place.distance !== undefined && <span className="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"><LocateFixed className="w-3.5 h-3.5 inline mr-1" />{place.distance < 1 ? `${Math.round(place.distance * 1000)}m` : `${place.distance.toFixed(1)}km`}</span>}
+            {place.rating > 0 && <span className="px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"><Star className="w-3.5 h-3.5 inline fill-current mr-1" />{Number(place.rating).toFixed(1)}</span>}
+            {place.priceRange && <span className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">Mức giá: {place.priceRange}</span>}
+            {place.openHours && <span className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200">Mở cửa: {place.openHours}</span>}
+          </div>
+          {isGooglePlace && (
+            <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
+              Dữ liệu địa điểm cung cấp bởi <span translate="no" style={{ fontFamily: 'Roboto, sans-serif' }} className="whitespace-nowrap font-normal">Google Maps</span>. TVU Connect không lưu bản sao dữ liệu này vào Firestore.
+            </div>
           )}
-
-          {/* Nút đóng */}
-          <button
-            onClick={onClose}
-            className="mt-3 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300"
-          >
-            Đóng
-          </button>
+          {place.description && <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{place.description}</p>}
+          {place.phone && <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 p-3 text-sm text-slate-700 dark:text-slate-200"><Phone className="w-4 h-4 inline mr-2" />{place.phone}</div>}
+          {isGooglePlace ? (
+            <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-500 dark:bg-slate-800 dark:text-slate-400">Địa chỉ và khoảng cách được xem ngay trong TVU Connect. Nội dung Google Places không được đặt lên bản đồ OpenStreetMap để tuân thủ điều khoản dữ liệu của nguồn.</p>
+          ) : (
+            <>
+              <InlineLocationMap
+                latitude={place.location.lat}
+                longitude={place.location.lng}
+                title={place.name}
+                address={place.location.address}
+              />
+              <button
+                type="button"
+                onClick={onOpenMap}
+                className="mt-3 w-full min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700"
+              >
+                Mở bản đồ lớn tại vị trí này
+              </button>
+            </>
+          )}
+          {place.id && <CommunityReviews targetKind={isGooglePlace ? 'google_place' : 'place'} targetId={place.id} currentUser={currentUser} />}
         </div>
       </div>
     </div>
   );
 };
 
-export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick }) => {
+export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = null, onProfileClick, initialTab = 'list' }) => {
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<TabMode>('list'); // Bắt đầu với 'list' thay vì 'map'
+  const navigate = useNavigate();
+  const activeTab = initialTab;
   const [places, setPlaces] = useState<Place[]>([]);
   const [shouldLoadMap, setShouldLoadMap] = useState(false); // Lazy load map
   const [isMapReady, setIsMapReady] = useState(false); // Track map ready state
@@ -139,6 +169,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
   const [listKey, setListKey] = useState(0); // Key để reset scroll PlaceList
   const [visibleMarkers, setVisibleMarkers] = useState(20); // First batch for progressive rendering
   const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
+  const [mapFocus, setMapFocus] = useState<Coordinates | null>(null);
   
   // Firestore optimization - Task 8
   const [cacheManager] = useState(() => new FirestoreCacheManager({
@@ -149,6 +180,8 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
   
   // Location states
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
+  const [locating, setLocating] = useState(false);
   
   // Detect mobile
   const [isMobile, setIsMobile] = useState(false);
@@ -177,80 +210,61 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
 
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [events, setEvents] = useState<PlaceEvent[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<(Place & { distance?: number }) | null>(null);
   const [panelOpen, setPanelOpen] = useState(false); // Task 7.2: Bottom sheet state
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleTabChange = (tab: TabMode) => {
-    // Prevent rapid tab switching
+  const requestCurrentLocation = useCallback(async () => {
+    setLocating(true);
+    try {
+      const coordinates = await requestBrowserLocation();
+      setUserLocation(coordinates);
+      toast.success('Đã cập nhật vị trí hiện tại. Vị trí chỉ được giữ trong phiên này.');
+      return coordinates;
+    } catch (locationError) {
+      toast.error(locationError instanceof Error ? locationError.message : 'Không thể lấy vị trí hiện tại.');
+      return null;
+    } finally {
+      setLocating(false);
+    }
+  }, []);
+
+  const handlePlaceSelect = useCallback((place: Place & { distance?: number }) => {
+    setSelectedPlace(place);
+    setPanelOpen(true);
+  }, []);
+
+  const scrollMainContentToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    document.querySelector<HTMLElement>('.main-content')?.scrollTo({ top: 0, behavior: 'auto' });
+  }, []);
+
+  const handleTabChange = useCallback((tab: ExploreTab) => {
     if (activeTab === tab) return;
-    
-    // Load map only when switching to map tab
+
     if (tab === 'map' && !shouldLoadMap) {
       setShouldLoadMap(true);
-      // Map ready sau khi mount xong
-      setTimeout(() => setIsMapReady(true), 500);
-    } else if (tab === 'map' && shouldLoadMap) {
-      // Đã load rồi, đảm bảo flag đúng
-      setIsMapReady(true);
+      setIsMapReady(false);
     }
-    
-    // Force re-mount AI component when switching to AI tab
+
     if (tab === 'ai') {
       setAiKey(prev => prev + 1);
     }
-    
-    // Reset PlaceList scroll when switching to list tab
+
     if (tab === 'list') {
       setListKey(prev => prev + 1);
     }
-    
-    // Immediate tab change
-    setActiveTab(tab);
-    
-    // AGGRESSIVE scroll reset - multiple attempts with instant behavior
-    const scrollToTop = () => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-      
-      // Reset all possible scroll containers
-      const mainContent = document.querySelector('.main-content');
-      if (mainContent) {
-        mainContent.scrollTop = 0;
-      }
-      
-      // Reset any overflow containers
-      const containers = document.querySelectorAll('.overflow-y-auto, .overflow-auto');
-      containers.forEach(container => {
-        (container as HTMLElement).scrollTop = 0;
-      });
-    };
-    
-    // Attempt 1: Immediate
-    scrollToTop();
-    
-    // Attempt 2: After DOM update
-    requestAnimationFrame(() => {
-      scrollToTop();
-    });
-    
-    // Attempt 3: Delayed (for slow renders)
-    setTimeout(scrollToTop, 50);
-    
-    // Attempt 4: Extra delayed for AI tab (heavy component)
-    if (tab === 'ai') {
-      setTimeout(scrollToTop, 100);
-      setTimeout(scrollToTop, 200);
-    }
-  };
+
+    navigate(pathForExplore(tab));
+    window.requestAnimationFrame(scrollMainContentToTop);
+  }, [activeTab, navigate, scrollMainContentToTop, shouldLoadMap]);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [activeTab]);
+    scrollMainContentToTop();
+  }, [activeTab, scrollMainContentToTop]);
 
   // Load places with optimized query - Task 2.4: Use QUERY_LIMITS constants
   useEffect(() => {
@@ -277,9 +291,12 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
             name: data.name || data.tên || data['tên'] || 'Chưa có tên',
             category: data.category || data.loại || data['loại'] || 'other',
             rating: data.rating || data['xếp hạng'] || data.xếp_hạng || 0,
-            opening_hours: data.opening_hours || data['giờ mở cửa'] || data.giờ_mở_cửa,
+            openHours: data.openHours || data.opening_hours || data['giờ mở cửa'] || data.giờ_mở_cửa,
             priceRange: data.priceRange || data['phạm vi giá'] || data.phạm_vi_giá || data.price_range,
             description: data.description || data['Sự miêu tả'] || data.Sự_miêu_tả,
+            phone: data.phone || '',
+            images: Array.isArray(data.images) ? data.images : [],
+            amenities: Array.isArray(data.amenities) ? data.amenities : [],
             reviewCount: data.reviewCount || 0,
             checkInCount: data.checkInCount || 0,
             currentVisitors: data.currentVisitors || 0,
@@ -457,10 +474,13 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
     [places]
   );
 
-  // No distance calculation - just show all places
   const nearbyPlaces = useMemo(() => {
-    return validPlaces;
-  }, [validPlaces]);
+    if (!userLocation) return validPlaces;
+    return sortByDistance(validPlaces.map((place) => ({
+      ...place,
+      distance: calculateDistance(userLocation, place.location),
+    })));
+  }, [userLocation, validPlaces]);
 
   // Task 5.7: useMemo for category filtering - Validates Requirements 3.3
   const filteredByCategory = useMemo(() => {
@@ -606,13 +626,15 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
         >
           <div className="p-2 min-w-[200px]">
             <h3 className="font-bold text-lg mb-1">{place.name}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              📍 {place.location?.address || 'Chưa có địa chỉ'}
+            <p className="mb-2 flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+              <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+              {place.location?.address || 'Chưa có địa chỉ'}
             </p>
             
             <div className="flex items-center gap-4 text-sm mb-2">
               <span className="flex items-center gap-1">
-                ⭐ {getRating(place).toFixed(1)}
+                <Star className="h-4 w-4 fill-amber-400 text-amber-500" aria-hidden="true" />
+                {getRating(place).toFixed(1)}
               </span>
               <span className="flex items-center gap-1">
                 <Users className="w-4 h-4" />
@@ -658,7 +680,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
         }}
       >
         <div
-          className="flex items-center gap-1.5 rounded-2xl p-1"
+          className="flex items-center gap-1.5 rounded-2xl p-1 overflow-x-auto"
           style={{
             backgroundColor: theme === 'dark' ? 'rgba(31,41,55,0.8)' : '#ffffff',
             boxShadow: theme === 'dark'
@@ -668,14 +690,16 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
         >
           {[
             { tab: 'map',    icon: <MapPin className="w-4 h-4" />,      label: 'Bản đồ',   color: 'from-emerald-500 to-teal-500' },
+            { tab: 'people', icon: <Users className="w-4 h-4" />,       label: 'Bạn bè',   color: 'from-indigo-500 to-violet-500' },
             { tab: 'list',   icon: <Navigation className="w-4 h-4" />,  label: 'Địa điểm', color: 'from-indigo-500 to-violet-500' },
+            { tab: 'food',   icon: <Utensils className="w-4 h-4" />,    label: 'Ăn gần',    color: 'from-orange-500 to-rose-500' },
             { tab: 'ai',     icon: <Bot className="w-4 h-4" />,         label: 'AI',        color: 'from-violet-500 to-purple-600' },
             { tab: 'rental', icon: <Home className="w-4 h-4" />,        label: 'Tìm Trọ',  color: 'from-orange-400 to-rose-500' },
           ].map(({ tab, icon, label, color }) => (
             <button
               key={tab}
-              onClick={() => handleTabChange(tab as TabMode)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 active:scale-95 ${
+              onClick={() => handleTabChange(tab as ExploreTab)}
+              className={`flex-none sm:flex-1 min-w-[68px] flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 active:scale-95 ${
                 activeTab === tab
                   ? `bg-gradient-to-r ${color} text-white shadow-md`
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50'
@@ -689,7 +713,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
       </div>
 
       {/* Loading/Error/Empty States */}
-      {isLoading && (
+      {isLoading && activeTab !== 'people' && activeTab !== 'food' && (
         <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-4 max-w-2xl mx-auto">
             {/* Search/Filter Skeleton */}
@@ -725,7 +749,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
         </div>
       )}
 
-      {error && !isLoading && (
+      {error && !isLoading && activeTab !== 'people' && activeTab !== 'food' && (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center max-w-md">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -739,7 +763,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
         </div>
       )}
 
-      {!isLoading && !error && places.length === 0 && (
+      {!isLoading && !error && places.length === 0 && activeTab !== 'people' && activeTab !== 'food' && (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center max-w-md">
             <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -756,7 +780,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
       )}
 
       {/* Content */}
-      {!isLoading && !error && (
+      {(activeTab === 'people' || activeTab === 'food' || (!isLoading && !error && places.length > 0)) && (
         <div className="flex-1 flex flex-col relative overflow-hidden">
           {activeTab === 'map' && (
             <div className="absolute inset-0 z-0">
@@ -765,7 +789,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
                 onClick={() => {
                   // Scroll to list
                   if (activeTab === 'map') {
-                    setActiveTab('list');
+                    handleTabChange('list');
                   }
                 }}
                 className="absolute top-4 left-4 z-[900] px-4 py-2.5 rounded-full shadow-lg backdrop-blur-md cursor-pointer hover:scale-105 transition-all duration-300"
@@ -879,17 +903,15 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
                     markerZoomAnimation={!isMobile} // Disable marker zoom animation on mobile
                     worldCopyJump={false} // Disable world copy jump
                     maxBoundsViscosity={1.0} // Prevent map from going outside bounds
-                    whenReady={() => {
-                      // Map is ready, hide loading
-                      setTimeout(() => setIsMapReady(true), 100);
-                    }}
+                    whenReady={() => setIsMapReady(true)}
                   >
                   <BoundsTracker onBoundsChange={setMapBounds} />
+                  <MapFocusController position={mapFocus} />
                   <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url={theme === 'dark' 
                       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
                     }
                     maxZoom={19}
                     minZoom={isMobile ? 12 : 13}
@@ -960,12 +982,12 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
               checkIns={checkIns}
               events={events}
               currentUser={currentUser}
-              onPlaceSelect={setSelectedPlace}
+              onPlaceSelect={handlePlaceSelect}
               onCheckIn={(place) => {
                 setSelectedPlace(place);
                 setShowCheckInModal(true);
               }}
-              userLocation={null}
+              userLocation={userLocation}
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
               resetScrollKey={listKey}
@@ -973,8 +995,27 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
             />
           )}
 
+          {activeTab === 'people' && (
+            <StudentMap
+              currentUser={currentUser}
+              currentProfile={currentProfile}
+              places={places}
+              onProfileClick={onProfileClick}
+            />
+          )}
+
+          {activeTab === 'food' && (
+            <FoodNearby
+              places={places}
+              userLocation={userLocation}
+              locating={locating}
+              onRequestLocation={requestCurrentLocation}
+              onSelect={handlePlaceSelect}
+            />
+          )}
+
           {activeTab === 'rental' && (
-            <RentalList currentUser={currentUser} />
+            <RentalList currentUser={currentUser} userLocation={userLocation} locating={locating} onRequestLocation={requestCurrentLocation} />
           )}
 
           {activeTab === 'ai' && (
@@ -997,9 +1038,15 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, onProfileClick })
       {selectedPlace && panelOpen && (
         <PlaceInfoBottomSheet
           place={selectedPlace}
+          currentUser={currentUser}
           onClose={() => {
             setPanelOpen(false);
             setSelectedPlace(null);
+          }}
+          onOpenMap={() => {
+            setMapFocus({ lat: selectedPlace.location.lat, lng: selectedPlace.location.lng });
+            setPanelOpen(false);
+            handleTabChange('map');
           }}
         />
       )}

@@ -14,6 +14,7 @@ const preloadMap: RoutePreloadMap = {
   matching: () => import('../components/Matching'),
   chat: () => import('../components/Chat'),
   conversations: () => import('../components/ConversationsList'),
+  students: () => import('../components/StudentDirectory'),
   map: () => import('../components/MapView'),
   documents: () => import('../components/DocumentRepository'),
   posts: () => import('../components/PostsList'),

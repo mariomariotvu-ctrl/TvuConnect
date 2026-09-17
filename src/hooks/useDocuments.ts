@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getDocs } from 'firebase/firestore';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { DocumentData, getDocs, QueryDocumentSnapshot } from 'firebase/firestore';
 import { FilterState, DocumentLink, UseDocumentsResult } from '../types/documentLink';
 import { buildFirestoreQuery, filterByKeyword } from '../utils/documentFilters';
-
-const CACHE_TTL = 60000; // 60 seconds
 
 /**
  * Custom hook for fetching and managing document data
@@ -15,83 +13,89 @@ const CACHE_TTL = 60000; // 60 seconds
 export function useDocuments(
   filters: FilterState,
   searchKeyword: string,
-  pageSize: number = 20
+  pageSize: number = 30
 ): UseDocumentsResult {
   const [documents, setDocuments] = useState<DocumentLink[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(false);
-
-  // Generate cache key based on filters
-  const cacheKey = `docs_${JSON.stringify(filters)}`;
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastDocument, setLastDocument] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const requestIdRef = useRef(0);
 
   /**
-   * Fetch documents from Firestore or cache
+   * Fetch the first page. Firestore's own offline cache remains available, so
+   * a second localStorage cache is unnecessary and would lose the page cursor.
    */
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
+    setLoadingMore(false);
     setError(null);
+    setLastDocument(null);
+    const requestId = ++requestIdRef.current;
 
     try {
-      // Check cache first
-      const cachedData = localStorage.getItem(cacheKey);
-      const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
-
-      if (cachedData && cacheTimestamp) {
-        const age = Date.now() - parseInt(cacheTimestamp);
-        if (age < CACHE_TTL) {
-          // Use cached data
-          const cached = JSON.parse(cachedData);
-          setDocuments(cached);
-          setHasMore(cached.length >= pageSize);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Fetch from Firestore
       const q = buildFirestoreQuery(filters, pageSize);
       const querySnapshot = await getDocs(q);
+      if (requestId !== requestIdRef.current) return;
 
-      const docs: DocumentLink[] = [];
-      querySnapshot.forEach((doc) => {
-        docs.push({
-          id: doc.id,
-          ...doc.data()
-        } as DocumentLink);
-      });
-
-      // Cache the results
-      localStorage.setItem(cacheKey, JSON.stringify(docs));
-      localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
+      const docs = querySnapshot.docs.map((document) => ({
+        id: document.id,
+        ...document.data(),
+      }) as DocumentLink);
 
       setDocuments(docs);
-      setHasMore(docs.length >= pageSize);
+      setLastDocument(querySnapshot.docs.at(-1) || null);
+      setHasMore(querySnapshot.size === pageSize);
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err as Error);
       console.error('Error fetching documents:', err);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [filters, pageSize, cacheKey]);
+  }, [filters, pageSize]);
 
   /**
-   * Load more documents (pagination)
-   * Note: Pagination with startAfter will be implemented in future version
+   * Load the next page using the last Firestore document as a stable cursor.
    */
   const loadMore = useCallback(async () => {
-    // Pagination not yet implemented - will add in future update
-    return;
-  }, []);
+    if (!hasMore || !lastDocument || loadingMore) return;
+
+    setLoadingMore(true);
+    setError(null);
+    const requestId = requestIdRef.current;
+
+    try {
+      const q = buildFirestoreQuery(filters, pageSize, lastDocument);
+      const querySnapshot = await getDocs(q);
+      if (requestId !== requestIdRef.current) return;
+
+      const nextDocuments = querySnapshot.docs.map((document) => ({
+        id: document.id,
+        ...document.data(),
+      }) as DocumentLink);
+
+      setDocuments((current) => {
+        const knownIds = new Set(current.map((document) => document.id));
+        return [...current, ...nextDocuments.filter((document) => !knownIds.has(document.id))];
+      });
+      setLastDocument(querySnapshot.docs.at(-1) || lastDocument);
+      setHasMore(querySnapshot.size === pageSize);
+    } catch (err) {
+      if (requestId === requestIdRef.current) setError(err as Error);
+      console.error('Error loading more documents:', err);
+    } finally {
+      if (requestId === requestIdRef.current) setLoadingMore(false);
+    }
+  }, [filters, hasMore, lastDocument, loadingMore, pageSize]);
 
   /**
-   * Refresh documents (clear cache and refetch)
+   * Refresh the current filters from the first page.
    */
   const refresh = useCallback(() => {
-    localStorage.removeItem(cacheKey);
-    localStorage.removeItem(`${cacheKey}_timestamp`);
-    fetchDocuments();
-  }, [cacheKey, fetchDocuments]);
+    void fetchDocuments();
+  }, [fetchDocuments]);
 
   /**
    * Optimistically remove a document from local state and cache
@@ -99,17 +103,7 @@ export function useDocuments(
    */
   const removeDocumentOptimistic = useCallback((id: string) => {
     setDocuments(prev => prev.filter(d => d.id !== id));
-    // Update cache data AND refresh timestamp so remount reads updated list
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const docs = JSON.parse(cached) as DocumentLink[];
-        const updated = docs.filter(d => d.id !== id);
-        localStorage.setItem(cacheKey, JSON.stringify(updated));
-        localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
-      }
-    } catch (_) {}
-  }, [cacheKey]);
+  }, []);
 
   /**
    * Restore a document back to local state (undo optimistic removal)
@@ -119,16 +113,7 @@ export function useDocuments(
       const without = prev.filter(d => d.id !== document.id);
       return [document, ...without];
     });
-    // Update cache AND timestamp so remount reads restored list
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      const docs: DocumentLink[] = cached ? JSON.parse(cached) : [];
-      const without = docs.filter(d => d.id !== document.id);
-      const restored = [document, ...without];
-      localStorage.setItem(cacheKey, JSON.stringify(restored));
-      localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
-    } catch (_) {}
-  }, [cacheKey]);
+  }, []);
 
   // Fetch documents when filters change
   useEffect(() => {
@@ -143,6 +128,7 @@ export function useDocuments(
     loading,
     error,
     hasMore,
+    loadingMore,
     loadMore,
     refresh,
     removeDocumentOptimistic,

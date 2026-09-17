@@ -3,12 +3,11 @@ import { User } from 'firebase/auth';
 import { StudentProfile } from '../types';
 import { PostCard } from './PostCard';
 import { CreatePost } from './CreatePost';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePostsSimple } from '../hooks/usePostsSimple';
 
 import { PostSkeleton } from './PostSkeleton';
-import { motion } from 'motion/react';
 
 interface PostsListProps {
   currentUser: User;
@@ -42,7 +41,7 @@ const PostsListInner: React.FC<PostsListProps> = ({ currentUser, userProfile, on
           Bảng tin TVU
         </h2>
         <p className="text-base md:text-lg font-semibold max-w-lg mx-auto posts-subtitle">
-          Nơi nhịp đập sinh viên Trà Vinh cùng hòa quyện 🌟
+          Chia sẻ thông tin, kinh nghiệm và hoạt động sinh viên Trà Vinh
         </p>
       </div>
 

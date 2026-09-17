@@ -264,7 +264,7 @@ describe('MapView - Phase 2: Preservation Tests (Task 7.3)', () => {
       expect(sourceCode).toContain("'ai'");
       expect(sourceCode).toContain("'rental'");
       expect(sourceCode).toContain('handleTabChange');
-      expect(sourceCode).toContain('setActiveTab');
+      expect(sourceCode).toContain('navigate(pathForExplore(tab))');
     });
 
     it('should preserve mobile detection logic', () => {

@@ -78,47 +78,17 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
     group.majors.some(m => m.id === filters.major_id)
   );
 
-  const [isMobile, setIsMobile] = React.useState(false);
-
-  React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-
-    window.addEventListener('resize', checkMobile);
-
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
-  }, []);
-
   return (
     <div 
-      className="rounded-xl shadow-sm p-3 md:p-4 mb-4 md:mb-5 border border-gray-100 dark:border-gray-700 transition-colors"
+      className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-colors md:mb-5 md:p-4 dark:border-gray-700 dark:bg-gray-800"
       style={{
         backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff'
       }}
     >
       {/* Compact Header with Filter */}
       <div className="flex items-center gap-2 md:gap-3">
-        {/* Enhanced Icon with 3D effect and animation - Smaller on mobile */}
-        <div className="relative group flex-shrink-0">
-          {/* Glow effect background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-400 via-blue-400 to-indigo-400 dark:from-purple-200 dark:via-blue-200 dark:to-indigo-200 rounded-xl blur-sm opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
-          
-          {/* Icon container with gradient background */}
-          <div className="relative p-1.5 md:p-2.5 bg-gradient-to-br from-purple-500 via-blue-600 to-indigo-600 dark:from-purple-300 dark:via-blue-400 dark:to-indigo-400 rounded-xl shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 border border-white/30 dark:border-white/70">
-            {/* Animated sparkles - slowed down */}
-            <div className="absolute -top-0.5 -right-0.5 w-1 md:w-1.5 h-1 md:h-1.5 bg-yellow-300 dark:bg-yellow-100 rounded-full animate-pulse" style={{ animationDuration: '3s' }}></div>
-            <div className="absolute -bottom-0.5 -left-0.5 w-0.5 md:w-1 h-0.5 md:h-1 bg-blue-300 dark:bg-blue-100 rounded-full animate-pulse" style={{ animationDelay: '0.5s', animationDuration: '4s' }}></div>
-            
-            {/* Graduation cap icon */}
-            <GraduationCap className="w-4 h-4 md:w-5 md:h-5 text-white dark:text-gray-900 relative z-10 drop-shadow-md" strokeWidth={2.5} />
-            
-            {/* Shine effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          </div>
+        <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+          <GraduationCap className="h-5 w-5" aria-hidden="true" />
         </div>
  
         {/* Dropdown Filter - Takes remaining space */}
@@ -131,7 +101,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
           <select
             value={filters.major_id || ''}
             onChange={(e) => onFilterChange('major_id', e.target.value || null)}
-            className={`w-full ${filters.major_id ? 'pl-8 md:pl-10' : 'pl-2 md:pl-3'} pr-8 md:pr-9 py-2 md:py-2.5 border-2 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 font-medium appearance-none cursor-pointer shadow-sm text-gray-900 dark:text-gray-100 ${filters.major_id ? 'border-purple-300 dark:border-purple-500' : 'border-gray-200 dark:border-gray-600'}`}
+            className={`w-full bg-white ${filters.major_id ? 'pl-8 md:pl-10' : 'pl-2 md:pl-3'} pr-8 md:pr-9 py-2 md:py-2.5 border-2 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 font-medium appearance-none cursor-pointer shadow-sm text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${filters.major_id ? 'border-indigo-300 dark:border-indigo-500' : 'border-gray-200 dark:border-gray-600'}`}
             style={{
               backgroundColor: theme === 'dark' ? '#111827' : '#ffffff',
               color: theme === 'dark' ? '#f3f4f6' : '#111827',
@@ -140,7 +110,7 @@ export function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
                 : (theme === 'dark' ? '#4b5563' : '#e5e7eb'),
             }}
           >
-            <option value="" style={{ backgroundColor: theme === 'dark' ? '#111827' : '#ffffff', color: theme === 'dark' ? '#f3f4f6' : '#111827' }}>🎓 Chọn ngành học</option>
+            <option value="" style={{ backgroundColor: theme === 'dark' ? '#111827' : '#ffffff', color: theme === 'dark' ? '#f3f4f6' : '#111827' }}>Chọn ngành học</option>
             {MAJOR_GROUPS.map((group) => (
               <optgroup key={group.group} label={`━━ ${group.group} ━━`} style={{ backgroundColor: theme === 'dark' ? '#111827' : '#ffffff', color: theme === 'dark' ? '#f3f4f6' : '#111827' }}>
                 {group.majors.map((major) => (

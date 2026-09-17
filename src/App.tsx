@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useTransition, useLayoutEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useTransition, useCallback, Suspense } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { auth, onAuthStateChanged, User, db, collection, query, where, onSnapshot, orderBy, limit, getDoc, doc, updateDoc, serverTimestamp, signOut, handleFirestoreError, OperationType, getDocs } from './firebase';
-import { Auth } from './components/Auth';
 import { ThemeToggle } from './components/ThemeToggle';
 import { TermsModal } from './components/TermsModal';
 import { NotificationPermission } from './components/NotificationPermission';
@@ -8,19 +8,25 @@ import { FeedbackModal } from './components/FeedbackModal';
 import { useFeedbackPrompt } from './hooks/useFeedbackPrompt';
 import { useTheme } from './contexts/ThemeContext';
 import { StudentProfile, View, Message } from './types';
-import { Sparkles, User as UserIcon, Home, Heart, Search, Users, MessageSquare, Zap, BookOpen, Smile, Settings as SettingsIcon, FileText, MapPin } from 'lucide-react';
+import { Sparkles, User as UserIcon, Home, Heart, Search, Users, Zap, BookOpen, Smile, Settings as SettingsIcon, Utensils, LogOut, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Logo } from './components/Logo';
+import { LandingPage } from './components/LandingPage';
+import { AppNavigation } from './components/AppNavigation';
 import { toast } from 'sonner';
 import { quotaManager } from './utils/quotaManager';
 
 import { ProfileCompletionBanner } from './components/ProfileCompletionBanner';
+import { CallDialog } from './components/CallDialog';
+import { LiveLocationTracker } from './components/LiveLocationTracker';
 import { InstallPrompt } from './components/InstallPrompt';
 import { QuotaExceededBanner } from './components/QuotaExceededBanner';
 import { validateProfile, RESTRICTED_FEATURES, PUBLIC_FEATURES } from './utils/profileValidation';
 import { setupForegroundListener, getFCMToken } from './utils/fcm';
-import { showNotification, formatMessageNotification, handleNotificationClick } from './utils/notifications';
+import { showNotification, formatMessageNotification } from './utils/notifications';
 import { onlineStatusManager } from './utils/onlineStatusManager';
+import { subscribeToIncomingCalls } from './services/callService';
+import { CallKind, CallSession } from './types/call';
 
 // Lazy-loaded components for code splitting
 import { 
@@ -33,26 +39,53 @@ import {
   LazyPostsList, 
   LazyMapView, 
   LazyDocumentRepository,
+  LazyStudentDirectory,
   LazyOnboardingTour
 } from './routes/lazyRoutes';
 import { RouteLoader } from './components/RouteLoader';
-import { preloadCriticalRoutes, createPreloadHandlers } from './utils/routePreloader';
 import { getCachedData, setCachedData } from './utils/cacheManager';
 import { logger } from '@/utils/logger';
 import { performanceMonitor } from './utils/performance';
+import {
+  canonicalAppPath,
+  migrateLegacyHash,
+  pathForChat,
+  pathForExplore,
+  pathForMatching,
+  pathForView,
+  resolveAppRoute,
+  type ExploreTab,
+  type MatchingMode,
+} from './routes/appRoutes';
+
+interface ActiveCall {
+  direction: 'incoming' | 'outgoing';
+  kind: CallKind;
+  peer: StudentProfile | null;
+  incomingCall?: CallSession;
+}
+
 export default function App() {
   const { theme } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const route = resolveAppRoute(location.pathname);
+  const view = route.view;
+  const matchingMode = route.matchingMode ?? 'quick';
+  const exploreTab = route.exploreTab ?? 'list';
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<View>('home');
   const [isPending, startTransition] = useTransition();
   const [matchedProfile, setMatchedProfile] = useState<StudentProfile | null>(null);
-  const [chatReceiverUid, setChatReceiverUid] = useState<string | null>(null);
+  const [chatReceiverUid, setChatReceiverUid] = useState<string | null>(route.chatUid ?? null);
   const [hasProfile, setHasProfile] = useState(false);
   const [profileComplete, setProfileComplete] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<StudentProfile | null>(null);
-  const [matchingMode, setMatchingMode] = useState<'lover' | 'study' | 'quick' | 'hobby' | null>(null);
+  const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
   const initialLoadRef = useRef(true);
+  const activeCallRef = useRef<ActiveCall | null>(null);
+  const seenUnreadMessageIdsRef = useRef<Set<string>>(new Set());
+  const unreadListenerReadyRef = useRef(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
@@ -64,6 +97,27 @@ export default function App() {
     missingFields: [] as string[], 
     missingFieldsVN: [] as string[] 
   });
+
+  const setView = useCallback((nextView: View, replace = false) => {
+    navigate(pathForView(nextView), { replace });
+  }, [navigate]);
+
+  useEffect(() => {
+    if (route.chatUid) setChatReceiverUid(route.chatUid);
+  }, [route.chatUid]);
+
+  useEffect(() => {
+    const canonicalPath = canonicalAppPath(location.pathname);
+    if (canonicalPath !== location.pathname) {
+      navigate(canonicalPath, { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    const migratedPath = migrateLegacyHash(window.location.hash);
+    if (!migratedPath) return;
+    navigate(migratedPath, { replace: true });
+  }, [navigate]);
 
   // Feedback prompt hook
   const { 
@@ -120,6 +174,8 @@ export default function App() {
    * Requirements: 6.2, 6.3
    */
   useEffect(() => {
+    if (!user) return;
+
     const warmCache = async () => {
       try {
         // Only warm cache once per session
@@ -167,7 +223,7 @@ export default function App() {
     const warmTimeout = setTimeout(warmCache, 1000);
     
     return () => clearTimeout(warmTimeout);
-  }, []);
+  }, [user]);
 
   // Show quota warning once
   /* useEffect(() => {
@@ -178,19 +234,6 @@ export default function App() {
       });
     }
   }, [quotaExceeded]); */
-
-  /**
-   * Task 9.1: Preload routes sớm hơn — không đợi profile load xong
-   * Bug_Condition: isFirstVisit = true AND lazyComponent.isLoaded = false AND loadTime > 500ms
-   * Expected_Behavior: Lazy component bắt đầu render ≤ 500ms nhờ preload sớm
-   * Requirements: 2.6
-   */
-  useEffect(() => {
-    // Preload critical routes ngay sau khi app mount, KHÔNG đợi profile
-    // Chạy sau 1000ms để nhường CPU cho critical startup path
-    const timer = setTimeout(preloadCriticalRoutes, 1000);
-    return () => clearTimeout(timer);
-  }, []); // QUAN TRỌNG: empty deps — không đợi profile
 
   /**
    * Task 9.5: Visual Viewport listener cho CSS variable --visual-viewport-height
@@ -218,22 +261,6 @@ export default function App() {
       vv.removeEventListener('scroll', update);
     };
   }, []); // empty deps: đăng ký 1 lần khi mount, cleanup khi unmount
-
-  /**
-   * Task 9.1: Intent-based preloading khi hover/focus nav buttons
-   * Preload component tương ứng khi user có intent điều hướng
-   */
-  const handleNavHover = useCallback((targetView: string) => {
-    const preloadMap: Record<string, () => Promise<any>> = {
-      posts: () => import('./components/PostsList'),
-      chat: () => import('./components/Chat'),
-      explore: () => import('./components/MapView'),
-      conversations: () => import('./components/ConversationsList'),
-      documents: () => import('./components/DocumentRepository'),
-      matching: () => import('./components/Matching'),
-    };
-    preloadMap[targetView]?.();
-  }, []);
 
   // Helper function to check if profile is complete
   // Sử dụng utility function mới để có thông tin chi tiết
@@ -360,16 +387,16 @@ export default function App() {
     chatReceiverUidRef.current = chatReceiverUid;
   }, [chatReceiverUid]);
 
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
   // Safety timeout for loading screen - prevent infinite loading
   useEffect(() => {
     const loadingTimeout = setTimeout(() => {
       if (loading) {
-        logger.warn('⚠️ Loading timeout - forcing load completion');
+        logger.warn('Loading timeout - forcing load completion');
         setLoading(false);
-        // If still no user after timeout, show home page
-        if (!user) {
-          setView('home');
-        }
       }
     }, 8000); // 8 seconds max loading time
 
@@ -403,7 +430,6 @@ export default function App() {
       setLoading(false);
 
       if (!user) {
-        setView('home');
         setHasProfile(false);
         setIsLoadingProfile(false); // No user = not loading
         sessionStorage.removeItem('has_reloaded_login');
@@ -412,7 +438,7 @@ export default function App() {
         initialLoadRef.current = false;
         setIsLoadingProfile(true); // Start loading profile
         
-        // ⚡ INSTANT terms check from localStorage - no network needed!
+        // Read the local terms flag before making a network request.
         // This shows TermsModal immediately without waiting for Firestore
         const termsAcceptedEarly = localStorage.getItem(`terms_accepted_${user.uid}`);
         if (!termsAcceptedEarly) {
@@ -469,9 +495,6 @@ export default function App() {
               setProfileComplete(validation.isComplete);
               setIsLoadingProfile(false);
               
-              // Preload critical routes after successful login
-              preloadCriticalRoutes();
-              
               // If profile incomplete, force to profile view
               if (!validation.isComplete) {
                 setView('profile');
@@ -512,7 +535,7 @@ export default function App() {
     
     if (restrictedViews.includes(view) && !profileComplete) {
       const featureName = RESTRICTED_FEATURES[view as keyof typeof RESTRICTED_FEATURES];
-      toast.error(`🔒 ${featureName} đang bị khóa. Vui lòng hoàn thiện hồ sơ!`, {
+      toast.error(`${featureName} cần hồ sơ hoàn chỉnh`, {
         duration: 4000,
         description: `Còn thiếu: ${profileValidation.missingFieldsVN.join(', ')}`,
       });
@@ -545,70 +568,101 @@ export default function App() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       onlineStatusManager.cleanup(user.uid);
     };
-  }, [user, hasProfile]);
+  }, [hasProfile, user]);
 
 
-  // Listener for new messages - Only when on relevant views
+  // Calls are created only when neither participant has blocked the other (the
+  // Firestore rule enforces this). The listener only needs the caller profile.
+  useEffect(() => {
+    if (!user || !profileComplete) return;
+
+    return subscribeToIncomingCalls(user.uid, async (incomingCall) => {
+      if (!incomingCall || activeCallRef.current) return;
+
+      try {
+        const callerProfile = await getDoc(doc(db, 'profiles', incomingCall.callerUid));
+
+        const callState: ActiveCall = {
+          direction: 'incoming',
+          kind: incomingCall.kind,
+          incomingCall,
+          peer: callerProfile.exists()
+            ? { ...callerProfile.data(), uid: incomingCall.callerUid } as StudentProfile
+            : null,
+        };
+        activeCallRef.current = callState;
+        setActiveCall(callState);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, `calls/${incomingCall.id}`, true);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'calls', true);
+    });
+  }, [profileComplete, user]);
+
+  // In-app foreground notification. The initial snapshot only records existing
+  // unread messages; it never surprises a student with old notifications.
   useEffect(() => {
     if (!user) return;
-    
+
+    seenUnreadMessageIdsRef.current.clear();
+    unreadListenerReadyRef.current = false;
+
     const q = query(
       collection(db, 'messages'),
       where('participants', 'array-contains', user.uid),
       where('receiverUid', '==', user.uid),
       where('read', '==', false),
       orderBy('createdAt', 'desc'),
-      limit(1)
+      limit(10)
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      // Logic inside listener uses refs to get latest state without re-triggering subscription
       const currentView = viewRef.current;
       const currentChatReceiver = chatReceiverUidRef.current;
 
-      if (initialLoadRef.current) {
-        initialLoadRef.current = false;
+      if (!unreadListenerReadyRef.current) {
+        snapshot.docs.forEach((messageDoc) => seenUnreadMessageIdsRef.current.add(messageDoc.id));
+        unreadListenerReadyRef.current = true;
         return;
       }
 
-      if (snapshot.empty) return;
+      const newMessages = snapshot.docChanges()
+        .filter((change) => change.type === 'added')
+        .filter((change) => !seenUnreadMessageIdsRef.current.has(change.doc.id));
 
-      // Only listen when on conversations or chat view to save resources or home
-      if (currentView !== 'conversations' && currentView !== 'chat' && currentView !== 'home') return;
+      for (const change of newMessages) {
+        seenUnreadMessageIdsRef.current.add(change.doc.id);
+        const newMsg = change.doc.data() as Message;
 
-      const newMsg = snapshot.docs[0].data() as Message;
+        // Never interrupt the chat the student is currently reading.
+        if (currentView === 'chat' && currentChatReceiver === newMsg.senderUid) continue;
 
-      // Don't notify if we are currently chatting with this person
-      if (currentView === 'chat' && currentChatReceiver === newMsg.senderUid) {
-        return;
-      }
-
-      try {
-        const senderDoc = await getDoc(doc(db, 'profiles', newMsg.senderUid));
-        const senderName = senderDoc.exists() ? senderDoc.data().fullName : 'Người dùng TVU';
-
-        const toastId = toast.info(`Bạn có tin nhắn mới`, {
-          description: `Từ: ${senderName}`,
-          action: {
-            label: 'Xem ngay',
-            onClick: () => {
-              setChatReceiverUid(newMsg.senderUid);
-              setView('chat');
-              toast.dismiss(toastId);
-            }
-          },
-          duration: 5000,
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.GET, `profiles/${newMsg.senderUid}`, true);
+        try {
+          const senderDoc = await getDoc(doc(db, 'profiles', newMsg.senderUid));
+          const senderName = senderDoc.exists() ? senderDoc.data().fullName : 'Người dùng TVU';
+          const toastId = toast.info('Bạn có tin nhắn mới', {
+            description: `Từ ${senderName}`,
+            action: {
+              label: 'Xem ngay',
+              onClick: () => {
+                setChatReceiverUid(newMsg.senderUid);
+                navigate(pathForChat(newMsg.senderUid));
+                toast.dismiss(toastId);
+              },
+            },
+            duration: 5000,
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `profiles/${newMsg.senderUid}`, true);
+        }
       }
     }, (error) => {
-      // Silently handle permission errors and quota errors for global listeners to avoid console noise
       handleFirestoreError(error, OperationType.LIST, 'messages', true);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [navigate, user]);
 
   const handleProfileSave = useCallback((profile: StudentProfile) => {
     setCurrentProfile(profile);
@@ -624,8 +678,8 @@ export default function App() {
       if (user) {
         localStorage.removeItem(`profile_banner_dismissed_${user.uid}`);
       }
-      setView('matching');
-      toast.success('🎉 Hồ sơ đã hoàn thành! Bạn có thể sử dụng mọi tính năng.', {
+      setView('students');
+      toast.success('Hồ sơ đã hoàn thành. Bạn có thể sử dụng mọi tính năng.', {
         duration: 3000,
       });
     } else {
@@ -638,40 +692,22 @@ export default function App() {
   // Guard function to check profile completion before navigation (Feature Gating)
   const canAccessFeature = useCallback((): boolean => {
     if (!profileComplete) {
-      toast.error('🔒 Tính năng đang bị khóa', {
+      toast.error('Tính năng cần hồ sơ hoàn chỉnh', {
         duration: 4000,
         description: `Vui lòng cập nhật: ${profileValidation.missingFieldsVN.join(', ')}`,
       });
-      setView('profile');
+      navigate(pathForView('profile'));
       return false;
     }
     return true;
-  }, [profileComplete, profileValidation.missingFieldsVN]);
+  }, [navigate, profileComplete, profileValidation.missingFieldsVN]);
 
   const handleViewChange = useCallback((newView: View) => {
-    // Nhóm tính năng Mở (Public): luôn cho phép truy cập
     const publicViews = Object.keys(PUBLIC_FEATURES);
-
-    /**
-     * Task 9.2: Push history state cho sub-views để Android Back button hoạt động đúng
-     * FIX: Mở rộng danh sách views được push history — bao gồm tất cả main views
-     * để Android Back luôn về home thay vì đóng app
-     */
-    // Tất cả views đều push history state để Back button hoạt động đúng trên Android
-    // Sub-views (chat, results, settings, profile) push vì là "cấp 2"
-    // Main views (matching, conversations, posts, explore, documents) cũng push
-    // để Back từ các màn hình này về home thay vì thoát app
-    const allNavigableViews: View[] = [
-      'chat', 'results', 'settings', 'profile',
-      'matching', 'conversations', 'posts', 'explore', 'documents'
-    ];
-    if (allNavigableViews.includes(newView)) {
-      window.history.pushState({ view: newView }, '', `#${newView}`);
-    }
 
     if (publicViews.includes(newView)) {
       startTransition(() => {
-        setView(newView);
+        navigate(pathForView(newView));
       });
       return;
     }
@@ -681,125 +717,54 @@ export default function App() {
     
     if (restrictedViews.includes(newView)) {
       if (canAccessFeature()) {
-        setView(newView);
+        navigate(pathForView(newView));
       }
-      // Nếu không pass, canAccessFeature đã tự động chuyển về profile
     } else {
-      setView(newView);
+      navigate(pathForView(newView));
     }
-  }, [canAccessFeature]);
-
-  /**
-   * Task 9.2: Lắng nghe popstate để xử lý Android Back button đúng cách
-   * FIX: Thêm kiểm tra auth và profile trước khi navigate qua history
-   */
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      const state = e.state as { view?: View } | null;
-
-      if (state?.view) {
-        const targetView = state.view;
-        const restrictedViews = Object.keys(RESTRICTED_FEATURES) as View[];
-
-        // Nếu view restricted mà chưa đủ điều kiện → redirect về profile
-        if (restrictedViews.includes(targetView)) {
-          if (!user) {
-            setView('home');
-            return;
-          }
-          if (!profileComplete) {
-            setView('profile');
-            return;
-          }
-        }
-
-        // Nếu đang ở home mà Back → giữ ở home, không pop nữa
-        if (targetView === 'home' || !user) {
-          setView('home');
-          window.history.pushState({ view: 'home' }, '', '#home');
-          return;
-        }
-
-        setView(targetView);
-      } else {
-        // Không có state (history đã hết) → về home
-        setView('home');
-        window.history.pushState({ view: 'home' }, '', '#home');
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [user, profileComplete]); // deps: cần user và profileComplete để guard đúng
+  }, [canAccessFeature, navigate]);
 
   const handleMatchFound = useCallback((profile: StudentProfile) => {
     setMatchedProfile(profile);
     startTransition(() => {
-      setView('results');
+      navigate(pathForView('results'));
     });
-  }, []);
+  }, [navigate]);
 
   const handleStartChat = useCallback((uid: string) => {
     setChatReceiverUid(uid);
     startTransition(() => {
-      setView('chat');
+      navigate(pathForChat(uid));
     });
+  }, [navigate]);
+
+  const handleStartCall = useCallback((profile: StudentProfile, kind: CallKind) => {
+    if (activeCallRef.current) {
+      toast.info('Bạn đang có một cuộc gọi khác. Hãy kết thúc cuộc gọi đó trước nhé.');
+      return;
+    }
+
+    const callState: ActiveCall = { direction: 'outgoing', kind, peer: profile };
+    activeCallRef.current = callState;
+    setActiveCall(callState);
   }, []);
 
-  /**
-   * Task 9.4: Sửa useLayoutEffect cancel scroll animation triệt để
-   * Bug_Condition: tabClicked = true AND isScrolling = true AND scrollAnimation.cancelled = false
-   * Expected_Behavior: scrollTop = 0 ngay lập tức, mọi animation bị cancel
-   * Requirements: 2.13
-   *
-   * Thêm document.documentElement.scrollTop = 0 và document.body.scrollTop = 0 TRƯỚC scrollTo
-   * để force cancel mọi scroll animation đang chạy trên iOS Safari.
-   * Sau đó reset tất cả scroll containers có class overflow-y-auto, overflow-auto, [data-scroll-container].
-   */
-  useLayoutEffect(() => {
-    if (!isPending) {
-      // Cancel any ongoing scroll bằng cách set scrollTop trực tiếp trước
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
+  const handleCloseCall = useCallback(() => {
+    activeCallRef.current = null;
+    setActiveCall(null);
+  }, []);
 
-      // Sau đó mới dùng scrollTo để đảm bảo tương thích cross-browser
-      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  const handleOpenExploreTab = useCallback((tab: ExploreTab) => {
+    navigate(pathForExplore(tab));
+  }, [navigate]);
 
-      // Reset tất cả scroll containers
-      const containers = document.querySelectorAll<HTMLElement>(
-        '.overflow-y-auto, .overflow-auto, [data-scroll-container]'
-      );
-      containers.forEach(el => { el.scrollTop = 0; });
-    }
-  }, [view, isPending]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [location.pathname]);
 
   const renderView = () => {
     if (!user) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[70vh] md:min-h-[80vh] text-center px-5 py-10 relative">
-          {/* Subtle Background Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-violet-200/30 to-blue-200/30 rounded-full blur-[100px] pointer-events-none"></div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="flex flex-col items-center gap-8 md:gap-10 relative z-10"
-          >
-            <Logo size="xl" showText={true} />
-
-            {/* Slogan */}
-            <p className="text-base md:text-lg font-bold leading-relaxed max-w-lg mx-auto px-2 text-slate-800 dark:text-gray-200/90 tracking-wide" style={{ color: '#1e293b', WebkitTextFillColor: '#1e293b' }}>
-              "Nền tảng giúp sinh viên Đại học Trà Vinh tìm kiếm bạn bè, nhóm học tập và những người cùng sở thích."
-            </p>
-
-            {/* Login Button */}
-            <div className="mt-2">
-              <Auth user={user} loading={loading} />
-            </div>
-          </motion.div>
-        </div>
-      );
+      return <LandingPage user={user} loading={loading} />;
     }
 
     switch (view) {
@@ -812,7 +777,23 @@ export default function App() {
       case 'matching':
         return (
           <RouteLoader minHeight="min-h-[600px]">
-            <LazyMatching currentUser={user} onMatchFound={handleMatchFound} mode={matchingMode || 'quick'} />
+            <LazyMatching
+              currentUser={user}
+              onMatchFound={handleMatchFound}
+              onStartChat={handleStartChat}
+              onStartCall={(profile) => handleStartCall(profile, 'audio')}
+              mode={matchingMode || 'quick'}
+            />
+          </RouteLoader>
+        );
+      case 'students':
+        return (
+          <RouteLoader minHeight="min-h-[600px]">
+            <LazyStudentDirectory
+              currentUser={user}
+              currentProfile={currentProfile}
+              onStartChat={handleStartChat}
+            />
           </RouteLoader>
         );
       case 'chat':
@@ -821,13 +802,14 @@ export default function App() {
             <LazyChat
               receiverUid={chatReceiverUid}
               onBack={() => setView('conversations')}
+              onStartCall={handleStartCall}
             />
           </RouteLoader>
         ) : null;
       case 'conversations':
         return (
           <RouteLoader minHeight="min-h-[500px]">
-            <LazyConversationsList onStartChat={handleStartChat} onNewChat={() => setView('matching')} />
+            <LazyConversationsList onStartChat={handleStartChat} onNewChat={() => navigate(pathForMatching('quick'))} />
           </RouteLoader>
         );
       case 'settings':
@@ -883,7 +865,7 @@ export default function App() {
       case 'explore':
         return user ? (
           <RouteLoader minHeight="min-h-[600px]">
-            <LazyMapView currentUser={user} onProfileClick={async (uid) => {
+            <LazyMapView currentUser={user} currentProfile={currentProfile} initialTab={exploreTab} onProfileClick={async (uid) => {
               try {
                 // Fetch the user's profile
                 const profileRef = doc(db, 'profiles', uid);
@@ -939,7 +921,7 @@ export default function App() {
               </div>
               <LazyProfileCard
                 profile={matchedProfile}
-                onRematch={() => setView('matching')}
+                onRematch={() => navigate(pathForMatching(matchingMode))}
                 onStartChat={handleStartChat}
               />
               <button
@@ -954,20 +936,13 @@ export default function App() {
         ) : (
           <div className="text-center">
             <p>Không có kết quả. Vui lòng thử lại.</p>
-            <button onClick={() => setView('matching')} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-full">Quay lại</button>
+            <button onClick={() => navigate(pathForMatching('quick'))} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-full">Quay lại</button>
           </div>
         );
       case 'home':
       default:
         return (
-          <motion.div
-            key="home"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-            className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center"
-          >
+          <div className="home-dashboard max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center">
             {/* Left Column: Welcome Text + Buttons */}
             <div className="space-y-5 md:space-y-8 text-center md:text-left">
               <h1 className="text-3xl md:text-6xl font-black leading-[1.15] tracking-tight" style={{ WebkitTextFillColor: 'initial' }}>
@@ -988,10 +963,10 @@ export default function App() {
                   </p>
                   <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4 justify-center md:justify-start">
                     <button
-                      onClick={() => handleViewChange('matching')}
+                      onClick={() => handleViewChange('students')}
                       className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 dark:from-indigo-700 dark:via-violet-700 dark:to-blue-600 text-white font-bold rounded-2xl shadow-lg dark:shadow-indigo-500/50 hover:opacity-90 dark:hover:shadow-indigo-500/70 transition-all flex items-center justify-center gap-2 text-base active:scale-[0.97]"
                     >
-                      <Search className="w-5 h-5" />
+                      <Users className="w-5 h-5" />
                       Tìm bạn ngay
                     </button>
                     <button
@@ -1018,10 +993,10 @@ export default function App() {
                       Cập nhật hồ sơ
                     </button>
                     <button
-                      onClick={() => handleViewChange('matching')}
+                      onClick={() => handleViewChange('students')}
                       className="ghost-button w-full sm:w-auto px-8 py-4 rounded-2xl border-2 shadow-sm transition-all flex items-center justify-center gap-2 text-base active:scale-[0.97] font-bold bg-white text-gray-900 border-gray-100 dark:bg-transparent dark:text-gray-100 dark:border-gray-300"
                     >
-                      <Search className="w-5 h-5" />
+                      <Users className="w-5 h-5" />
                       Tìm bạn ngay
                     </button>
                   </div>
@@ -1044,14 +1019,13 @@ export default function App() {
                     transition={{ delay: 0.1 }}
                     onClick={() => { 
                       if (!profileComplete) {
-                        toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                        toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                           duration: 3000,
                         });
                         setView('profile');
                         return;
                       }
-                      setMatchingMode('lover'); 
-                      handleViewChange('matching'); 
+                      navigate(pathForMatching('lover'));
                     }}
                     className={`feature-card-lover w-full h-36 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] border p-4 flex flex-col justify-end text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'cursor-not-allowed'} dark:shadow-[0_0_15px_rgba(239,68,68,0.3)]`}
                     style={{
@@ -1062,7 +1036,7 @@ export default function App() {
                   >
                     <Heart className={`w-8 h-8 text-red-500 mb-2 transition-transform ${profileComplete ? 'group-hover:scale-110' : 'opacity-60'}`} />
                     <p className={`font-black text-base leading-tight tracking-tight ${!profileComplete ? 'opacity-60' : ''}`} style={{ color: theme === 'dark' ? '#f9fafb' : '#111827' }}>
-                      Tìm người yêu {!profileComplete && '🔒'}
+                      Hẹn hò ẩn mặt {!profileComplete && '(Cần hồ sơ)'}
                     </p>
                   </motion.button>
 
@@ -1074,20 +1048,19 @@ export default function App() {
                     transition={{ delay: 0.2 }}
                     onClick={() => { 
                       if (!profileComplete) {
-                        toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                        toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                           duration: 3000,
                         });
                         setView('profile');
                         return;
                       }
-                      setMatchingMode('quick'); 
-                      handleViewChange('matching'); 
+                      navigate(pathForMatching('quick'));
                     }}
                     className={`w-full h-36 bg-gradient-to-br from-indigo-950 to-gray-900 rounded-2xl shadow-md border border-transparent dark:border-indigo-500/30 p-4 flex flex-col justify-end text-white text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                   >
                     <Zap className={`w-8 h-8 text-yellow-400 mb-2 transition-transform ${profileComplete ? 'group-hover:scale-110' : ''}`} />
                     <p className="font-black text-base leading-tight tracking-tight">
-                      Kết nối nhanh {!profileComplete && '🔒'}
+                      Gọi nhanh {!profileComplete && '(Cần hồ sơ)'}
                     </p>
                   </motion.button>
                 </div>
@@ -1102,20 +1075,19 @@ export default function App() {
                     transition={{ delay: 0.3 }}
                     onClick={() => { 
                       if (!profileComplete) {
-                        toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                        toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                           duration: 3000,
                         });
                         setView('profile');
                         return;
                       }
-                      setMatchingMode('study'); 
-                      handleViewChange('matching'); 
+                      navigate(pathForMatching('study'));
                     }}
                     className={`w-full h-36 bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 dark:from-indigo-700 dark:via-violet-700 dark:to-blue-600 rounded-2xl shadow-md border border-transparent dark:border-violet-500/30 dark:shadow-indigo-500/30 p-4 flex flex-col justify-end text-white text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                   >
                     <BookOpen className={`w-8 h-8 mb-2 transition-transform ${profileComplete ? 'group-hover:scale-110' : ''}`} />
                     <p className="font-black text-base leading-tight tracking-tight">
-                      Bạn cùng học {!profileComplete && '🔒'}
+                      Phòng học nhóm {!profileComplete && '(Cần hồ sơ)'}
                     </p>
                   </motion.button>
 
@@ -1127,14 +1099,13 @@ export default function App() {
                     transition={{ delay: 0.4 }}
                     onClick={() => { 
                       if (!profileComplete) {
-                        toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                        toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                           duration: 3000,
                         });
                         setView('profile');
                         return;
                       }
-                      setMatchingMode('hobby'); 
-                      handleViewChange('matching'); 
+                      navigate(pathForMatching('hobby'));
                     }}
                     className={`feature-card-hobby w-full h-36 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] border p-4 flex flex-col justify-end text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'cursor-not-allowed'} dark:shadow-[0_0_15px_rgba(234,179,8,0.25)]`}
                     style={{
@@ -1145,7 +1116,7 @@ export default function App() {
                   >
                     <Smile className={`w-8 h-8 text-yellow-500 mb-2 transition-transform ${profileComplete ? 'group-hover:scale-110' : 'opacity-60'}`} />
                     <p className={`font-black text-base leading-tight tracking-tight ${!profileComplete ? 'opacity-60' : ''}`} style={{ color: theme === 'dark' ? '#f9fafb' : '#111827' }}>
-                      Sở thích chung {!profileComplete && '🔒'}
+                      Sở thích chung {!profileComplete && '(Cần hồ sơ)'}
                     </p>
                   </motion.button>
                 </div>
@@ -1163,14 +1134,13 @@ export default function App() {
                   transition={{ delay: 0.1 }}
                   onClick={() => { 
                     if (!profileComplete) {
-                      toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                      toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                         duration: 3000,
                       });
                       setView('profile');
                       return;
                     }
-                    setMatchingMode('lover'); 
-                    handleViewChange('matching'); 
+                    navigate(pathForMatching('lover'));
                   }}
                   className={`feature-card-lover w-full h-52 rounded-3xl shadow-lg border p-5 flex flex-col justify-end text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'} shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[0_0_20px_rgba(239,68,68,0.3),_0_4px_6px_-1px_rgba(0,0,0,0.1)]`}
                   style={{
@@ -1180,7 +1150,7 @@ export default function App() {
                 >
                   <Heart className={`w-11 h-11 text-red-500 mb-3 transition-transform ${profileComplete ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`} />
                   <p className={`font-black text-xl leading-tight tracking-tight ${theme === 'dark' ? 'text-gray-100' : 'text-gray-700'}`}>
-                    Tìm người yêu {!profileComplete && '🔒'}
+                    Hẹn hò ẩn mặt {!profileComplete && '(Cần hồ sơ)'}
                   </p>
                 </motion.button>
 
@@ -1193,20 +1163,19 @@ export default function App() {
                   transition={{ delay: 0.2 }}
                   onClick={() => { 
                     if (!profileComplete) {
-                      toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                      toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                         duration: 3000,
                       });
                       setView('profile');
                       return;
                     }
-                    setMatchingMode('quick'); 
-                    handleViewChange('matching'); 
+                    navigate(pathForMatching('quick'));
                   }}
                   className={`w-full h-52 bg-gradient-to-br from-indigo-950 to-gray-900 rounded-3xl shadow-lg border border-transparent dark:border-indigo-500/30 p-5 flex flex-col justify-end text-white text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                 >
                   <Zap className={`w-11 h-11 text-yellow-400 mb-3 transition-transform ${profileComplete ? 'group-hover:scale-110 group-hover:-rotate-6' : ''}`} />
                   <p className="font-black text-xl leading-tight tracking-tight">
-                    Kết nối nhanh {!profileComplete && '🔒'}
+                    Gọi nhanh bằng giọng nói {!profileComplete && '(Cần hồ sơ)'}
                   </p>
                 </motion.button>
 
@@ -1219,20 +1188,19 @@ export default function App() {
                   transition={{ delay: 0.3 }}
                   onClick={() => { 
                     if (!profileComplete) {
-                      toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                      toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                         duration: 3000,
                       });
                       setView('profile');
                       return;
                     }
-                    setMatchingMode('study'); 
-                    handleViewChange('matching'); 
+                    navigate(pathForMatching('study'));
                   }}
                   className={`w-full h-52 bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 dark:from-indigo-700 dark:via-violet-700 dark:to-blue-600 rounded-3xl shadow-lg border border-transparent dark:border-violet-500/30 dark:shadow-indigo-500/30 p-5 flex flex-col justify-end text-white text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                 >
                   <BookOpen className={`w-11 h-11 mb-3 transition-transform ${profileComplete ? 'group-hover:scale-110 group-hover:rotate-3' : ''}`} />
                   <p className="font-black text-xl leading-tight tracking-tight">
-                    Bạn cùng học {!profileComplete && '🔒'}
+                    Phòng học thoại nhóm {!profileComplete && '(Cần hồ sơ)'}
                   </p>
                 </motion.button>
 
@@ -1245,14 +1213,13 @@ export default function App() {
                   transition={{ delay: 0.4 }}
                   onClick={() => { 
                     if (!profileComplete) {
-                      toast.error('🔒 Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này!', {
+                      toast.error('Vui lòng hoàn thiện hồ sơ để sử dụng tính năng này.', {
                         duration: 3000,
                       });
                       setView('profile');
                       return;
                     }
-                    setMatchingMode('hobby'); 
-                    handleViewChange('matching'); 
+                    navigate(pathForMatching('hobby'));
                   }}
                   className={`feature-card-hobby w-full h-52 rounded-3xl shadow-lg border p-5 flex flex-col justify-end text-left transition-all group ${profileComplete ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'} shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[0_0_20px_rgba(234,179,8,0.25),_0_4px_6px_-1px_rgba(0,0,0,0.1)]`}
                   style={{
@@ -1262,53 +1229,48 @@ export default function App() {
                 >
                   <Smile className={`w-11 h-11 text-yellow-500 mb-3 transition-transform ${profileComplete ? 'group-hover:scale-110 group-hover:-rotate-3' : ''}`} />
                   <p className={`font-black text-xl leading-tight tracking-tight ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>
-                    Sở thích chung {!profileComplete && '🔒'}
+                    Sở thích chung {!profileComplete && '(Cần hồ sơ)'}
                   </p>
                 </motion.button>
               </div>
             </div>
-          </motion.div>
+          </div>
         );
     }
   };
 
-  // Setup Push Notifications - DISABLED FOR LAUNCH
-  // Will be enabled after upgrading to Blaze Plan
   useEffect(() => {
     if (!user || !hasProfile) return;
-    
-    // Push Notifications tạm thời tắt để tiết kiệm chi phí
-    // Sẽ bật lại khi có user base ổn định
-    logger.log('ℹ️ Push Notifications: Disabled (will enable after launch)');
-    
-    // TODO: Enable after upgrading to Firebase Blaze Plan
-    // Uncomment code below when ready:
-    /*
-    const setupFCM = async () => {
-      try {
-        const token = await getFCMToken(user.uid);
-        if (token) {
-          logger.log('✅ FCM Token obtained:', token.substring(0, 20) + '...');
-        }
-        
-        const unsubscribe = setupForegroundListener((payload) => {
-          logger.log('📬 Foreground message received:', payload);
-          const notification = formatMessageNotification(payload);
-          showNotification(notification.title, notification.options);
-        });
-        
-        return unsubscribe;
-      } catch (error) {
-        console.error('❌ FCM setup error:', error);
+
+    // Refresh a previously granted token on every signed-in session. The banner
+    // asks only when permission is still undecided, so this is non-intrusive.
+    if ('Notification' in window && Notification.permission === 'granted') {
+      void getFCMToken(user.uid);
+    }
+
+    const unsubscribe = setupForegroundListener((payload) => {
+      const data = payload.data || {};
+      // The Firestore listener already provides an in-app toast while visible.
+      // Avoid a duplicate native notification in the same open tab.
+      if (document.visibilityState === 'visible' || data.type !== 'message') return;
+
+      const notification = formatMessageNotification(data);
+      const nativeNotification = showNotification(notification.title, notification.options);
+      if (nativeNotification) {
+        nativeNotification.onclick = () => {
+          nativeNotification.close();
+          if (data.senderUid) {
+            handleStartChat(data.senderUid);
+          } else {
+            setView('conversations');
+          }
+          window.focus();
+        };
       }
-    };
-    
-    const cleanup = setupFCM();
-    return () => {
-      cleanup?.then(unsub => unsub?.());
-    };
-    */
-  }, [user, hasProfile]);
+    });
+
+    return unsubscribe;
+  }, [handleStartChat, hasProfile, setView, user]);
 
   // Listen for Service Worker messages (notification clicks)
   useEffect(() => {
@@ -1316,12 +1278,19 @@ export default function App() {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'NOTIFICATION_CLICKED') {
-        const { conversationId } = event.data.data;
-        
-        if (conversationId) {
-          // Navigate to messages view and open conversation
-          setView('conversations');
-          setChatReceiverUid(conversationId);
+        const data = event.data.data || {};
+        if (data.type === 'message') {
+          if (data.senderUid) {
+            handleStartChat(data.senderUid);
+          } else {
+            setView('conversations');
+          }
+        } else if (data.type === 'call') {
+          // The real-time incoming-call listener opens the dialog if the call
+          // is still ringing; this navigation merely brings the app forward.
+          setView('home');
+        } else if (data.type === 'encounter') {
+          navigate(pathForExplore('people'));
         }
       }
     };
@@ -1331,124 +1300,31 @@ export default function App() {
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleMessage);
     };
-  }, []);
+  }, [handleStartChat, navigate, setView]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center relative overflow-hidden">
-        {/* Subtle glow behind logo */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-violet-400/20 to-blue-400/20 rounded-full blur-[60px] pointer-events-none"></div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="flex flex-col items-center gap-10 relative z-10 px-6"
-        >
-          {/* Logo and Title Side-by-Side (Image 2 Style) */}
-          <div className="flex items-center gap-5 md:gap-8">
-            <div className="w-[72px] h-[72px] md:w-[88px] md:h-[88px] rounded-[1.2rem] md:rounded-[1.5rem] bg-gradient-to-br from-violet-500 to-blue-500 p-[1.5px] shadow-[0_8px_30px_rgb(124,58,237,0.12)] bg-white shrink-0">
-              <div className="w-full h-full bg-white rounded-[17px] md:rounded-[22px] flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg viewBox="0 0 100 100" className="w-full h-full">
-                    <defs>
-                      <filter id="glow-loading" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                        <feMerge>
-                          <feMergeNode in="coloredBlur"/>
-                          <feMergeNode in="SourceGraphic"/>
-                        </feMerge>
-                      </filter>
-                    </defs>
-                    
-                    {/* Nodes with stronger visibility */}
-                    <motion.circle 
-                      cx="25" cy="25" r="4"
-                      className="fill-violet-900"
-                      style={{ filter: 'url(#glow-loading)', opacity: 0.5 }}
-                      animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.9, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    <motion.circle 
-                      cx="80" cy="20" r="4"
-                      className="fill-violet-900"
-                      style={{ filter: 'url(#glow-loading)', opacity: 0.5 }}
-                      animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.9, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                    />
-                    <motion.circle 
-                      cx="20" cy="75" r="4"
-                      className="fill-violet-900"
-                      style={{ filter: 'url(#glow-loading)', opacity: 0.5 }}
-                      animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.9, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                    />
-                    <motion.circle 
-                      cx="75" cy="80" r="4"
-                      className="fill-violet-900"
-                      style={{ filter: 'url(#glow-loading)', opacity: 0.5 }}
-                      animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.9, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                    />
-                    
-                    {/* Lines with stronger visibility */}
-                    <motion.line 
-                      x1="25" y1="25" x2="80" y2="20" 
-                      strokeWidth="1.5"
-                      className="stroke-violet-900"
-                      style={{ opacity: 0.5 }}
-                      animate={{ pathLength: [0, 1, 0] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    <motion.line 
-                      x1="80" y1="20" x2="20" y2="75" 
-                      strokeWidth="1.5"
-                      className="stroke-violet-900"
-                      style={{ opacity: 0.5 }}
-                      animate={{ pathLength: [0, 1, 0] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                    />
-                    <motion.line 
-                      x1="20" y1="75" x2="75" y2="80" 
-                      strokeWidth="1.5"
-                      className="stroke-violet-900"
-                      style={{ opacity: 0.5 }}
-                      animate={{ pathLength: [0, 1, 0] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                    />
-                  </svg>
-                </div>
-                <span className="font-black text-2xl md:text-3xl bg-clip-text text-transparent bg-gradient-to-tr from-violet-600 to-blue-500 tracking-tighter relative z-10">
-                  TVU
-                </span>
-              </div>
-            </div>
-
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-500 drop-shadow-sm whitespace-nowrap">
-              TVU Connect
-            </h1>
+      <div className="min-h-[100dvh] flex items-center justify-center bg-[var(--app-bg)]">
+        <div className="flex flex-col items-center gap-6 px-6" role="status" aria-live="polite">
+          <Logo size="lg" />
+          <div className="h-1 w-32 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-indigo-600 dark:bg-indigo-400" />
           </div>
-
-          {/* Typography */}
-          <p 
-            className="text-base md:text-lg font-semibold italic leading-relaxed px-6 text-center max-w-2xl"
-            style={{ color: '#475569' }}
-          >
-            "Nền tảng giúp sinh viên Đại học Trà Vinh tìm kiếm bạn bè, nhóm học tập và những người cùng sở thích."
-          </p>
-        </motion.div>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Đang chuẩn bị không gian của bạn…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen font-sans" style={{ backgroundColor: theme === 'dark' ? '#111827' : '#ffffff', color: theme === 'dark' ? '#f3f4f6' : '#111827' }}>
+    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">
 
-      {/* Notification Permission Banner - DISABLED FOR LAUNCH */}
-      {/* Will be enabled after upgrading to Firebase Blaze Plan */}
-      {/* {user && hasProfile && (
-        <NotificationPermission currentUser={user} />
-      )} */}
+      {user && hasProfile && (
+        <>
+          <NotificationPermission currentUser={user} />
+          <LiveLocationTracker currentUser={user} />
+        </>
+      )}
 
       {/* Terms and Privacy Modal */}
       <TermsModal
@@ -1473,93 +1349,25 @@ export default function App() {
         )}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
-            {/* Left: Logo */}
             <div className="flex items-center flex-shrink-0">
-              <div
-                className="cursor-pointer group flex items-center"
+              <button
+                type="button"
+                aria-label="Về trang chủ"
+                className="flex items-center rounded-xl border-0 bg-transparent p-1 cursor-pointer"
                 onClick={() => handleViewChange('home')}
               >
                 <Logo size="sm" showText={false} />
-                <span className="ml-2 text-base md:text-xl font-black tracking-tight whitespace-nowrap" style={{ background: 'linear-gradient(to right, #7c3aed, #4f46e5, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                <span className="ml-2 text-base md:text-lg font-extrabold tracking-[-0.03em] whitespace-nowrap text-slate-950 dark:text-white">
                   TVU Connect
                 </span>
-              </div>
+              </button>
             </div>
 
-            {/* Center: Desktop Navigation */}
-            <div className="hidden lg:flex items-center justify-start flex-1 ml-3 mr-2 max-w-[900px]">
-              <div className="flex items-center gap-0">
-                {user && (
-                  <>
-                    <button
-                      data-tour="home"
-                      onClick={() => handleViewChange('home')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'home' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <Home className={`w-6 h-6 ${view === 'home' ? 'fill-white' : ''}`} /> Trang chủ
-                    </button>
-                    <button
-                      data-tour="messages"
-                      onClick={() => handleViewChange('conversations')}
-                      {...createPreloadHandlers('conversations')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'conversations' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <MessageSquare className={`w-6 h-6 ${view === 'conversations' ? 'fill-white' : ''}`} /> Tin nhắn
-                    </button>
-                    <button
-                      data-tour="posts"
-                      onClick={() => handleViewChange('posts')}
-                      {...createPreloadHandlers('posts')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'posts' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <FileText className={`w-6 h-6 ${view === 'posts' ? 'fill-white' : ''}`} /> Bảng tin
-                    </button>
-                    <button
-                      data-tour="documents"
-                      onClick={() => handleViewChange('documents')}
-                      {...createPreloadHandlers('documents')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'documents' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <BookOpen className={`w-6 h-6 ${view === 'documents' ? 'fill-white' : ''}`} /> Tài liệu
-                    </button>
-                    <button
-                      data-tour="explore"
-                      onClick={() => handleViewChange('explore')}
-                      onMouseEnter={() => handleNavHover('explore')}
-                      onFocus={() => handleNavHover('explore')}
-                      onTouchStart={() => handleNavHover('explore')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'explore' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <MapPin className={`w-6 h-6 ${view === 'explore' ? 'fill-white' : ''}`} /> Khám phá
-                    </button>
-
-                    <button
-                      data-tour="profile"
-                      onClick={() => handleViewChange('profile')}
-                      {...createPreloadHandlers('profile')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'profile' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <UserIcon className={`w-6 h-6 ${view === 'profile' ? 'fill-white' : ''}`} /> Hồ sơ
-                    </button>
-                    <button
-                      data-tour="matching"
-                      onClick={() => handleViewChange('matching')}
-                      {...createPreloadHandlers('matching')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'matching' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <Heart className={`w-6 h-6 ${view === 'matching' ? 'fill-white' : ''}`} /> Ghép cặp
-                    </button>
-                    <button
-                      onClick={() => handleViewChange('settings')}
-                      {...createPreloadHandlers('settings')}
-                      className={`min-w-[90px] px-2.5 py-1.5 text-sm font-extrabold rounded-xl transition-all duration-100 flex items-center justify-center gap-2 active:scale-95 ${view === 'settings' ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}`}
-                    >
-                      <SettingsIcon className={`w-6 h-6 ${view === 'settings' ? 'fill-white' : ''}`} /> Cài đặt
-                    </button>
-                  </>
-                )}
+            {user && (
+              <div className="hidden xl:flex flex-1 justify-center px-4">
+                <AppNavigation view={view} onNavigate={handleViewChange} />
               </div>
-            </div>
+            )}
 
             {/* Right: Auth and Logout */}
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -1568,6 +1376,7 @@ export default function App() {
                   <div className="flex items-center gap-2 sm:gap-3">
                     {/* User Profile Button with Avatar and Name */}
                     <button
+                      data-tour="profile"
                       onClick={() => handleViewChange('profile')}
                       className="px-3 py-2 md:px-4 md:py-2.5 rounded-full font-bold text-xs md:text-sm transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap flex-shrink-0"
                       style={{
@@ -1599,7 +1408,7 @@ export default function App() {
                     {/* Logout Button - Hidden on mobile, visible on desktop */}
                     <button
                       onClick={handleLogout}
-                      className="hidden md:flex items-center justify-center px-3 py-2 md:px-4 md:py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all duration-300 active:scale-95 whitespace-nowrap flex-shrink-0 shadow-md hover:shadow-xl relative overflow-hidden group"
+                      className="hidden xl:flex items-center justify-center px-3 py-2 md:px-4 md:py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all duration-300 active:scale-95 whitespace-nowrap flex-shrink-0 shadow-md hover:shadow-xl relative overflow-hidden group"
                       style={{
                         backgroundColor: theme === 'dark' ? '#7f1d1d' : '#fee2e2',
                         color: theme === 'dark' ? '#fecaca' : '#dc2626',
@@ -1621,33 +1430,64 @@ export default function App() {
                       <span className="relative z-10">Đăng xuất</span>
                     </button>
 
-                    {/* Mobile Menu Toggle */}
-                    <button
-                      data-menu-toggle="true"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMobileMenu(!showMobileMenu);
-                      }}
-                      className="md:hidden p-2.5 rounded-full shadow-sm active:scale-95 transition-all text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex-shrink-0"
-                      style={{
-                        backgroundColor: theme === 'dark' ? 'rgb(31, 41, 55)' : '#ffffff',
-                        borderWidth: '1px',
-                        borderColor: theme === 'dark' ? 'rgb(55, 65, 81)' : 'rgb(243, 244, 246)',
-                      }}
-                    >
-                      <Zap className={`w-5 h-5 transition-transform ${showMobileMenu ? 'rotate-12 scale-110 text-indigo-600' : ''}`} />
-                    </button>
-
                     {/* Mobile Dropdown Menu Container */}
                     <div
                       id="mobile-menu-container"
-                      className={`md:hidden fixed inset-x-4 top-20 backdrop-blur-xl border rounded-3xl shadow-2xl p-5 transition-all duration-150 z-[70] origin-top ${showMobileMenu ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}
+                      className={`xl:hidden fixed inset-x-3 bottom-[calc(4.6rem+var(--sab))] max-h-[calc(100dvh-6rem)] overflow-y-auto border rounded-2xl shadow-xl p-4 transition-all duration-150 z-[70] origin-bottom ${showMobileMenu ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-[0.98] translate-y-2 pointer-events-none'}`}
                       style={{
                         backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.97)' : 'rgba(255, 255, 255, 0.97)',
                         borderColor: theme === 'dark' ? 'rgb(55, 65, 81)' : 'rgb(243, 244, 246)',
                       }}
                     >
                       <div className="flex flex-col gap-4">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">Tiện ích sinh viên</p>
+                          <div className="grid grid-cols-1 gap-2">
+                            <button
+                              onClick={() => { setShowMobileMenu(false); handleOpenExploreTab('rental'); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-800/40"
+                            >
+                              <Home className="w-5 h-5 text-orange-600 dark:text-orange-300" />
+                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Tìm trọ</span><span className="block text-xs text-slate-500">Phòng, ở ghép và liên hệ nhanh</span></span>
+                            </button>
+                            <button
+                              onClick={() => { setShowMobileMenu(false); handleOpenExploreTab('food'); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-800/40"
+                            >
+                              <Utensils className="w-5 h-5 text-rose-600 dark:text-rose-300" />
+                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Ăn gì quanh đây?</span><span className="block text-xs text-slate-500">Quán ăn gần vị trí hiện tại</span></span>
+                            </button>
+                            <button
+                              onClick={() => { setShowMobileMenu(false); handleOpenExploreTab('ai'); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-800/40"
+                            >
+                              <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-300" />
+                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Trợ lý học tập AI</span><span className="block text-xs text-slate-500">Học tập và hướng dẫn sử dụng app</span></span>
+                            </button>
+                            <button
+                              onClick={() => { setShowMobileMenu(false); handleViewChange('posts'); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                            >
+                              <FileText className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Cộng đồng</span><span className="block text-xs text-slate-500">Bài viết và hoạt động sinh viên</span></span>
+                            </button>
+                            <button
+                              onClick={() => { setShowMobileMenu(false); handleViewChange('documents'); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                            >
+                              <BookOpen className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Thư viện học liệu</span><span className="block text-xs text-slate-500">Sách, giáo trình và tài liệu theo ngành</span></span>
+                            </button>
+                            <button
+                              onClick={() => { setShowMobileMenu(false); handleViewChange('profile'); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                            >
+                              <UserIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Hồ sơ cá nhân</span><span className="block text-xs text-slate-500">Thông tin, quyền riêng tư và vị trí</span></span>
+                            </button>
+                          </div>
+                        </div>
+
                         {/* Appearance */}
                         <div className="space-y-2">
                           <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">Giao diện</p>
@@ -1655,7 +1495,7 @@ export default function App() {
                             style={{ backgroundColor: theme === 'dark' ? 'rgba(31,41,55,0.8)' : '#f9fafb', border: '1px solid', borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}
                           >
                             <span className="font-semibold text-sm" style={{ color: theme === 'dark' ? '#e5e7eb' : '#111827' }}>
-                              {theme === 'dark' ? '🌙 Chế độ tối' : '☀️ Chế độ sáng'}
+                              {theme === 'dark' ? 'Giao diện tối' : 'Giao diện sáng'}
                             </span>
                             <ThemeToggle />
                           </div>
@@ -1687,7 +1527,7 @@ export default function App() {
                               borderColor: theme === 'dark' ? '#7f1d1d' : '#fecaca',
                             }}
                           >
-                            <span>🚪</span>
+                            <LogOut className="h-5 w-5" />
                             Đăng xuất
                           </button>
                         </div>
@@ -1712,20 +1552,16 @@ export default function App() {
       )}
 
       {/* Main Content */}
-      <main className={`max-w-7xl mx-auto mb-24 md:mb-0 min-h-[calc(100dvh-5rem)] relative ${view === 'home' ? 'md:flex md:items-center md:justify-center' : ''} ${view === 'explore' ? '' : view === 'home' ? '' : 'px-4 sm:px-6 lg:px-8 py-4 md:py-12'}`}
-        style={{ backgroundColor: theme === 'dark' ? '#111827' : '#ffffff' }}
-      >
+      <main className={`max-w-7xl mx-auto mb-24 xl:mb-0 min-h-[calc(100dvh-5rem)] relative ${view === 'home' ? 'md:flex md:items-center md:justify-center' : ''} ${view === 'explore' ? '' : view === 'home' ? '' : 'px-4 sm:px-6 lg:px-8 py-4 md:py-12'}`}>
 
         <div className="w-full h-full">
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             <motion.div
               key={view}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+              initial={{ opacity: 0.6 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
               className="w-full h-full"
-              style={{ willChange: 'opacity, transform' }}
             >
               {renderView()}
             </motion.div>
@@ -1733,103 +1569,21 @@ export default function App() {
         </div>
       </main>
 
-      {/* Mobile Nav */}
       {user && (
-        <div 
-          className="mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-[60] px-2 pb-[calc(0.75rem+var(--sab))] pt-3 flex items-end justify-around border-t border-gray-200 dark:border-gray-700 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
-          style={{ backgroundColor: 'var(--nav-bg, #ffffff)' }}
-        >
-          <button
-            data-tour="home"
-            onClick={() => handleViewChange('home')}
-            className={`mobile-nav-tab relative flex flex-col items-center justify-end gap-1 px-2 py-2 rounded-xl min-w-[60px] h-[56px] ${
-              view === 'home' 
-                ? 'active text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm' 
-                : ''
-            }`}
-            style={view !== 'home' ? { color: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined}
-          >
-            <Home className={`w-5.5 h-5.5 flex-shrink-0 stroke-[2px] ${view === 'home' ? 'stroke-[2.5px]' : ''}`} style={view !== 'home' ? { stroke: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined} />
-            <span className="text-[9px] font-bold leading-none whitespace-nowrap">Trang chủ</span>
-          </button>
-          <button
-            data-tour="messages"
-            onClick={() => handleViewChange('conversations')}
-            {...createPreloadHandlers('conversations')}
-            className={`mobile-nav-tab relative flex flex-col items-center justify-end gap-1 px-2 py-2 rounded-xl min-w-[60px] h-[56px] ${
-              view === 'conversations' 
-                ? 'active text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm' 
-                : ''
-            }`}
-            style={view !== 'conversations' ? { color: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined}
-          >
-            <MessageSquare className={`w-5.5 h-5.5 flex-shrink-0 stroke-[2px] ${view === 'conversations' ? 'fill-indigo-500 dark:fill-indigo-400' : ''}`} style={view !== 'conversations' ? { stroke: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined} />
-            <span className="text-[9px] font-bold leading-none whitespace-nowrap">Tin nhắn</span>
-          </button>
-          <button
-            data-tour="posts"
-            onClick={() => handleViewChange('posts')}
-            {...createPreloadHandlers('posts')}
-            className={`mobile-nav-tab relative flex flex-col items-center justify-end gap-1 px-2 py-2 rounded-xl min-w-[60px] h-[56px] ${
-              view === 'posts' 
-                ? 'active text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm' 
-                : ''
-            }`}
-            style={view !== 'posts' ? { color: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined}
-          >
-            <FileText className={`w-5.5 h-5.5 flex-shrink-0 stroke-[2px] ${view === 'posts' ? 'fill-indigo-500 dark:fill-indigo-400' : ''}`} style={view !== 'posts' ? { stroke: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined} />
-            <span className="text-[9px] font-bold leading-none whitespace-nowrap">Bảng tin</span>
-          </button>
-          <button
-            data-tour="documents"
-            onClick={() => handleViewChange('documents')}
-            {...createPreloadHandlers('documents')}
-            className={`mobile-nav-tab relative flex flex-col items-center justify-end gap-1 px-2 py-2 rounded-xl min-w-[60px] h-[56px] ${
-              view === 'documents' 
-                ? 'active text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm' 
-                : ''
-            }`}
-            style={view !== 'documents' ? { color: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined}
-          >
-            <BookOpen className={`w-5.5 h-5.5 flex-shrink-0 stroke-[2px] ${view === 'documents' ? 'fill-indigo-500 dark:fill-indigo-400' : ''}`} style={view !== 'documents' ? { stroke: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined} />
-            <span className="text-[9px] font-bold leading-none whitespace-nowrap">Tài liệu</span>
-          </button>
-          <button
-            data-tour="explore"
-            onClick={() => handleViewChange('explore')}
-            onMouseEnter={() => handleNavHover('explore')}
-            onFocus={() => handleNavHover('explore')}
-            onTouchStart={() => handleNavHover('explore')}
-            className={`mobile-nav-tab relative flex flex-col items-center justify-end gap-1 px-2 py-2 rounded-xl min-w-[60px] h-[56px] ${
-              view === 'explore' 
-                ? 'active text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm' 
-                : ''
-            }`}
-            style={view !== 'explore' ? { color: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined}
-          >
-            <MapPin className={`w-5.5 h-5.5 flex-shrink-0 stroke-[2px] ${view === 'explore' ? 'fill-indigo-500 dark:fill-indigo-400' : ''}`} style={view !== 'explore' ? { stroke: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined} />
-            <span className="text-[9px] font-bold leading-none whitespace-nowrap">Khám phá</span>
-          </button>
-
-          <button
-            data-tour="profile"
-            onClick={() => handleViewChange('profile')}
-            {...createPreloadHandlers('profile')}
-            className={`mobile-nav-tab relative flex flex-col items-center justify-end gap-1 px-2 py-2 rounded-xl min-w-[60px] h-[56px] ${
-              view === 'profile' 
-                ? 'active text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm' 
-                : ''
-            }`}
-            style={view !== 'profile' ? { color: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined}
-          >
-            <UserIcon className={`w-5.5 h-5.5 flex-shrink-0 stroke-[2px] ${view === 'profile' ? 'fill-indigo-500 dark:fill-indigo-400' : ''}`} style={view !== 'profile' ? { stroke: theme === 'dark' ? '#FFFFFF' : '#000000' } : undefined} />
-            <span className="text-[9px] font-bold leading-none whitespace-nowrap">Hồ sơ</span>
-          </button>
-        </div>
+        <AppNavigation
+          view={view}
+          mobile
+          moreOpen={showMobileMenu}
+          onNavigate={(nextView) => {
+            setShowMobileMenu(false);
+            handleViewChange(nextView);
+          }}
+          onMore={() => setShowMobileMenu((open) => !open)}
+        />
       )}
 
       {/* Footer */}
-      <footer className="hidden md:block py-12 border-t border-gray-100 dark:border-gray-800 mt-12 bg-white dark:bg-gray-900/50">
+      <footer className="hidden xl:block py-12 border-t border-gray-100 dark:border-gray-800 mt-12 bg-white dark:bg-gray-900/50">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-sm font-semibold tracking-wide">
             © 2026 TVU Student Connect • Dành riêng cho sinh viên Đại học Trà Vinh
@@ -1863,8 +1617,17 @@ export default function App() {
           currentUserId={user?.uid || ''}
         />
       )}
+      {activeCall && user && (
+        <CallDialog
+          currentUser={user}
+          peer={activeCall.peer}
+          direction={activeCall.direction}
+          kind={activeCall.kind}
+          incomingCall={activeCall.incomingCall}
+          onClose={handleCloseCall}
+        />
+      )}
       <InstallPrompt />
     </div>
   );
 }
-

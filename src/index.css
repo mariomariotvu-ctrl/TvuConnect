@@ -9,8 +9,16 @@
   --sab: env(safe-area-inset-bottom);
   --sal: env(safe-area-inset-left);
   
-  /* Navigation colors */
-  --nav-bg: #ffffff;
+  --app-bg: #f7f8fb;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f7;
+  --text-primary: #16181d;
+  --text-secondary: #5f6672;
+  --border: #e2e5ea;
+  --brand: #4f46e5;
+  --brand-hover: #4338ca;
+  --focus: #2563eb;
+  --nav-bg: rgba(255, 255, 255, 0.94);
   
   /* Animation durations - Faster for better responsiveness */
   --duration-fast: 100ms;
@@ -21,26 +29,37 @@
      native elements (input, button, select) in light mode */
   color-scheme: light;
 
-  /* ── Bug 1.14 fix: CSS custom properties cho light/dark mode text & card ──
-     Dùng trong .post-card để tránh inline style conflict với dark mode */
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
   --bg-card: #ffffff;
 }
 
 .dark {
-  --nav-bg: rgba(17, 24, 39, 0.95);
+  --app-bg: #101216;
+  --surface: #181b21;
+  --surface-muted: #20242c;
+  --text-primary: #f4f5f7;
+  --text-secondary: #aeb4bf;
+  --border: #303641;
+  --brand: #818cf8;
+  --brand-hover: #a5b4fc;
+  --focus: #93c5fd;
+  --nav-bg: rgba(16, 18, 22, 0.94);
   color-scheme: dark;
-
-  /* ── Bug 1.14 fix: dark mode custom properties ── */
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --bg-card: rgba(31, 41, 55, 0.6);
+  --bg-card: #181b21;
 }
 
-/* Optimize font rendering for performance */
-* {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -52,6 +71,8 @@ h1, h2, h3, h4, h5, h6 {
 
 html {
   -webkit-tap-highlight-color: transparent;
+  font-size: 16px;
+  background: var(--app-bg);
 }
 
 html,
@@ -65,6 +86,9 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   touch-action: manipulation;
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--text-primary);
 }
 
 /* Reduce heavy animations on mobile for performance */
@@ -94,15 +118,10 @@ html {
 
 /* Optimize touch interactions - Faster response */
 button,
-a,
-input,
-textarea,
-select {
+a {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
 }
 
 /* Allow text selection in inputs */
@@ -115,7 +134,7 @@ textarea {
 /* Faster transitions for better responsiveness */
 button,
 a {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: var(--duration-fast);
 }
@@ -127,13 +146,6 @@ a {
   a:hover {
     transition-duration: var(--duration-fast);
   }
-}
-
-/* Active state for immediate feedback */
-button:active,
-a:active {
-  transform: scale(0.97);
-  transition: transform 50ms ease-out;
 }
 
 /* ==========================================
@@ -175,20 +187,11 @@ a:active {
 
 
 
-/* Increase base font size for better readability */
-html {
-  font-size: 17px; /* Increased from default 16px */
-}
-
 @media screen and (max-width: 768px) {
-  html {
-    font-size: 18px; /* Even larger on mobile for better readability */
-  }
-
   input,
   textarea,
   select {
-    font-size: 17px !important; /* Increased from 16px */
+    font-size: 16px;
   }
   
   /* Fix placeholder text visibility on mobile */
@@ -238,25 +241,22 @@ html {
 
 /* Dark mode background - Optimized (no background-attachment:fixed to prevent GPU thrash) */
 .dark body {
-  background: 
-    radial-gradient(ellipse 100% 60% at 10% 10%, rgba(103, 232, 249, 0.05), transparent 50%),
-    linear-gradient(180deg, #121212 0%, #1a1a2e 50%, #121212 100%);
-  background-attachment: fixed;
-  color: #E0E0E0;
+  background: var(--app-bg);
+  color: var(--text-primary);
   min-height: 100vh;
 }
 
 /* Mobile: remove fixed attachment to prevent GPU compositing issues */
 @media (max-width: 768px) {
   .dark body {
-    background-attachment: scroll;
-    background: linear-gradient(180deg, #121212 0%, #1a1a2e 50%, #121212 100%);
+    background: var(--app-bg);
   }
 }
 
 #root {
   overflow-x: hidden;
   max-width: 100vw;
+  min-height: 100dvh;
 }
 
 .dark #root {
@@ -1438,4 +1438,277 @@ nav {
 .conversation-item {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* ========================================
+   APP SHELL — calm, consistent interaction layer
+   ======================================== */
+
+*:focus-visible {
+  outline: 2px solid var(--focus) !important;
+  outline-offset: 3px !important;
+}
+
+.auth-landing {
+  width: min(1120px, calc(100% - 2rem));
+  min-height: calc(100dvh - 10rem);
+  margin: 0 auto;
+  padding: clamp(2.5rem, 7vw, 6rem) 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+  align-items: center;
+  gap: clamp(3rem, 8vw, 7rem);
+}
+
+.auth-landing__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.75rem;
+}
+
+.auth-landing__copy {
+  max-width: 42rem;
+}
+
+.auth-landing__eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-landing h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(2.4rem, 5.2vw, 4.6rem);
+  font-weight: 780;
+  letter-spacing: -0.055em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.auth-landing__copy > p:last-child {
+  max-width: 38rem;
+  margin: 1.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: clamp(1rem, 1.8vw, 1.15rem);
+  line-height: 1.7;
+}
+
+.auth-landing__privacy {
+  max-width: 22rem;
+  margin: -0.75rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.auth-landing__benefits {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.auth-landing__benefits article {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.auth-landing__benefit-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  color: var(--brand);
+}
+
+.auth-landing__benefit-icon svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.auth-landing__benefits h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.98rem;
+  font-weight: 720;
+}
+
+.auth-landing__benefits p {
+  margin: 0.3rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  border-radius: 0.85rem;
+  background: var(--surface-muted);
+}
+
+.app-nav button {
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.app-nav button:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+}
+
+.app-nav button.is-active {
+  color: var(--text-primary);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+}
+
+.app-nav svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.app-tabs {
+  position: fixed;
+  z-index: 60;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: none;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 0.45rem max(0.5rem, var(--sar)) calc(0.45rem + var(--sab)) max(0.5rem, var(--sal));
+  border-top: 1px solid var(--border);
+  background: var(--nav-bg);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 -4px 18px rgba(16, 24, 40, 0.06);
+}
+
+.app-tabs button {
+  min-width: 0;
+  min-height: 3.4rem;
+  padding: 0.35rem 0.15rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-weight: 650;
+}
+
+.app-tabs button.is-active {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 9%, transparent);
+}
+
+.app-tabs svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+@media (max-width: 1279px) {
+  .app-tabs {
+    display: grid;
+  }
+}
+
+@media (max-width: 767px) {
+  .auth-landing {
+    width: min(100% - 2rem, 36rem);
+    min-height: auto;
+    padding: 2.5rem 0 7rem;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .auth-landing__content {
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+
+  .auth-landing__content > :first-child {
+    align-self: flex-start;
+  }
+
+  .auth-landing h1 {
+    font-size: clamp(2.35rem, 12vw, 3.4rem);
+  }
+
+  .auth-landing__benefits {
+    gap: 0.6rem;
+  }
+
+}
+
+.home-dashboard .heading-gradient-text {
+  background: none;
+  color: var(--brand);
+  -webkit-text-fill-color: var(--brand);
+}
+
+.home-dashboard h1 {
+  color: var(--text-primary);
+  font-weight: 760;
+  letter-spacing: -0.045em;
+}
+
+.home-dashboard .grid button {
+  border: 1px solid var(--border) !important;
+  border-radius: 1rem !important;
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05) !important;
+}
+
+.home-dashboard .grid button p {
+  color: var(--text-primary) !important;
+  font-weight: 700 !important;
+}
+
+.home-dashboard .grid button:hover {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border)) !important;
+  box-shadow: 0 8px 22px rgba(16, 24, 40, 0.08) !important;
+}
+
+/* App chrome stays neutral in both themes. */
+.dark nav {
+  background: var(--nav-bg) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(14px);
+}
+
+.dark #mobile-menu-container {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  backdrop-filter: none;
 }

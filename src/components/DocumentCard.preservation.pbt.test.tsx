@@ -80,13 +80,10 @@ describe('Property 2: Preservation - Functional Behavior Unchanged', () => {
     expect(onEdit).toHaveBeenCalledWith(mockDocument);
   });
 
-  it('3.7 clicking open document button should open URL in new tab', () => {
+  it('3.7 clicking open document button should open the in-app viewer', () => {
     const mockDocument = createMockDocument({ url: 'https://example.com/test.pdf' });
     const mockUser = { uid: 'user123', email: 'test@example.com' } as any;
     
-    const originalOpen = window.open;
-    window.open = vi.fn();
-
     const { container } = render(
       <DocumentCard
         document={mockDocument}
@@ -101,8 +98,9 @@ describe('Property 2: Preservation - Functional Behavior Unchanged', () => {
       fireEvent.click(openButton);
     }
 
-    expect(window.open).toHaveBeenCalledWith(mockDocument.url, '_blank', 'noopener,noreferrer');
-    window.open = originalOpen;
+    const viewer = document.querySelector('iframe[title="Tài liệu: Test Document"]');
+    expect(viewer).toBeTruthy();
+    expect(viewer).toHaveAttribute('src', mockDocument.url);
   });
 
   it('3.5 should display major tag with icon', () => {

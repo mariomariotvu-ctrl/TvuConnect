@@ -1,4 +1,14 @@
-import { query, collection, where, orderBy, limit, Query } from 'firebase/firestore';
+import {
+  query,
+  collection,
+  where,
+  orderBy,
+  limit,
+  startAfter,
+  Query,
+  QueryDocumentSnapshot,
+  DocumentData,
+} from 'firebase/firestore';
 import { db } from '../firebase';
 import { FilterState, DocumentLink } from '../types/documentLink';
 
@@ -9,8 +19,9 @@ import { FilterState, DocumentLink } from '../types/documentLink';
  * @returns Firestore query
  */
 export function buildFirestoreQuery(
-  filters: FilterState, 
-  pageSize: number = 20
+  filters: FilterState,
+  pageSize: number = 20,
+  cursor?: QueryDocumentSnapshot<DocumentData> | null,
 ): Query {
   let q = query(
     collection(db, 'documentLinks'),
@@ -27,6 +38,9 @@ export function buildFirestoreQuery(
   }
   if (filters.category) {
     q = query(q, where('category', '==', filters.category));
+  }
+  if (cursor) {
+    q = query(q, startAfter(cursor));
   }
 
   return q;

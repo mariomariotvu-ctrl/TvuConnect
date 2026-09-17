@@ -1,7 +1,17 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { collection, query, where, limit, onSnapshot, setDoc, deleteDoc, doc, getDocs, addDoc } from 'firebase/firestore';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import {
+  collection,
+  query,
+  where,
+  limit,
+  onSnapshot,
+  setDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { db } from '../firebase';
-import { logger } from '@/utils/logger';
 
 /**
  * Return type for useBlockedUsers hook
@@ -32,7 +42,7 @@ export interface UseBlockedUsersReturn {
  * 
  * // Check if user is blocked
  * if (isBlocked('someUserId')) {
- *   logger.log('User is blocked');
+ *   // Hide or disable actions for this profile.
  * }
  * 
  * // Block a user
@@ -46,6 +56,15 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
   const [blockedUids, setBlockedUids] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const blockedByMeRef = useRef<Set<string>>(new Set());
+  const blockedByThemRef = useRef<Set<string>>(new Set());
+
+  const syncBlockedUsers = useCallback(() => {
+    setBlockedUids([...new Set([
+      ...blockedByMeRef.current,
+      ...blockedByThemRef.current,
+    ])]);
+  }, []);
 
   /**
    * Memoized Set for O(1) lookup performance
@@ -72,10 +91,12 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
     }
 
     try {
-      await addDoc(collection(db, 'blocks'), {
+      // The deterministic document ID lets Firestore rules check this edge
+      // atomically before allowing a message or call.
+      await setDoc(doc(db, 'blocks', `${userUid}_${blockedUid}`), {
         blockerUid: userUid,
-        blockedUid: blockedUid,
-        createdAt: new Date(),
+        blockedUid,
+        createdAt: serverTimestamp(),
       });
     } catch (err: any) {
       console.error('Error blocking user:', err);
@@ -92,8 +113,8 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
     }
 
     try {
-      // Find the block document
       const blocksRef = collection(db, 'blocks');
+      const blockId = `${userUid}_${blockedUid}`;
       const q = query(
         blocksRef,
         where('blockerUid', '==', userUid),
@@ -102,13 +123,15 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
       );
 
       const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        throw new Error('Block not found');
-      }
 
-      // Delete the block document
-      await deleteDoc(doc(db, 'blocks', snapshot.docs[0].id));
+      // Remove the canonical edge and any legacy auto-ID document left by an
+      // older version of the app, so the visible state cannot get stuck.
+      await Promise.all([
+        deleteDoc(doc(db, 'blocks', blockId)),
+        ...snapshot.docs
+          .filter((blockDoc) => blockDoc.id !== blockId)
+          .map((blockDoc) => deleteDoc(blockDoc.ref)),
+      ]);
     } catch (err: any) {
       console.error('Error unblocking user:', err);
       throw new Error(err.message || 'Failed to unblock user');
@@ -126,8 +149,16 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
 
     setIsLoading(true);
     setError(null);
+    blockedByMeRef.current = new Set();
+    blockedByThemRef.current = new Set();
+    syncBlockedUsers();
 
     const blocksRef = collection(db, 'blocks');
+    let completedInitialSnapshots = 0;
+    const markSnapshotComplete = () => {
+      completedInitialSnapshots += 1;
+      if (completedInitialSnapshots >= 2) setIsLoading(false);
+    };
     
     // Query for users blocked by current user
     const myBlocksQuery = query(
@@ -147,17 +178,18 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
     const unsubMyBlocks = onSnapshot(
       myBlocksQuery,
       (snap) => {
-        const blockedByMe = snap.docs.map(doc => doc.data().blockedUid as string);
-        setBlockedUids(prev => {
-          const combined = [...blockedByMe, ...prev];
-          return [...new Set(combined)]; // Deduplicate
-        });
-        setIsLoading(false);
+        blockedByMeRef.current = new Set(
+          snap.docs.map((blockDoc) => blockDoc.data().blockedUid as string),
+        );
+        syncBlockedUsers();
+        markSnapshotComplete();
       },
       (err) => {
         console.error('Error loading my blocks:', err);
         setError(err.message || 'Failed to load blocked users');
-        setIsLoading(false);
+        blockedByMeRef.current = new Set();
+        syncBlockedUsers();
+        markSnapshotComplete();
       }
     );
 
@@ -165,17 +197,18 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
     const unsubTheirBlocks = onSnapshot(
       theirBlocksQuery,
       (snap) => {
-        const blockedByThem = snap.docs.map(doc => doc.data().blockerUid as string);
-        setBlockedUids(prev => {
-          const combined = [...blockedByThem, ...prev];
-          return [...new Set(combined)]; // Deduplicate
-        });
-        setIsLoading(false);
+        blockedByThemRef.current = new Set(
+          snap.docs.map((blockDoc) => blockDoc.data().blockerUid as string),
+        );
+        syncBlockedUsers();
+        markSnapshotComplete();
       },
       (err) => {
         console.error('Error loading their blocks:', err);
         setError(err.message || 'Failed to load blocked users');
-        setIsLoading(false);
+        blockedByThemRef.current = new Set();
+        syncBlockedUsers();
+        markSnapshotComplete();
       }
     );
 
@@ -183,7 +216,7 @@ export const useBlockedUsers = (userUid: string): UseBlockedUsersReturn => {
       unsubMyBlocks();
       unsubTheirBlocks();
     };
-  }, [userUid]);
+  }, [syncBlockedUsers, userUid]);
 
   return {
     blockedUids,

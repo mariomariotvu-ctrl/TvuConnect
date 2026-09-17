@@ -284,11 +284,11 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 color: theme === 'dark' ? '#ffffff' : '#000000'
               }}
             >
-              <option value="study">📚 Học tập</option>
-              <option value="sports">⚽ Thể thao</option>
-              <option value="social">🎉 Giao lưu</option>
-              <option value="food">🍜 Ăn uống</option>
-              <option value="other">📍 Khác</option>
+              <option value="study">Học tập</option>
+              <option value="sports">Thể thao</option>
+              <option value="social">Giao lưu</option>
+              <option value="food">Ăn uống</option>
+              <option value="other">Khác</option>
             </select>
           </div>
         </div>

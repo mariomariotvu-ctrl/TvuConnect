@@ -1,6 +1,6 @@
 import React from 'react';
 import { auth, googleProvider, signInWithPopup, signInWithRedirect, signOut } from '../firebase';
-import { LogIn, LogOut, AlertCircle } from 'lucide-react';
+import { LogIn, LogOut, AlertCircle, UserRound } from 'lucide-react';
 import { User, getRedirectResult } from 'firebase/auth';
 import { useTheme } from '../contexts/ThemeContext';
 import { logger } from '@/utils/logger';
@@ -143,9 +143,13 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
             />
           ) : (
             <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-indigo-100 to-blue-100 dark:from-indigo-600 dark:to-blue-600 flex items-center justify-center shadow-sm">
-              <span className="font-black text-indigo-500 dark:text-white text-sm">
-                {displayName ? displayName.charAt(0).toUpperCase() : '👤'}
-              </span>
+              {displayName ? (
+                <span className="font-bold text-indigo-600 dark:text-white text-sm">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              ) : (
+                <UserRound className="h-4 w-4 text-indigo-600 dark:text-white" />
+              )}
             </div>
           )}
           <span className="text-[13px] md:text-sm font-extrabold text-gray-900 dark:text-white tracking-tight hidden sm:inline max-w-[120px] truncate">
@@ -178,20 +182,18 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
         </div>
       )}
       
-      {/* Login Button */}
-      <div className="relative group w-full">
-        <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-500 rounded-full blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+      <div className="w-full">
         <button
           onClick={handleLogin}
           disabled={localLoading}
-          className={`relative w-full flex items-center justify-center gap-3 px-8 py-4 text-base font-black bg-white rounded-full shadow-xl border-2 border-gray-100 transition-all active:scale-[0.98] ${localLoading ? 'opacity-70 cursor-wait' : 'hover:shadow-2xl hover:border-indigo-200'}`}
+          className={`w-full min-h-12 flex items-center justify-center gap-3 px-6 py-3.5 text-base font-semibold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 rounded-xl shadow-sm border border-indigo-600 dark:border-indigo-400 ${localLoading ? 'opacity-70 cursor-wait' : 'cursor-pointer'}`}
         >
           {localLoading ? (
             <div className="w-5 h-5 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin"></div>
           ) : (
             <LogIn className="w-5 h-5 text-indigo-600" />
           )}
-          <span className="font-black text-gray-900 tracking-wide">
+          <span>
             {localLoading ? 'Đang xử lý...' : 'Đăng nhập bằng Google'}
           </span>
         </button>

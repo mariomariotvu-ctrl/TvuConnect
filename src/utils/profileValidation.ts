@@ -62,6 +62,7 @@ export const validateProfile = (profile: StudentProfile | null): ProfileValidati
  */
 export const RESTRICTED_FEATURES = {
   matching: 'Ghép cặp',
+  students: 'Tìm bạn',
   chat: 'Nhắn tin',
   conversations: 'Tin nhắn',
   posts: 'Bảng tin',

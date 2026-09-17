@@ -72,7 +72,7 @@ export function SearchBar({ value, onChange, placeholder = 'Tìm kiếm tài li�
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-10 pr-10 py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 font-medium placeholder-gray-400 dark:placeholder-gray-500"
+        className="w-full rounded-lg border-2 bg-white py-3 pl-10 pr-10 font-medium text-gray-900 placeholder-gray-400 transition-colors duration-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
         style={{
           backgroundColor: isDark ? '#111827' : '#ffffff',
           color: isDark ? '#ffffff' : '#111827',

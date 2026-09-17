@@ -22,9 +22,11 @@ import type { StatusResult } from '../hooks/useOnlineStatusCache';
 
 // ─── Mock firebase (phải đứng trước import component) ────────────────────────
 // auth.currentUser.uid mặc định là 'current-user' — sẽ được override trong từng test khi cần
-const mockAuth = {
-  currentUser: { uid: 'current-user' } as { uid: string } | null,
-};
+const { mockAuth } = vi.hoisted(() => ({
+  mockAuth: {
+    currentUser: { uid: 'current-user' } as { uid: string } | null,
+  },
+}));
 
 vi.mock('../firebase', () => ({
   auth: mockAuth,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { db, auth, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, handleFirestoreError, OperationType, storage, ref, uploadBytes, getDownloadURL, uploadBytesResumable, limit, getDocs, deleteDoc } from '../firebase';
 import { Message, StudentProfile, Conversation } from '../types';
-import { Send, User, ArrowLeft, Loader2, Phone, Mail, GraduationCap, Info, X, Mic, Square, Play, Pause, Trash2, ShieldOff, Smile, Check, CheckCheck, Clock } from 'lucide-react';
+import { Send, User, ArrowLeft, Loader2, Phone, Video, Mail, GraduationCap, Info, X, Mic, Square, Play, Pause, Trash2, ShieldOff, Smile, Check, CheckCheck, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProfileCard } from './ProfileCard';
 import { ConfirmModal } from './ConfirmModal';
@@ -21,9 +21,10 @@ import { useTheme } from '../contexts/ThemeContext';
 interface ChatProps {
   receiverUid: string;
   onBack: () => void;
+  onStartCall?: (profile: StudentProfile, kind: 'audio' | 'video') => void;
 }
 
-export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
+export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   // Generate conversation ID
@@ -143,30 +144,40 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
     // 2. Realtime block status listeners (cả 2 chiều)
     // Bug fix: thay one-time getDoc bằng onSnapshot để cập nhật realtime
     // khi block document thay đổi sau khi Chat đã mount
-    const myBlockRef = doc(db, 'blocks', `${auth.currentUser.uid}_${receiverUid}`);
+    const myBlockQuery = query(
+      collection(db, 'blocks'),
+      where('blockerUid', '==', auth.currentUser.uid),
+      where('blockedUid', '==', receiverUid),
+      limit(1),
+    );
     const listenerIdMyBlock = listenerRegistry.register({
       componentName: 'Chat',
       collection: 'blocks',
-      query: `blocks/${auth.currentUser.uid}_${receiverUid}`,
+      query: `blockerUid=${auth.currentUser.uid},blockedUid=${receiverUid}`,
       priority: 9,
       conversationId: conversationId,
-      unsubscribe: onSnapshot(myBlockRef, (snap) => {
-        setIsBlockedByMe(snap.exists());
+      unsubscribe: onSnapshot(myBlockQuery, (snap) => {
+        setIsBlockedByMe(!snap.empty);
       }, (error: any) => {
         logger.log('Could not listen to my block status:', error?.code);
         setIsBlockedByMe(false);
       })
     });
 
-    const theirBlockRef = doc(db, 'blocks', `${receiverUid}_${auth.currentUser.uid}`);
+    const theirBlockQuery = query(
+      collection(db, 'blocks'),
+      where('blockerUid', '==', receiverUid),
+      where('blockedUid', '==', auth.currentUser.uid),
+      limit(1),
+    );
     const listenerIdTheirBlock = listenerRegistry.register({
       componentName: 'Chat',
       collection: 'blocks',
-      query: `blocks/${receiverUid}_${auth.currentUser.uid}`,
+      query: `blockerUid=${receiverUid},blockedUid=${auth.currentUser.uid}`,
       priority: 9,
       conversationId: conversationId,
-      unsubscribe: onSnapshot(theirBlockRef, (snap) => {
-        setIsBlockedByThem(snap.exists());
+      unsubscribe: onSnapshot(theirBlockQuery, (snap) => {
+        setIsBlockedByThem(!snap.empty);
       }, (error: any) => {
         logger.log('Could not listen to their block status:', error?.code);
         setIsBlockedByThem(false);
@@ -546,18 +557,6 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
       await addDoc(collection(db, 'messages'), msgData);
       logger.log('[Chat] addDoc thành công — tin nhắn đã được gửi');
 
-      // ── FIRE-AND-FORGET: update conversation doc ─────────────────────────
-      // Non-blocking — uses setDoc with merge:true to avoid getDoc round-trip
-      const lastMsgText = audioData ? '[Tin nhắn thoại]' : sanitizedText;
-      const convRef = doc(db, 'conversations', conversationId);
-      setDoc(convRef, {
-        participants: [auth.currentUser.uid, receiverUid].sort(),
-        lastMessage: lastMsgText,
-        lastMessageAt: serverTimestamp(),
-      }, { merge: true }).catch((error) => {
-        logger.error('Error updating conversation:', error);
-      });
-
     } catch (error: any) {
       // Roll back optimistic message on failure
       setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId));
@@ -832,6 +831,24 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack }) => {
         </div>
 
         <div className="flex gap-1">
+          <button
+            onClick={() => receiverProfile && onStartCall?.(receiverProfile, 'audio')}
+            disabled={!receiverProfile || !onStartCall || isBlockedByMe || isBlockedByThem}
+            className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Gọi thoại"
+            aria-label="Gọi thoại"
+          >
+            <Phone className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => receiverProfile && onStartCall?.(receiverProfile, 'video')}
+            disabled={!receiverProfile || !onStartCall || isBlockedByMe || isBlockedByThem}
+            className="p-2 hover:bg-violet-50 dark:hover:bg-violet-950/30 text-violet-600 dark:text-violet-400 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Gọi video"
+            aria-label="Gọi video"
+          >
+            <Video className="w-5 h-5" />
+          </button>
           {isBlockedByMe ? (
             <button 
               onClick={() => setIsConfirmUnblockOpen(true)}

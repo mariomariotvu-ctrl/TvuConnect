@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import * as fc from 'fast-check';
 import { SearchBar } from './SearchBar';
@@ -6,6 +6,13 @@ import { FilterPanel } from './FilterPanel';
 import { DocumentCard } from './DocumentCard';
 import { DocumentLink } from '../types/documentLink';
 import { Timestamp } from 'firebase/firestore';
+
+vi.mock('../contexts/ThemeContext', () => ({
+  useTheme: () => ({
+    theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+    toggleTheme: vi.fn(),
+  }),
+}));
 
 /**
  * Preservation Property Tests for Non-Mobile-Light-Mode Behavior
