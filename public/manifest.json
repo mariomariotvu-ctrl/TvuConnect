@@ -2,6 +2,7 @@
   "name": "TVU Connect - Kết nối sinh viên Trà Vinh",
   "short_name": "TVU Connect",
   "description": "Nền tảng kết nối sinh viên Đại học Trà Vinh - Tìm bạn học, bạn đời, chia sẻ bài viết",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

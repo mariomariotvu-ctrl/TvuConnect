@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X } from 'lucide-react';
+import { Download, Share2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { isIosDevice, isStandaloneApp } from '../utils/platform';
 
 export const InstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [showIosInstructions, setShowIosInstructions] = useState(false);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -21,7 +23,18 @@ export const InstallPrompt: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    const dismissed = localStorage.getItem('pwa_prompt_dismissed');
+    const iosTimer = window.setTimeout(() => {
+      if (isIosDevice() && !isStandaloneApp() && !dismissed) {
+        setShowIosInstructions(true);
+        setIsVisible(true);
+      }
+    }, 2_500);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.clearTimeout(iosTimer);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -61,18 +74,24 @@ export const InstallPrompt: React.FC = () => {
 
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950">
-                <Download className="w-6 h-6 text-indigo-600" />
+                {showIosInstructions
+                  ? <Share2 className="w-6 h-6 text-indigo-600" />
+                  : <Download className="w-6 h-6 text-indigo-600" />}
               </div>
               <div className="flex-1">
-                <h4 className="mb-1 pr-8 text-lg font-bold leading-tight text-slate-950 dark:text-white">Cài đặt TVU Connect</h4>
+                <h4 className="mb-1 pr-8 text-lg font-bold leading-tight text-slate-950 dark:text-white">
+                  {showIosInstructions ? 'Cài TVU Connect trên iPhone' : 'Cài đặt TVU Connect'}
+                </h4>
                 <p className="mb-4 text-xs font-medium leading-relaxed text-slate-600 dark:text-slate-300">
-                  Mở nhanh từ màn hình chính và nhận thông báo tin nhắn.
+                  {showIosInstructions
+                    ? 'Trong Safari, nhấn Chia sẻ, chọn Thêm vào Màn hình chính, rồi mở ứng dụng vừa cài để bật thông báo.'
+                    : 'Mở nhanh từ màn hình chính và nhận thông báo kể cả khi đã đóng web.'}
                 </p>
                 <button
-                  onClick={handleInstall}
+                  onClick={showIosInstructions ? handleDismiss : handleInstall}
                   className="min-h-11 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
                 >
-                  Cài đặt ngay
+                  {showIosInstructions ? 'Đã hiểu' : 'Cài đặt ngay'}
                 </button>
               </div>
             </div>

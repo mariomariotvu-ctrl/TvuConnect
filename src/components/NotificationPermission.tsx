@@ -4,6 +4,7 @@ import { Bell, X } from 'lucide-react';
 import { requestNotificationPermission } from '../utils/fcm';
 import { shouldShowPermissionPrompt } from '../utils/notifications';
 import { logger } from '@/utils/logger';
+import { isIosDevice, isStandaloneApp } from '../utils/platform';
 
 interface NotificationPermissionProps {
   currentUser: User;
@@ -16,15 +17,21 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
   const [isRequesting, setIsRequesting] = useState(false);
 
   useEffect(() => {
+    // iOS/iPadOS only allows Web Push from an app added to the Home Screen.
+    // InstallPrompt explains that step first instead of showing a dead button.
+    if (isIosDevice() && !isStandaloneApp()) return;
+
     // Check if should show banner
     const checkPermission = () => {
       if (shouldShowPermissionPrompt()) {
         // Show after 3 seconds to not be intrusive
-        setTimeout(() => setShowBanner(true), 3000);
+        const timer = window.setTimeout(() => setShowBanner(true), 3000);
+        return () => window.clearTimeout(timer);
       }
+      return undefined;
     };
 
-    checkPermission();
+    return checkPermission();
   }, []);
 
   const handleAllow = async () => {
@@ -67,10 +74,10 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
           
           <div className="flex-1">
             <h3 className="font-bold text-gray-900 dark:text-white mb-1">
-              Nhận thông báo tin nhắn mới?
+              Bật thông báo TVU Connect?
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Chúng tôi sẽ thông báo khi bạn có tin nhắn mới, ngay cả khi đang đóng ứng dụng.
+              Tin nhắn và cuộc gọi mới sẽ dùng âm báo của thiết bị, kể cả khi TVU Connect đã đóng.
             </p>
             
             <div className="flex gap-2">

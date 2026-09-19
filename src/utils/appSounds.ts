@@ -110,6 +110,7 @@ export const initializeAppSounds = () => {
 };
 
 const playFallback = async (name: AppSoundName, options: PlaySoundOptions) => {
+  if (navigator.userAgent.includes('jsdom')) return;
   let audio = fallbackAudio.get(name);
   if (!audio) {
     audio = new Audio(APP_SOUND_PATHS[name]);
@@ -175,7 +176,7 @@ export const stopAppSound = (name: AppSoundName) => {
   sources.delete(name);
 
   const audio = fallbackAudio.get(name);
-  if (audio) {
+  if (audio && !navigator.userAgent.includes('jsdom')) {
     audio.pause();
     audio.currentTime = 0;
   }

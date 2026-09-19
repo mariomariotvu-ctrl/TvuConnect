@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { User } from 'firebase/auth';
-import { Trash2, Shield, LogOut, Moon, Sun, HelpCircle, ShieldOff, ChevronRight } from 'lucide-react';
+import { Trash2, Shield, LogOut, Moon, Sun, HelpCircle, ShieldOff, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import { useTheme } from '../contexts/ThemeContext';
+import { areAppSoundsEnabled, playAppSound, setAppSoundsEnabled } from '../utils/appSounds';
 
 interface SettingsProps {
   user: User;
@@ -13,7 +14,15 @@ interface SettingsProps {
 
 export const Settings: React.FC<SettingsProps> = ({ user, onLogout, onShowTour, onShowBlockedList }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [soundsEnabled, setSoundsEnabled] = useState(() => areAppSoundsEnabled());
   const { theme, toggleTheme } = useTheme();
+
+  const toggleSounds = () => {
+    const enabled = !soundsEnabled;
+    setAppSoundsEnabled(enabled);
+    setSoundsEnabled(enabled);
+    if (enabled) void playAppSound('success', { volume: 0.64, cooldownMs: 0 });
+  };
 
   return (
     <>
@@ -41,6 +50,46 @@ export const Settings: React.FC<SettingsProps> = ({ user, onLogout, onShowTour, 
               Nhấn để chuyển
             </div>
           </button>
+        </div>
+
+        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+            Âm thanh và thông báo
+          </h3>
+          <div className="rounded-xl bg-white dark:bg-gray-800 p-3">
+            <button
+              type="button"
+              onClick={toggleSounds}
+              aria-pressed={soundsEnabled}
+              className="w-full flex items-center gap-3 text-left"
+            >
+              {soundsEnabled
+                ? <Volume2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                : <VolumeX className="w-5 h-5 text-slate-500" />}
+              <span className="flex-1">
+                <span className="block text-sm font-semibold text-gray-900 dark:text-white">Âm thanh trong ứng dụng</span>
+                <span className="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Tin nhắn, cuộc gọi, ghép đôi và chạm mặt
+                </span>
+              </span>
+              <span className={`relative h-6 w-11 rounded-full transition-colors ${soundsEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${soundsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </span>
+            </button>
+            <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-700 flex items-center justify-between gap-3">
+              <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                Khi ứng dụng đã đóng, điện thoại dùng âm thông báo hệ thống.
+              </p>
+              <button
+                type="button"
+                disabled={!soundsEnabled}
+                onClick={() => void playAppSound('message-in', { cooldownMs: 0 })}
+                className="shrink-0 rounded-lg px-3 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+              >
+                Nghe thử
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Help & Tutorial */}
