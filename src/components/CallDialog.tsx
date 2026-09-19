@@ -91,16 +91,20 @@ export const CallDialog: React.FC<CallDialogProps> = ({
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const callIdRef = useRef<string | null>(incomingCall?.id || null);
   const callUnsubscribeRef = useRef<(() => void) | null>(null);
   const candidatesUnsubscribeRef = useRef<(() => void) | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingLocalCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteDescriptionSetRef = useRef(false);
   const hasStartedOutgoingRef = useRef(false);
+  const isAcceptingRef = useRef(false);
   const isCleaningUpRef = useRef(false);
   const callExpiryTimeoutRef = useRef<number | null>(null);
+  const connectionTimeoutRef = useRef<number | null>(null);
 
   const stopListeners = useCallback(() => {
     callUnsubscribeRef.current?.();
@@ -114,8 +118,18 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     localStreamRef.current = null;
     peerConnectionRef.current?.close();
     peerConnectionRef.current = null;
+    pendingCandidatesRef.current = [];
+    pendingLocalCandidatesRef.current = [];
+    remoteDescriptionSetRef.current = false;
     setLocalStream(null);
     setRemoteStream(null);
+  }, []);
+
+  const clearConnectionTimeout = useCallback(() => {
+    if (connectionTimeoutRef.current !== null) {
+      window.clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
   }, []);
 
   const clearCallExpiryTimeout = useCallback(() => {
@@ -131,6 +145,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     const activeCallId = callIdRef.current;
 
     clearCallExpiryTimeout();
+    clearConnectionTimeout();
     stopListeners();
     releaseMedia();
     setPhase(status === 'failed' ? 'failed' : 'ended');
@@ -142,7 +157,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         console.warn('Could not update call end state:', callError);
       }
     }
-  }, [clearCallExpiryTimeout, currentUser.uid, releaseMedia, stopListeners]);
+  }, [clearCallExpiryTimeout, clearConnectionTimeout, currentUser.uid, releaseMedia, stopListeners]);
 
   const scheduleCallExpiry = useCallback((call: CallSession) => {
     clearCallExpiryTimeout();
@@ -196,18 +211,49 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     stopListeners();
     releaseMedia();
     setPhase(status === 'failed' ? 'failed' : 'ended');
-  }, [clearCallExpiryTimeout, releaseMedia, stopListeners]);
+  }, [clearCallExpiryTimeout, clearConnectionTimeout, releaseMedia, stopListeners]);
+
+  const scheduleConnectionTimeout = useCallback(() => {
+    clearConnectionTimeout();
+    connectionTimeoutRef.current = window.setTimeout(() => {
+      if (isCleaningUpRef.current || peerConnectionRef.current?.connectionState === 'connected') return;
+      setError('Mạng hiện tại chưa tạo được đường truyền âm thanh. Hãy đổi Wi-Fi/4G rồi thử lại.');
+      void finishCall('failed');
+    }, 30_000);
+  }, [clearConnectionTimeout, finishCall]);
+
+  const flushLocalCandidates = useCallback(async (activeCallId: string, side: 'caller' | 'callee') => {
+    const pending = [...pendingLocalCandidatesRef.current];
+    pendingLocalCandidatesRef.current = [];
+    const results = await Promise.allSettled(
+      pending.map((candidate) => addCallCandidate(activeCallId, side, candidate)),
+    );
+    results.forEach((result) => {
+      if (result.status === 'rejected') {
+        console.warn('Could not flush a queued ICE candidate:', result.reason);
+      }
+    });
+  }, []);
 
   const createPeerConnection = useCallback((candidateSide: 'caller' | 'callee') => {
-    const connection = new RTCPeerConnection({ iceServers: getCallIceServers() });
+    const connection = new RTCPeerConnection({
+      iceServers: getCallIceServers(),
+      iceCandidatePoolSize: 4,
+    });
 
     connection.onicecandidate = (event) => {
       const activeCallId = callIdRef.current;
-      if (event.candidate && activeCallId) {
-        void addCallCandidate(activeCallId, candidateSide, event.candidate).catch((candidateError) => {
-          console.warn('Could not send ICE candidate:', candidateError);
-        });
+      if (!event.candidate) return;
+
+      const candidate = event.candidate.toJSON();
+      if (!activeCallId) {
+        pendingLocalCandidatesRef.current.push(candidate);
+        return;
       }
+
+      void addCallCandidate(activeCallId, candidateSide, candidate).catch((candidateError) => {
+        console.warn('Could not send ICE candidate:', candidateError);
+      });
     };
 
     connection.ontrack = (event) => {
@@ -218,6 +264,8 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     connection.onconnectionstatechange = () => {
       const connectionState = connection.connectionState;
       if (connectionState === 'connected') {
+        clearConnectionTimeout();
+        setError(null);
         setPhase('active');
         const activeCallId = callIdRef.current;
         if (activeCallId) {
@@ -235,9 +283,21 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       }
     };
 
+    connection.oniceconnectionstatechange = () => {
+      if (connection.iceConnectionState === 'checking') {
+        scheduleConnectionTimeout();
+      } else if (connection.iceConnectionState === 'connected' || connection.iceConnectionState === 'completed') {
+        clearConnectionTimeout();
+      } else if (connection.iceConnectionState === 'disconnected') {
+        // Mobile browsers commonly report a short disconnect while changing
+        // Wi-Fi/4G. Give WebRTC time to recover before ending the call.
+        scheduleConnectionTimeout();
+      }
+    };
+
     peerConnectionRef.current = connection;
     return connection;
-  }, [currentUser.uid, handleRemoteTermination]);
+  }, [clearConnectionTimeout, currentUser.uid, handleRemoteTermination, scheduleConnectionTimeout]);
 
   const listenToSignaling = useCallback((activeCallId: string, remoteCandidateSide: 'caller' | 'callee') => {
     stopListeners();
@@ -268,6 +328,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
             await connection.setRemoteDescription(new RTCSessionDescription(answer));
             remoteDescriptionSetRef.current = true;
             await flushPendingCandidates();
+            scheduleConnectionTimeout();
             setPhase('connecting');
           } catch (answerError) {
             console.error('Could not apply call answer:', answerError);
@@ -290,7 +351,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       (candidate) => { void addRemoteCandidate(candidate); },
       (candidateError) => console.warn('ICE candidate listener failed:', candidateError),
     );
-  }, [addRemoteCandidate, currentUser.uid, direction, flushPendingCandidates, handleRemoteTermination, scheduleCallExpiry, stopListeners]);
+  }, [addRemoteCandidate, currentUser.uid, direction, flushPendingCandidates, handleRemoteTermination, scheduleCallExpiry, scheduleConnectionTimeout, stopListeners]);
 
   const getLocalMedia = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -313,11 +374,20 @@ export const CallDialog: React.FC<CallDialogProps> = ({
 
     try {
       const stream = await getLocalMedia();
+      if (isCleaningUpRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const connection = createPeerConnection('caller');
       stream.getTracks().forEach((track) => connection.addTrack(track, stream));
 
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
+
+      if (isCleaningUpRef.current) {
+        connection.close();
+        return;
+      }
 
       const activeCallId = await createCall({
         callerUid: currentUser.uid,
@@ -327,23 +397,35 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       });
 
       callIdRef.current = activeCallId;
+      if (isCleaningUpRef.current) {
+        await updateCallStatus(activeCallId, 'ended', currentUser.uid).catch(() => undefined);
+        connection.close();
+        return;
+      }
       setCallId(activeCallId);
+      await flushLocalCandidates(activeCallId, 'caller');
       listenToSignaling(activeCallId, 'callee');
       setPhase('ringing');
     } catch (callError) {
+      if (isCleaningUpRef.current) return;
       console.error('Could not start outgoing call:', callError);
       releaseMedia();
       setError(getCallErrorMessage(callError, kind));
       setPhase('failed');
     }
-  }, [createPeerConnection, currentUser.uid, getLocalMedia, kind, listenToSignaling, peer?.uid, releaseMedia]);
+  }, [createPeerConnection, currentUser.uid, flushLocalCandidates, getLocalMedia, kind, listenToSignaling, peer?.uid, releaseMedia]);
 
   const acceptIncomingCall = async () => {
-    if (!incomingCall?.offer) return;
+    if (!incomingCall?.offer || isAcceptingRef.current) return;
+    isAcceptingRef.current = true;
     setPhase('preparing');
 
     try {
       const stream = await getLocalMedia();
+      if (isCleaningUpRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const connection = createPeerConnection('callee');
       stream.getTracks().forEach((track) => connection.addTrack(track, stream));
 
@@ -358,13 +440,18 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       const answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
       await answerCall(incomingCall.id, connection.localDescription?.toJSON() || answer);
+      await flushLocalCandidates(incomingCall.id, 'callee');
+      scheduleConnectionTimeout();
       setPhase('connecting');
     } catch (callError) {
+      if (isCleaningUpRef.current) return;
       console.error('Could not answer incoming call:', callError);
       releaseMedia();
       setError(getCallErrorMessage(callError, kind));
       setPhase('failed');
       void updateCallStatus(incomingCall.id, 'failed', currentUser.uid).catch(() => undefined);
+    } finally {
+      isAcceptingRef.current = false;
     }
   };
 
@@ -388,9 +475,10 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       // The caller explicitly ends the call before closing the dialog. Avoid
       // writing from cleanup because React Strict Mode intentionally re-runs effects.
       clearCallExpiryTimeout();
+      clearConnectionTimeout();
       stopListeners();
     };
-  }, [beginOutgoingCall, clearCallExpiryTimeout, direction, handleRemoteTermination, incomingCall?.id, scheduleCallExpiry, stopListeners]);
+  }, [beginOutgoingCall, clearCallExpiryTimeout, clearConnectionTimeout, direction, handleRemoteTermination, incomingCall?.id, scheduleCallExpiry, stopListeners]);
 
   useEffect(() => {
     if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
@@ -398,6 +486,10 @@ export const CallDialog: React.FC<CallDialogProps> = ({
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream;
+  }, [remoteStream]);
+
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) remoteAudioRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 
   const toggleMute = () => {
@@ -427,6 +519,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   return (
     <div className="fixed inset-0 z-[200] p-4 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Cuộc gọi">
       <div className="relative w-full max-w-2xl min-h-[420px] overflow-hidden rounded-[2rem] bg-slate-900 text-white shadow-2xl flex flex-col">
+        {kind === 'audio' && <audio ref={remoteAudioRef} autoPlay playsInline aria-label={`Âm thanh từ ${peerName(peer)}`} />}
         {showVideo && remoteStream ? (
           <video ref={remoteVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
         ) : (

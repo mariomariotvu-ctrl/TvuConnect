@@ -113,11 +113,16 @@ export async function updateCallStatus(callId: string, status: CallStatus, ended
 export async function addCallCandidate(
   callId: string,
   side: CallCandidateSide,
-  candidate: RTCIceCandidate,
+  candidate: RTCIceCandidate | RTCIceCandidateInit,
 ) {
-  const candidateData = candidate.toJSON();
+  const candidateData = 'toJSON' in candidate
+    ? candidate.toJSON()
+    : candidate;
+
+  if (!candidateData.candidate) return;
+
   await addDoc(collection(db, 'calls', callId, candidateCollection(side)), {
-    candidate: candidateData.candidate || '',
+    candidate: candidateData.candidate,
     sdpMid: candidateData.sdpMid ?? null,
     sdpMLineIndex: candidateData.sdpMLineIndex ?? null,
     usernameFragment: candidateData.usernameFragment ?? null,
@@ -184,11 +189,20 @@ export function subscribeToCallCandidates(
   );
 }
 
-/** Public STUN is sufficient for many campus/mobile connections. TURN is optional. */
+/**
+ * STUN discovers direct routes. TURN remains configurable for restrictive
+ * carrier/campus networks where a direct peer-to-peer route is impossible.
+ */
 export function getCallIceServers(): RTCIceServer[] {
   const servers: RTCIceServer[] = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
+    {
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302',
+        'stun:stun3.l.google.com:19302',
+      ],
+    },
   ];
 
   const turnUrl = import.meta.env.VITE_TURN_URL;
