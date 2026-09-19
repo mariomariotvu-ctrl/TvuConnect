@@ -155,9 +155,9 @@ npm run migrate:rental-geohashes -- --apply
 
 ## Gọi thoại và video
 
-Cuộc gọi dùng WebRTC cùng STUN công khai của Google, đủ cho nhiều mạng Wi‑Fi/campus. Một số mạng di động hoặc NAT chặt cần TURN server.
+Cuộc gọi dùng WebRTC với nhiều STUN công khai trên cổng 80, 3478 và 19302. STUN chỉ giúp tìm đường trực tiếp; Wi‑Fi có AP isolation, NAT đối xứng hoặc chặn UDP vẫn bắt buộc cần TURN qua TCP/TLS cổng 443.
 
-`VITE_TURN_*` chỉ dành cho thử nghiệm vì biến `VITE_*` hiển thị trong web bundle. Với production, dùng credential TURN ngắn hạn do server cấp; không đưa mật khẩu TURN cố định vào frontend.
+`VITE_TURN_URL` nhận một hoặc nhiều URL phân cách bằng dấu phẩy. `VITE_TURN_*` chỉ dành cho thử nghiệm vì biến `VITE_*` hiển thị trong web bundle. Với production, dùng credential TURN ngắn hạn do server cấp; không đưa mật khẩu TURN cố định vào frontend.
 
 ### Gọi nhanh và phòng học nhóm
 

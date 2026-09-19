@@ -197,25 +197,44 @@ export function getCallIceServers(): RTCIceServer[] {
   const servers: RTCIceServer[] = [
     {
       urls: [
+        // Alternative public STUN endpoints use common ports, which helps on
+        // Wi-Fi networks that block Google's UDP/19302 endpoint.
+        'stun:stun.cloudflare.com:3478',
+        'stun:stun.relay.metered.ca:80',
         'stun:stun.l.google.com:19302',
         'stun:stun1.l.google.com:19302',
         'stun:stun2.l.google.com:19302',
-        'stun:stun3.l.google.com:19302',
       ],
     },
   ];
 
-  const turnUrl = import.meta.env.VITE_TURN_URL;
+  const turnUrls = (import.meta.env.VITE_TURN_URL || '')
+    .split(',')
+    .map((url) => url.trim())
+    .filter((url) => url.startsWith('turn:') || url.startsWith('turns:'));
   const turnUsername = import.meta.env.VITE_TURN_USERNAME;
   const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
 
-  if (turnUrl && turnUsername && turnCredential) {
+  if (turnUrls.length && turnUsername && turnCredential) {
     servers.push({
-      urls: turnUrl,
+      urls: turnUrls,
       username: turnUsername,
       credential: turnCredential,
     });
   }
 
   return servers;
+}
+
+export function hasTurnRelayServer(servers: RTCIceServer[]): boolean {
+  return servers.some((server) => {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    return urls.some((url) => typeof url === 'string' && /^turns?:/i.test(url));
+  });
+}
+
+export function getIceCandidateType(candidate: RTCIceCandidateInit | RTCIceCandidate): string | null {
+  if ('type' in candidate && typeof candidate.type === 'string') return candidate.type;
+  const match = candidate.candidate?.match(/\btyp\s+(host|srflx|prflx|relay)\b/i);
+  return match?.[1]?.toLowerCase() || null;
 }

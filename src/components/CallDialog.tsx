@@ -17,6 +17,8 @@ import {
   answerCall,
   createCall,
   getCallIceServers,
+  getIceCandidateType,
+  hasTurnRelayServer,
   subscribeToCall,
   subscribeToCallCandidates,
   updateCallStatus,
@@ -107,6 +109,8 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   const callExpiryTimeoutRef = useRef<number | null>(null);
   const connectionTimeoutRef = useRef<number | null>(null);
   const previousPhaseRef = useRef<CallPhase | null>(null);
+  const relayConfiguredRef = useRef(false);
+  const relayCandidateSeenRef = useRef(false);
 
   const stopListeners = useCallback(() => {
     callUnsubscribeRef.current?.();
@@ -219,7 +223,9 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     clearConnectionTimeout();
     connectionTimeoutRef.current = window.setTimeout(() => {
       if (isCleaningUpRef.current || peerConnectionRef.current?.connectionState === 'connected') return;
-      setError('Mạng hiện tại chưa tạo được đường truyền âm thanh. Hãy đổi Wi-Fi/4G rồi thử lại.');
+      setError(relayConfiguredRef.current
+        ? 'Wi-Fi hiện tại đang chặn đường truyền cuộc gọi. Hãy thử lại hoặc đổi sang mạng khác.'
+        : 'Wi-Fi hiện tại chặn cuộc gọi trực tiếp và hệ thống chưa có máy chủ chuyển tiếp TURN. Tạm thời hãy dùng 4G.');
       void finishCall('failed');
     }, 30_000);
   }, [clearConnectionTimeout, finishCall]);
@@ -238,8 +244,11 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   }, []);
 
   const createPeerConnection = useCallback((candidateSide: 'caller' | 'callee') => {
+    const iceServers = getCallIceServers();
+    relayConfiguredRef.current = hasTurnRelayServer(iceServers);
+    relayCandidateSeenRef.current = false;
     const connection = new RTCPeerConnection({
-      iceServers: getCallIceServers(),
+      iceServers,
       iceCandidatePoolSize: 4,
     });
 
@@ -248,6 +257,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       if (!event.candidate) return;
 
       const candidate = event.candidate.toJSON();
+      if (getIceCandidateType(event.candidate) === 'relay') relayCandidateSeenRef.current = true;
       if (!activeCallId) {
         pendingLocalCandidatesRef.current.push(candidate);
         return;
@@ -255,6 +265,16 @@ export const CallDialog: React.FC<CallDialogProps> = ({
 
       void addCallCandidate(activeCallId, candidateSide, candidate).catch((candidateError) => {
         console.warn('Could not send ICE candidate:', candidateError);
+      });
+    };
+
+    connection.onicecandidateerror = (event) => {
+      // Do not expose addresses or credentials; the code and URL are enough to
+      // distinguish an unreachable STUN/TURN endpoint in diagnostics.
+      console.warn('ICE server could not be reached', {
+        code: event.errorCode,
+        text: event.errorText,
+        url: event.url?.replace(/\/[^/]*$/, ''),
       });
     };
 
@@ -276,7 +296,11 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       }
 
       if (connectionState === 'failed') {
-        setError('Kết nối bị gián đoạn. Hãy thử gọi lại khi mạng ổn định hơn.');
+        setError(relayConfiguredRef.current && relayCandidateSeenRef.current
+          ? 'Kết nối chuyển tiếp bị gián đoạn. Hãy thử gọi lại khi mạng ổn định hơn.'
+          : relayConfiguredRef.current
+            ? 'Không lấy được đường truyền TURN trên Wi-Fi này. Hãy thử lại hoặc đổi mạng.'
+            : 'Wi-Fi chặn cuộc gọi trực tiếp và TURN chưa được cấu hình. Tạm thời hãy dùng 4G.');
         const activeCallId = callIdRef.current;
         if (activeCallId) {
           void updateCallStatus(activeCallId, 'failed', currentUser.uid).catch(() => undefined);
