@@ -69,12 +69,12 @@ function requireLocationUpdate(request) {
   if (
     !Number.isFinite(latitude)
     || !Number.isFinite(longitude)
-    || latitude < 9.3
-    || latitude > 10.3
-    || longitude < 105.7
-    || longitude > 106.9
+    || latitude <= -90
+    || latitude >= 90
+    || longitude < -180
+    || longitude > 180
   ) {
-    throw new HttpsError('out-of-range', 'Vị trí phải nằm trong khu vực Trà Vinh.');
+    throw new HttpsError('out-of-range', 'Tọa độ vị trí không hợp lệ.');
   }
 
   return {

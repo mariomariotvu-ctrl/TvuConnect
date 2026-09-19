@@ -63,7 +63,7 @@ interface StudentMapProps {
   onProfileClick?: (uid: string) => void;
 }
 
-const TVU_CENTER: [number, number] = [9.9345, 106.3461];
+const DEFAULT_MAP_CENTER: [number, number] = [9.9345, 106.3461];
 const LOCATION_REFRESH_MS = 60_000;
 const FOCUSED_LOCATION_REFRESH_MS = 10_000;
 const ROUTE_REFRESH_MS = 2 * 60_000;
@@ -307,7 +307,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const ownLocation = locations.find((location) => location.isOwn);
   const center = ownLocation
     ? [ownLocation.latitude, ownLocation.longitude] as [number, number]
-    : TVU_CENTER;
+    : DEFAULT_MAP_CENTER;
 
   const nearestPlace = useMemo(() => {
     if (!selectedLocation) return null;
@@ -409,9 +409,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
               <div className="flex items-center gap-2 text-sm font-bold text-indigo-600 dark:text-indigo-300">
                 <ShieldCheck className="h-5 w-5" /> Bản đồ sinh viên có kiểm soát
               </div>
-              <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Bạn bè quanh TVU</h1>
+              <h1 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Bạn bè đang chia sẻ vị trí</h1>
               <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                Bạn quyết định ai được thấy mình. Tọa độ gốc không được gửi cho trình duyệt của người khác và tự hết hạn nếu ứng dụng ngừng cập nhật.
+                Bản đồ hoạt động ở mọi nơi. Bạn quyết định ai được thấy mình; tọa độ gốc không được gửi cho trình duyệt của người khác và tự hết hạn nếu ứng dụng ngừng cập nhật.
               </p>
             </div>
             <div className={`rounded-2xl px-4 py-3 text-sm font-bold ${sharingActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>

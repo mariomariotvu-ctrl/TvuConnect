@@ -33,7 +33,7 @@ test('audience rules require friendship or matching major where configured', () 
   assert.equal(canDiscoverLocation({ visibility: 'tvu' }, '', false), true);
 });
 
-test('location update uses auth uid and rejects points outside Tra Vinh', () => {
+test('location update uses auth uid and supports valid coordinates worldwide', () => {
   const input = requireLocationUpdate({
     auth: { uid: 'student-a' },
     data: {
@@ -51,9 +51,21 @@ test('location update uses auth uid and rejects points outside Tra Vinh', () => 
   assert.equal(input.speed, 2.4);
   assert.equal(input.heading, 10);
 
+  const worldwideInput = requireLocationUpdate({
+    auth: { uid: 'student-a' },
+    data: {
+      latitude: 21.0285,
+      longitude: 105.8542,
+      accuracy: 20,
+      visibility: 'tvu',
+    },
+  });
+  assert.equal(worldwideInput.latitude, 21.0285);
+  assert.equal(worldwideInput.longitude, 105.8542);
+
   assert.throws(() => requireLocationUpdate({
     auth: { uid: 'student-a' },
-    data: { latitude: 21.02, longitude: 105.8, visibility: 'friends' },
+    data: { latitude: 91, longitude: 181, visibility: 'friends' },
   }));
 });
 
