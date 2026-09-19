@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
 import {
   Compass,
@@ -37,6 +37,7 @@ import {
   subscribeIncomingFriendRequests,
   subscribeOutgoingFriendRequests,
 } from '../services/friendConnectionService';
+import { playAppSound } from '../utils/appSounds';
 
 interface StudentDirectoryProps {
   currentUser: User;
@@ -76,6 +77,8 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [connectionBusyUid, setConnectionBusyUid] = useState<string | null>(null);
+  const incomingRequestsReadyRef = useRef(false);
+  const seenIncomingRequestIdsRef = useRef(new Set<string>());
   const { blockedSet } = useBlockedUsers(currentUser.uid);
 
   const isDark = theme === 'dark';
@@ -91,7 +94,18 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
       toast.error('Chưa thể đồng bộ lời mời kết bạn. Vui lòng thử lại.');
     };
     const unsubscribeFriendships = subscribeFriendConnections(currentUser.uid, setFriendships, reportError);
-    const unsubscribeIncoming = subscribeIncomingFriendRequests(currentUser.uid, setIncomingRequests, reportError);
+    const unsubscribeIncoming = subscribeIncomingFriendRequests(currentUser.uid, (requests) => {
+      setIncomingRequests(requests);
+      if (!incomingRequestsReadyRef.current) {
+        requests.forEach((request) => seenIncomingRequestIdsRef.current.add(request.id));
+        incomingRequestsReadyRef.current = true;
+        return;
+      }
+
+      const hasNewRequest = requests.some((request) => !seenIncomingRequestIdsRef.current.has(request.id));
+      requests.forEach((request) => seenIncomingRequestIdsRef.current.add(request.id));
+      if (hasNewRequest) void playAppSound('friend-request', { cooldownMs: 1_000 });
+    }, reportError);
     const unsubscribeOutgoing = subscribeOutgoingFriendRequests(currentUser.uid, setOutgoingRequests, reportError);
     return () => {
       unsubscribeFriendships();
@@ -190,7 +204,10 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
     setConnectionBusyUid(friendUid);
     try {
       await manageFriendConnection(friendUid, action);
-      if (action === 'accept') toast.success('Đã kết bạn. Hai bạn có thể chia sẻ vị trí cho nhau.');
+      if (action === 'accept') {
+        void playAppSound('success');
+        toast.success('Đã kết bạn. Hai bạn có thể chia sẻ vị trí cho nhau.');
+      }
       if (action === 'send') toast.success('Đã gửi lời mời kết bạn.');
       if (action === 'cancel') toast.success('Đã thu hồi lời mời.');
     } catch (connectionError) {

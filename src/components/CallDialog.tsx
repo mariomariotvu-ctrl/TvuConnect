@@ -23,6 +23,7 @@ import {
 } from '../services/callService';
 import { ReportModal } from './ReportModal';
 import { getCallErrorMessage } from '../utils/userFacingErrors';
+import { playAppSound, stopAppSound } from '../utils/appSounds';
 
 type CallDirection = 'incoming' | 'outgoing';
 
@@ -105,6 +106,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   const isCleaningUpRef = useRef(false);
   const callExpiryTimeoutRef = useRef<number | null>(null);
   const connectionTimeoutRef = useRef<number | null>(null);
+  const previousPhaseRef = useRef<CallPhase | null>(null);
 
   const stopListeners = useCallback(() => {
     callUnsubscribeRef.current?.();
@@ -491,6 +493,30 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   useEffect(() => {
     if (remoteAudioRef.current && remoteStream) remoteAudioRef.current.srcObject = remoteStream;
   }, [remoteStream]);
+
+  useEffect(() => {
+    stopAppSound('incoming-call');
+    stopAppSound('outgoing-call');
+
+    if (phase === 'incoming') {
+      void playAppSound('incoming-call', { loop: true, volume: 0.72 });
+    } else if (direction === 'outgoing' && phase === 'ringing') {
+      void playAppSound('outgoing-call', { loop: true, volume: 0.52 });
+    }
+
+    const previousPhase = previousPhaseRef.current;
+    if (phase === 'active' && previousPhase !== 'active') {
+      void playAppSound('call-connected', { volume: 0.62 });
+    } else if ((phase === 'ended' || phase === 'failed') && previousPhase !== phase) {
+      void playAppSound('call-ended', { volume: 0.62 });
+    }
+    previousPhaseRef.current = phase;
+
+    return () => {
+      stopAppSound('incoming-call');
+      stopAppSound('outgoing-call');
+    };
+  }, [direction, phase]);
 
   const toggleMute = () => {
     const nextValue = !isMuted;

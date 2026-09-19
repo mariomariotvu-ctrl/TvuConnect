@@ -14,6 +14,7 @@ import {
   touchStudyRoom,
 } from '../services/studyRoomService';
 import { getStudyRoomErrorMessage } from '../utils/userFacingErrors';
+import { playAppSound } from '../utils/appSounds';
 
 interface GroupStudyCallProps {
   room: StudyRoom;
@@ -236,6 +237,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
           void touchStudyRoom(room, currentUser.uid).catch(() => undefined);
         }, 45_000);
         setStatus('active');
+        void playAppSound('study-room', { volume: 0.56 });
       } catch (joinError) {
         console.error('Could not join study room:', joinError);
         setError(getStudyRoomErrorMessage(joinError));

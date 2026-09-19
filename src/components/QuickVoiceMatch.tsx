@@ -12,6 +12,7 @@ import {
   subscribeToVoiceQueue,
 } from '../services/voiceMatchService';
 import { getVoiceMatchErrorMessage } from '../utils/userFacingErrors';
+import { playAppSound } from '../utils/appSounds';
 
 interface QuickVoiceMatchProps {
   currentUser: User;
@@ -33,6 +34,7 @@ export const QuickVoiceMatch: React.FC<QuickVoiceMatchProps> = ({ currentUser, o
     handledSessionRef.current = queue.sessionId;
     waitingRef.current = false;
     setPhase('matched');
+    void playAppSound('match', { volume: 0.64 });
 
     try {
       if (queue.initiatorUid === currentUser.uid) {

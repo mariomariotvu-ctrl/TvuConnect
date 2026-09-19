@@ -7,6 +7,7 @@ import { StudentProfile } from '../types';
 import { recordDatingDecision, updateDatingPreferences } from '../services/datingService';
 import { getDatingErrorMessage } from '../utils/userFacingErrors';
 import { ReportModal } from './ReportModal';
+import { playAppSound } from '../utils/appSounds';
 
 interface DatingDeckProps {
   currentUser: User;
@@ -73,7 +74,10 @@ export const DatingDeck: React.FC<DatingDeckProps> = ({
     try {
       const result = await recordDatingDecision(currentUser.uid, currentCandidate.uid, action);
       setDismissed((current) => new Set(current).add(currentCandidate.uid));
-      if (result.matched) setMatchedProfile(currentCandidate);
+      if (result.matched) {
+        setMatchedProfile(currentCandidate);
+        void playAppSound('match', { volume: 0.68 });
+      }
 
       const remaining = profiles.filter((profile) => !dismissed.has(profile.uid) && profile.uid !== currentCandidate.uid);
       if (remaining.length <= 1) void onLoadMore();

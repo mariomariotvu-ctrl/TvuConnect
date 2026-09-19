@@ -14,6 +14,7 @@ import {
   shouldSendLivePosition,
   type LivePositionSample,
 } from '../utils/liveLocationUtils';
+import { playAppSound } from '../utils/appSounds';
 
 interface LiveLocationTrackerProps {
   currentUser: User;
@@ -132,6 +133,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
       if (!peerUid) return;
       void getDoc(doc(db, 'profiles', peerUid)).then((profile) => {
         const peerName = profile.data()?.fullName || 'một sinh viên TVU';
+        void playAppSound('encounter', { cooldownMs: 2_000 });
         if ('vibrate' in navigator) navigator.vibrate([120, 80, 120]);
         toast.info(`Bạn vừa chạm mặt ${peerName}.`, {
           description: `Cách nhau khoảng ${encounter.distanceMeters || 35} m. Chỉ hai người đã cùng bật tính năng mới nhận được báo.`,

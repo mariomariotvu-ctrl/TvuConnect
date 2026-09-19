@@ -15,6 +15,7 @@ import { OnlineStatus } from './OnlineStatus';
 import { useCachedMessages } from '../hooks/useCachedMessages';
 import { logger } from '../utils/logger';
 import { listenerRegistry } from '../utils/listenerRegistry';
+import { playAppSound } from '../utils/appSounds';
 
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -555,6 +556,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
 
       // Write message to Firestore — this is the only critical await
       await addDoc(collection(db, 'messages'), msgData);
+      void playAppSound('message-out', { cooldownMs: 120 });
       logger.log('[Chat] addDoc thành công — tin nhắn đã được gửi');
 
     } catch (error: any) {

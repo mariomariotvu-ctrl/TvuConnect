@@ -27,6 +27,7 @@ import { showNotification, formatMessageNotification } from './utils/notificatio
 import { onlineStatusManager } from './utils/onlineStatusManager';
 import { subscribeToIncomingCalls } from './services/callService';
 import { CallKind, CallSession } from './types/call';
+import { initializeAppSounds, playAppSound } from './utils/appSounds';
 
 // Lazy-loaded components for code splitting
 import { 
@@ -101,6 +102,8 @@ export default function App() {
   const setView = useCallback((nextView: View, replace = false) => {
     navigate(pathForView(nextView), { replace });
   }, [navigate]);
+
+  useEffect(() => initializeAppSounds(), []);
 
   useEffect(() => {
     if (route.chatUid) setChatReceiverUid(route.chatUid);
@@ -637,6 +640,8 @@ export default function App() {
 
         // Never interrupt the chat the student is currently reading.
         if (currentView === 'chat' && currentChatReceiver === newMsg.senderUid) continue;
+
+        void playAppSound('message-in', { cooldownMs: 650 });
 
         try {
           const senderDoc = await getDoc(doc(db, 'profiles', newMsg.senderUid));
