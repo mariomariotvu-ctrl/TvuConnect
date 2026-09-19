@@ -39,14 +39,18 @@ test('normalizes Google content without photos, reviews, or external map links',
   assert.equal('googleMapsUri' in place, false);
 });
 
-test('search input trusts auth uid and stays inside Tra Vinh', () => {
+test('search input trusts auth uid and accepts valid coordinates worldwide', () => {
   assert.equal(requireSearchInput({
     auth: { uid: 'student-a' },
     data: { uid: 'spoofed', latitude: 9.9419, longitude: 106.33859 },
   }).uid, 'student-a');
-  assert.throws(() => requireSearchInput({
+  assert.equal(requireSearchInput({
     auth: { uid: 'student-a' },
     data: { latitude: 21.028, longitude: 105.834 },
+  }).latitude, 21.028);
+  assert.throws(() => requireSearchInput({
+    auth: { uid: 'student-a' },
+    data: { latitude: 91, longitude: 105.834 },
   }));
 });
 

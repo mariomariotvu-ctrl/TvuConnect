@@ -173,8 +173,8 @@ export const FoodNearby: React.FC<FoodNearbyProps> = ({
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[.18em] text-orange-100">Ăn gì quanh đây?</p>
-              <h1 className="mt-2 text-2xl font-black sm:text-3xl">Khám phá quán thật quanh Trà Vinh</h1>
-              <p className="mt-2 max-w-2xl text-sm text-orange-50">Dữ liệu địa điểm được cập nhật từ nguồn trực tiếp và đánh giá cộng đồng TVU. Không cần nhập từng quán bằng tay.</p>
+              <h1 className="mt-2 text-2xl font-black sm:text-3xl">Khám phá quán thật quanh bạn</h1>
+              <p className="mt-2 max-w-2xl text-sm text-orange-50">Danh sách đi theo vị trí hiện tại của bạn, được cập nhật từ nguồn trực tiếp và đánh giá cộng đồng TVU.</p>
             </div>
             <button type="button" disabled={locating} onClick={() => void onRequestLocation()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-4 font-black text-rose-600 disabled:opacity-60">
               <LocateFixed className={`h-5 w-5 ${locating ? 'animate-pulse' : ''}`} />

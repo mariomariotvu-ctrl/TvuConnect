@@ -7,7 +7,7 @@ if (!getApps().length) initializeApp();
 
 const googlePlacesApiKey = defineSecret('GOOGLE_PLACES_API_KEY');
 const MAX_REQUESTS_PER_HOUR = 12;
-const TVU_SEARCH_RADIUS_METERS = 10_000;
+const NEARBY_SEARCH_RADIUS_METERS = 10_000;
 const FOOD_TYPES = [
   'restaurant',
   'vietnamese_restaurant',
@@ -79,12 +79,12 @@ function requireSearchInput(request) {
   if (
     !Number.isFinite(latitude)
     || !Number.isFinite(longitude)
-    || latitude < 9.3
-    || latitude > 10.3
-    || longitude < 105.7
-    || longitude > 106.9
+    || latitude < -90
+    || latitude > 90
+    || longitude < -180
+    || longitude > 180
   ) {
-    throw new HttpsError('out-of-range', 'Chỉ hỗ trợ tìm địa điểm trong khu vực Trà Vinh.');
+    throw new HttpsError('out-of-range', 'Tọa độ tìm kiếm không hợp lệ.');
   }
 
   return { uid: request.auth.uid, latitude, longitude };
@@ -146,9 +146,9 @@ function normalizeGooglePlace(place) {
     location: {
       lat: latitude,
       lng: longitude,
-      address: typeof place.formattedAddress === 'string' ? place.formattedAddress : 'Trà Vinh',
+      address: typeof place.formattedAddress === 'string' ? place.formattedAddress : 'Gần vị trí của bạn',
     },
-    description: primaryLabel || 'Địa điểm ăn uống tại Trà Vinh',
+    description: primaryLabel || 'Địa điểm ăn uống gần bạn',
     amenities: [],
     priceRange: PRICE_LEVELS[place.priceLevel] || undefined,
     openHours: typeof place?.currentOpeningHours?.openNow === 'boolean'
@@ -248,7 +248,7 @@ exports.discoverFoodPlaces = onCall(
           locationRestriction: {
             circle: {
               center: { latitude: input.latitude, longitude: input.longitude },
-              radius: TVU_SEARCH_RADIUS_METERS,
+              radius: NEARBY_SEARCH_RADIUS_METERS,
             },
           },
         }),

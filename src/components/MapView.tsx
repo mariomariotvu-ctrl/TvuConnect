@@ -246,6 +246,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
   const [recenterToken, setRecenterToken] = useState(0);
   const lastMapPositionRef = useRef<PreciseGeolocation | null>(null);
   const locationErrorShownRef = useRef(false);
+  const autoLocationAttemptedRef = useRef(false);
   
   // Firestore optimization - Task 8
   const [cacheManager] = useState(() => new FirestoreCacheManager({
@@ -309,6 +310,12 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
       setLocating(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!['food', 'rental'].includes(activeTab) || userLocation || autoLocationAttemptedRef.current) return;
+    autoLocationAttemptedRef.current = true;
+    void requestCurrentLocation();
+  }, [activeTab, requestCurrentLocation, userLocation]);
 
   useEffect(() => {
     if (activeTab !== 'map' || !navigator.geolocation) return;
