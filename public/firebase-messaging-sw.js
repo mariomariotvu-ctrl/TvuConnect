@@ -18,13 +18,14 @@ const notificationFor = (data = {}) => {
   const isCall = data.type === 'call';
   const isEncounter = data.type === 'encounter';
   const senderName = data.senderName || data.callerName || data.peerName || 'TVU Connect';
+  const encounterDistance = Number(data.distanceMeters);
   const title = isEncounter
     ? `Bạn vừa chạm mặt ${senderName}`
     : isCall
       ? `${data.kind === 'video' ? 'Cuộc gọi video' : 'Cuộc gọi thoại'} từ ${senderName}`
       : senderName;
   const body = isEncounter
-    ? 'Hai bạn đều đã bật cảnh báo chạm mặt. Mở bản đồ để xem lại.'
+    ? `Hai bạn vừa ở cách nhau khoảng ${Number.isFinite(encounterDistance) ? `${encounterDistance} m` : '35 m'}. Mở bản đồ để xem lại.`
     : isCall
       ? 'Chạm để mở TVU Connect và nhận cuộc gọi.'
       : (data.body || 'Bạn có tin nhắn mới');

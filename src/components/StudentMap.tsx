@@ -1,16 +1,29 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { divIcon } from 'leaflet';
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { divIcon, latLngBounds } from 'leaflet';
+import {
+  Circle,
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from 'react-leaflet';
 import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '../utils/mapTiles';
 import {
   BellRing,
+  Bike,
+  Car,
   Clock3,
+  Footprints,
   GraduationCap,
   LocateFixed,
   MapPin,
   MessageCircle,
   Navigation,
+  RefreshCw,
+  Route as RouteIcon,
   ShieldCheck,
   UserRound,
   Users,
@@ -24,15 +37,24 @@ import type {
   VisibleStudentLocation,
 } from '../types';
 import {
+  getStudentRoute,
   getVisibleStudentLocations,
   requestPreciseLocation,
   stopLiveLocation,
   subscribeLocationPreferences,
   updateLiveLocation,
+  type StudentRoute,
+  type StudentRouteMode,
 } from '../services/liveLocationService';
-import { calculateDistance } from '../utils/locationUtils';
+import { calculateDistance, calculateDistanceMeters, formatDistance } from '../utils/locationUtils';
 import { isMajorMatch } from '../utils/matchingUtils';
 import { useTheme } from '../contexts/ThemeContext';
+import {
+  formatRouteDuration,
+  presentStudentDistance,
+  routeInstruction,
+  type StudentLocationPrecision,
+} from '../utils/studentLocationPresentation';
 
 interface StudentMapProps {
   currentUser: User;
@@ -42,6 +64,19 @@ interface StudentMapProps {
 }
 
 const TVU_CENTER: [number, number] = [9.9345, 106.3461];
+const LOCATION_REFRESH_MS = 60_000;
+const FOCUSED_LOCATION_REFRESH_MS = 10_000;
+const ROUTE_REFRESH_MS = 2 * 60_000;
+
+const ROUTE_MODES: Array<{
+  value: StudentRouteMode;
+  label: string;
+  Icon: typeof Footprints;
+}> = [
+  { value: 'walking', label: 'Đi bộ', Icon: Footprints },
+  { value: 'cycling', label: 'Xe đạp', Icon: Bike },
+  { value: 'driving', label: 'Xe máy / ô tô', Icon: Car },
+];
 
 const VISIBILITY_OPTIONS: Array<{
   value: Exclude<LocationVisibility, 'off'>;
@@ -69,7 +104,7 @@ const VISIBILITY_OPTIONS: Array<{
   },
 ];
 
-const markerIcon = (kind: 'own' | 'friend' | 'major' | 'tvu') => {
+const markerIcon = (kind: 'own' | 'friend' | 'major' | 'tvu', isMoving = false) => {
   const colors = {
     own: ['#4f46e5', '#c7d2fe'],
     friend: ['#059669', '#a7f3d0'],
@@ -78,7 +113,7 @@ const markerIcon = (kind: 'own' | 'friend' | 'major' | 'tvu') => {
   } as const;
   const [background, ring] = colors[kind];
   return divIcon({
-    className: 'student-map-marker',
+    className: `student-map-marker${isMoving ? ' student-map-marker--moving' : ''}`,
     html: `<span style="display:block;width:22px;height:22px;border-radius:9999px;background:${background};border:4px solid white;box-shadow:0 0 0 4px ${ring},0 6px 16px rgba(15,23,42,.28)"></span>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
@@ -93,12 +128,22 @@ const formatLastShared = (timestamp: number) => {
   return hours < 24 ? `${hours} giờ trước` : `${Math.floor(hours / 24)} ngày trước`;
 };
 
-const StudentMapCenter: React.FC<{ center: [number, number] }> = ({ center }) => {
+const StudentMapViewport: React.FC<{
+  center: [number, number];
+  routePath?: StudentRoute['path'];
+}> = ({ center, routePath }) => {
   const map = useMap();
 
   useEffect(() => {
+    if (routePath && routePath.length > 1) {
+      map.fitBounds(latLngBounds(routePath.map((point) => [point.latitude, point.longitude])), {
+        padding: [36, 36],
+        maxZoom: 17,
+      });
+      return;
+    }
     map.flyTo(center, Math.max(map.getZoom(), 15), { duration: 0.6 });
-  }, [center, map]);
+  }, [center[0], center[1], map, routePath]);
 
   return null;
 };
@@ -122,6 +167,14 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastLoadedAt, setLastLoadedAt] = useState(0);
+  const [routeMode, setRouteMode] = useState<StudentRouteMode>('walking');
+  const [studentRoute, setStudentRoute] = useState<StudentRoute | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const loadingLocationsRef = useRef(false);
+  const loadingFocusedLocationRef = useRef(false);
+  const routeRequestRef = useRef(0);
 
   const sharingActive = preferences.visibility !== 'off';
 
@@ -139,15 +192,25 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       setLocations([]);
       return;
     }
+    if (loadingLocationsRef.current) return;
+    loadingLocationsRef.current = true;
     setLoading(true);
     try {
       const nextLocations = await getVisibleStudentLocations();
-      setLocations(nextLocations.filter((location) => location.expiresAt > Date.now()));
+      const activeLocations = nextLocations.filter((location) => location.expiresAt > Date.now());
+      setLocations(activeLocations);
+      setSelectedLocation((selected) => (
+        selected
+          ? activeLocations.find((location) => location.uid === selected.uid) || null
+          : null
+      ));
+      setLastLoadedAt(Date.now());
       setError(null);
     } catch (locationError) {
       console.error('Could not load student map:', locationError);
       setError('Chưa thể tải vị trí bạn bè. Hãy thử lại sau.');
     } finally {
+      loadingLocationsRef.current = false;
       setLoading(false);
     }
   }, [sharingActive]);
@@ -155,9 +218,51 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   useEffect(() => {
     void loadLocations();
     if (!sharingActive) return;
-    const interval = window.setInterval(() => { void loadLocations(); }, 30_000);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadLocations();
+    }, LOCATION_REFRESH_MS);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void loadLocations();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [loadLocations, sharingActive]);
+
+  const selectedUid = selectedLocation?.isOwn ? null : selectedLocation?.uid || null;
+
+  const loadFocusedLocation = useCallback(async (focusUid: string) => {
+    if (!sharingActive || loadingFocusedLocationRef.current) return;
+    loadingFocusedLocationRef.current = true;
+    try {
+      const focusedLocations = await getVisibleStudentLocations(focusUid);
+      const activeLocations = focusedLocations.filter((location) => location.expiresAt > Date.now());
+      const focusedStudent = activeLocations.find((location) => location.uid === focusUid) || null;
+      setLocations((current) => {
+        const merged = new Map(current
+          .filter((location) => location.uid !== focusUid)
+          .map((location) => [location.uid, location]));
+        activeLocations.forEach((location) => merged.set(location.uid, location));
+        return [...merged.values()];
+      });
+      setSelectedLocation(focusedStudent);
+    } catch (focusedLocationError) {
+      console.warn('Could not refresh focused student location:', focusedLocationError);
+    } finally {
+      loadingFocusedLocationRef.current = false;
+    }
+  }, [sharingActive]);
+
+  useEffect(() => {
+    if (!selectedUid) return;
+    void loadFocusedLocation(selectedUid);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadFocusedLocation(selectedUid);
+    }, FOCUSED_LOCATION_REFRESH_MS);
+    return () => window.clearInterval(interval);
+  }, [loadFocusedLocation, selectedUid]);
 
   const saveSharing = async () => {
     setSaving(true);
@@ -189,6 +294,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       setPreferences({ uid: currentUser.uid, visibility: 'off', encounterAlertsEnabled: false });
       setLocations([]);
       setSelectedLocation(null);
+      setStudentRoute(null);
       toast.success('Đã dừng chia sẻ và xóa vị trí sống khỏi bản đồ.');
     } catch (sharingError) {
       console.error('Could not stop live location:', sharingError);
@@ -226,6 +332,73 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     }
     return { label: 'Sinh viên TVU', kind: 'tvu' as const };
   };
+
+  const distanceFor = (location: VisibleStudentLocation) => {
+    if (!ownLocation || location.isOwn) return null;
+    const distanceMeters = calculateDistanceMeters(
+      { lat: ownLocation.latitude, lng: ownLocation.longitude },
+      { lat: location.latitude, lng: location.longitude },
+    );
+    const relation = relationFor(location);
+    const precision: StudentLocationPrecision = relation.kind === 'friend'
+      ? 'friend'
+      : relation.kind === 'major'
+        ? 'major'
+        : 'tvu';
+    return presentStudentDistance(distanceMeters, precision);
+  };
+
+  const selectedDistance = selectedLocation ? distanceFor(selectedLocation) : null;
+
+  const loadStudentRoute = useCallback(async (
+    target: VisibleStudentLocation,
+    mode: StudentRouteMode,
+    quiet = false,
+  ) => {
+    if (!target.isFriend || target.isOwn) return;
+    const requestId = ++routeRequestRef.current;
+    setRouteLoading(true);
+    if (!quiet) setRouteError(null);
+    try {
+      const nextRoute = await getStudentRoute(target.uid, mode);
+      if (requestId !== routeRequestRef.current) return;
+      setStudentRoute(nextRoute);
+      setRouteError(null);
+    } catch (routeRequestError) {
+      if (requestId !== routeRequestRef.current) return;
+      console.error('Could not load student route:', routeRequestError);
+      setRouteError('Chưa thể tạo tuyến đường lúc này. Vị trí trên bản đồ vẫn tiếp tục cập nhật.');
+      if (!quiet) toast.error('Chưa thể tạo tuyến đường. Hãy thử lại sau.');
+    } finally {
+      if (requestId === routeRequestRef.current) setRouteLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    routeRequestRef.current += 1;
+    setRouteLoading(false);
+    setStudentRoute((currentRoute) => (
+      currentRoute?.targetUid === selectedLocation?.uid ? currentRoute : null
+    ));
+    setRouteError(null);
+  }, [selectedLocation?.uid]);
+
+  useEffect(() => {
+    if (
+      !studentRoute
+      || !selectedLocation
+      || studentRoute.targetUid !== selectedLocation.uid
+      || selectedLocation.updatedAt <= studentRoute.targetUpdatedAt
+    ) return;
+
+    const delay = Math.max(0, ROUTE_REFRESH_MS - (Date.now() - studentRoute.generatedAt));
+    const timeout = window.setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        void loadStudentRoute(selectedLocation, studentRoute.mode, true);
+      }
+    }, delay);
+    return () => window.clearTimeout(timeout);
+  }, [loadStudentRoute, selectedLocation, studentRoute]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-3 pb-24 dark:bg-slate-950 sm:p-5">
@@ -308,29 +481,57 @@ export const StudentMap: React.FC<StudentMapProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
               <div>
                 <h2 className="font-black text-slate-900 dark:text-white">Vị trí đang được chia sẻ</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{loading ? 'Đang làm mới…' : `${locations.length} người đang hiển thị`}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {loading
+                    ? 'Đang làm mới…'
+                    : `${locations.length} người đang hiển thị${lastLoadedAt ? ` · ${formatLastShared(lastLoadedAt).toLowerCase()}` : ''}`}
+                </p>
               </div>
               <button type="button" onClick={() => void loadLocations()} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">Làm mới</button>
             </div>
             {error && <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{error}</p>}
             <div className="relative h-[52vh] min-h-[380px] w-full">
               <MapContainer center={center} zoom={15} className="h-full w-full" scrollWheelZoom>
-                <StudentMapCenter center={center} />
+                <StudentMapViewport center={center} routePath={studentRoute?.path} />
                 <TileLayer
                   attribution={MAP_TILE_ATTRIBUTION}
                   url={getMapTileUrl()}
                   maxZoom={19}
                   className={theme === 'dark' ? 'map-tiles-dark' : undefined}
                 />
+                {studentRoute && (
+                  <Polyline
+                    positions={studentRoute.path.map((point) => [point.latitude, point.longitude])}
+                    pathOptions={{ color: '#4f46e5', weight: 6, opacity: 0.9 }}
+                  />
+                )}
+                {selectedLocation && !selectedLocation.isOwn && selectedDistance && (
+                  <Circle
+                    center={[selectedLocation.latitude, selectedLocation.longitude]}
+                    radius={Math.max(selectedDistance.privacyRadiusMeters, selectedLocation.accuracy || 0)}
+                    pathOptions={{
+                      color: selectedLocation.isFriend ? '#059669' : '#7c3aed',
+                      fillColor: selectedLocation.isFriend ? '#34d399' : '#a78bfa',
+                      fillOpacity: 0.08,
+                      weight: 2,
+                    }}
+                  />
+                )}
                 {locations.map((location) => {
                   const relation = relationFor(location);
+                  const distance = distanceFor(location);
                   return (
                     <Marker
                       key={location.uid}
                       position={[location.latitude, location.longitude]}
-                      icon={markerIcon(relation.kind)}
+                      icon={markerIcon(relation.kind, location.isMoving)}
                       eventHandlers={{ click: () => setSelectedLocation(location) }}
-                    />
+                    >
+                      <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
+                        <strong>{location.fullName}</strong>
+                        {distance && <span className="block text-xs">{distance.label}</span>}
+                      </Tooltip>
+                    </Marker>
                   );
                 })}
               </MapContainer>
@@ -353,12 +554,104 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-black text-slate-900 dark:text-white">{selectedLocation.fullName}</h3>
                   <span className="rounded-lg bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{relationFor(selectedLocation).label}</span>
+                  {selectedLocation.isMoving && (
+                    <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Đang di chuyển</span>
+                  )}
                 </div>
                 {selectedLocation.major && <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400"><GraduationCap className="h-4 w-4" />{selectedLocation.major}</p>}
+                {selectedDistance && <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-indigo-700 dark:text-indigo-300"><Navigation className="h-4 w-4" />{selectedDistance.label}</p>}
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><Clock3 className="h-3.5 w-3.5" />Chia sẻ lần cuối: {formatLastShared(selectedLocation.updatedAt)}</p>
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><MapPin className="h-3.5 w-3.5" />{nearestPlace ? `Gần ${nearestPlace.place.name}` : 'Khu vực hiển thị trên bản đồ'} · vị trí đã làm mờ theo quyền chia sẻ</p>
               </div>
             </div>
+
+            {!selectedLocation.isOwn && !selectedLocation.isFriend && (
+              <div className="mt-4 rounded-2xl bg-violet-50 p-3 text-xs leading-relaxed text-violet-800 dark:bg-violet-950/40 dark:text-violet-200">
+                Khoảng cách này được tính theo vùng công khai, không phải tọa độ chính xác. Nếu cả hai cùng bật “Báo khi vừa chạm mặt”, hệ thống vẫn có thể báo riêng khi ở trong khoảng 35 m mà không công khai điểm gốc.
+              </div>
+            )}
+
+            {!selectedLocation.isOwn && selectedLocation.isFriend && (
+              <div className="mt-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h4 className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"><RouteIcon className="h-4 w-4 text-indigo-600" />Chỉ đường trong TVU Connect</h4>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Chỉ hoạt động khi hai bạn vẫn đang chia sẻ vị trí.</p>
+                  </div>
+                  {studentRoute?.targetUid === selectedLocation.uid && (
+                    <button
+                      type="button"
+                      disabled={routeLoading}
+                      onClick={() => void loadStudentRoute(selectedLocation, routeMode)}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60 dark:text-indigo-300 dark:hover:bg-indigo-950"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${routeLoading ? 'animate-spin' : ''}`} />Cập nhật tuyến
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {ROUTE_MODES.map(({ value, label, Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setRouteMode(value);
+                        if (studentRoute?.targetUid === selectedLocation.uid) {
+                          void loadStudentRoute(selectedLocation, value);
+                        }
+                      }}
+                      className={`min-h-10 rounded-xl border px-2 text-xs font-bold transition ${routeMode === value ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`}
+                    >
+                      <span className="inline-flex items-center justify-center gap-1.5"><Icon className="h-3.5 w-3.5" />{label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {studentRoute?.targetUid !== selectedLocation.uid && (
+                  <button
+                    type="button"
+                    disabled={routeLoading}
+                    onClick={() => void loadStudentRoute(selectedLocation, routeMode)}
+                    className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-black text-white hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {routeLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+                    {routeLoading ? 'Đang tìm tuyến…' : 'Tìm đường đến bạn này'}
+                  </button>
+                )}
+
+                {routeError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">{routeError}</p>}
+
+                {studentRoute?.targetUid === selectedLocation.uid && (
+                  <div className="mt-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">Quãng đường</span>
+                        <strong className="text-sm text-slate-900 dark:text-white">{formatDistance(studentRoute.distanceMeters / 1_000)}</strong>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">Thời gian dự kiến</span>
+                        <strong className="text-sm text-slate-900 dark:text-white">{formatRouteDuration(studentRoute.durationSeconds)}</strong>
+                      </div>
+                    </div>
+                    {studentRoute.steps.length > 0 && (
+                      <details className="mt-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                        <summary className="cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-200">Xem từng chặng đường</summary>
+                        <ol className="mt-3 space-y-2">
+                          {studentRoute.steps.slice(0, 12).map((step, index) => (
+                            <li key={`${step.type}-${index}`} className="flex gap-2 text-xs text-slate-600 dark:text-slate-300">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-black text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200">{index + 1}</span>
+                              <span>{routeInstruction(step.type, step.modifier, step.roadName)} · {formatDistance(step.distanceMeters / 1_000)}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
+                    <p className="mt-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Tuyến dùng dữ liệu OpenStreetMap và điểm đã làm mờ khoảng 10 m; chỉ được gửi đi khi bạn bấm chỉ đường. Hãy quan sát đường thực tế khi di chuyển.</p>
+                  </div>
+                )}
+              </div>
+            )}
             {!selectedLocation.isOwn && onProfileClick && (
               <button onClick={() => onProfileClick(selectedLocation.uid)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-black text-white hover:bg-indigo-700"><MessageCircle className="h-4 w-4" />Xem hồ sơ và trò chuyện</button>
             )}

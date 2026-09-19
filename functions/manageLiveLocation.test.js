@@ -4,6 +4,7 @@ const {
   canDiscoverLocation,
   decimalsForVisibility,
   requireLocationUpdate,
+  roundEncounterDistance,
   roundCoordinate,
   visibilityForViewer,
 } = require('./manageLiveLocation');
@@ -33,7 +34,7 @@ test('audience rules require friendship or matching major where configured', () 
 });
 
 test('location update uses auth uid and rejects points outside Tra Vinh', () => {
-  assert.equal(requireLocationUpdate({
+  const input = requireLocationUpdate({
     auth: { uid: 'student-a' },
     data: {
       uid: 'spoofed',
@@ -42,11 +43,22 @@ test('location update uses auth uid and rejects points outside Tra Vinh', () => 
       accuracy: 15,
       visibility: 'friends',
       encounterAlertsEnabled: true,
+      speed: 2.4,
+      heading: 370,
     },
-  }).uid, 'student-a');
+  });
+  assert.equal(input.uid, 'student-a');
+  assert.equal(input.speed, 2.4);
+  assert.equal(input.heading, 10);
 
   assert.throws(() => requireLocationUpdate({
     auth: { uid: 'student-a' },
     data: { latitude: 21.02, longitude: 105.8, visibility: 'friends' },
   }));
+});
+
+test('encounter distances are coarse enough for notifications', () => {
+  assert.equal(roundEncounterDistance(2), 5);
+  assert.equal(roundEncounterDistance(13), 15);
+  assert.equal(roundEncounterDistance(34), 35);
 });

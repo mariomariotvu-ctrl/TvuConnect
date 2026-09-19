@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { calculateDistance, formatDistance, sortByDistance } from './locationUtils';
+import {
+  calculateDistance,
+  calculateDistanceMeters,
+  formatDistance,
+  sortByDistance,
+} from './locationUtils';
 
 describe('local discovery distance', () => {
   const tvu = { lat: 9.9345, lng: 106.3461 };
@@ -13,6 +18,14 @@ describe('local discovery distance', () => {
     const distance = calculateDistance(tvu, roughlyOneKilometreNorth);
     expect(distance).toBeGreaterThanOrEqual(0.9);
     expect(distance).toBeLessThanOrEqual(1.1);
+  });
+
+  it('không làm tròn chuyển động ngắn thành 0 m', () => {
+    const roughlyThirtyMetresNorth = { lat: tvu.lat + 0.00027, lng: tvu.lng };
+    const distance = calculateDistanceMeters(tvu, roughlyThirtyMetresNorth);
+
+    expect(distance).toBeGreaterThan(25);
+    expect(distance).toBeLessThan(35);
   });
 
   it('xếp địa điểm có khoảng cách gần nhất lên trước và thiếu tọa độ xuống cuối', () => {

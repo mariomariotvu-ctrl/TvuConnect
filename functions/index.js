@@ -10,6 +10,7 @@ const manageFriendConnection = require('./manageFriendConnection');
 const manageLiveLocation = require('./manageLiveLocation');
 const discoverFoodPlaces = require('./discoverFoodPlaces');
 const deleteOldPosts = require('./deleteOldPosts');
+const getStudentRoute = require('./getStudentRoute');
 
 exports.sendMessageNotification = sendMessageNotification.sendMessageNotification;
 exports.sendCallNotification = sendCallNotification.sendCallNotification;
@@ -27,3 +28,4 @@ exports.getVisibleStudentLocations = manageLiveLocation.getVisibleStudentLocatio
 exports.deleteExpiredLiveLocations = manageLiveLocation.deleteExpiredLiveLocations;
 exports.discoverFoodPlaces = discoverFoodPlaces.discoverFoodPlaces;
 exports.deleteOldPosts = deleteOldPosts.deleteOldPosts;
+exports.getStudentRoute = getStudentRoute.getStudentRoute;

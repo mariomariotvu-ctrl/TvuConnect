@@ -48,7 +48,7 @@ export const TVU_LOCATION_PRESETS: LocationPreset[] = [
  * with WGS84 ellipsoid model and dynamic correction factor
  * @param coord1 First coordinate
  * @param coord2 Second coordinate
- * @returns Distance in kilometers
+ * @returns Distance in kilometers without display rounding
  */
 export function calculateDistance(coord1: Coordinates, coord2: Coordinates): number {
   // WGS84 ellipsoid parameters for better accuracy
@@ -72,14 +72,23 @@ export function calculateDistance(coord1: Coordinates, coord2: Coordinates): num
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   
   const c = 2 * Math.atan2(Math.sqrt(haversineA), Math.sqrt(1 - haversineA));
-  let distance = R * c;
+  const distance = R * c;
   
   // IMPORTANT: Display "as-the-crow-flies" distance WITHOUT correction
   // This is the straight-line distance, not the actual walking/driving distance
   // Google Maps will show the actual route distance which is always longer
   // We keep it simple and accurate - no artificial inflation
   
-  return Math.round(distance * 10) / 10; // Round to 1 decimal place
+  return distance;
+}
+
+/**
+ * Calculate a short distance in metres without rounding it to 100 m first.
+ * Movement and encounter detection must use this value; formatting belongs in
+ * the UI layer so a 20 m move never becomes zero.
+ */
+export function calculateDistanceMeters(coord1: Coordinates, coord2: Coordinates): number {
+  return calculateDistance(coord1, coord2) * 1_000;
 }
 
 /**
@@ -155,5 +164,4 @@ export function getCategoryLabel(category: string): string {
   
   return labels[category] || 'địa điểm';
 }
-
 

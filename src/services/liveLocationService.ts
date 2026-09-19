@@ -22,12 +22,38 @@ export interface LiveLocationUpdate {
   accuracy: number;
   visibility: Exclude<LocationVisibility, 'off'>;
   encounterAlertsEnabled: boolean;
+  speed?: number | null;
+  heading?: number | null;
+}
+
+export type StudentRouteMode = 'walking' | 'cycling' | 'driving';
+
+export interface StudentRouteStep {
+  type: string;
+  modifier: string;
+  roadName: string;
+  distanceMeters: number;
+  durationSeconds: number;
+}
+
+export interface StudentRoute {
+  mode: StudentRouteMode;
+  targetUid: string;
+  targetUpdatedAt: number;
+  generatedAt: number;
+  provider: 'OpenStreetMap';
+  distanceMeters: number;
+  durationSeconds: number;
+  path: Array<{ latitude: number; longitude: number }>;
+  steps: StudentRouteStep[];
 }
 
 export function requestPreciseLocation(): Promise<{
   latitude: number;
   longitude: number;
   accuracy: number;
+  speed?: number | null;
+  heading?: number | null;
 }> {
   if (!navigator.geolocation) {
     return Promise.reject(new Error('Thiết bị này không hỗ trợ định vị.'));
@@ -39,6 +65,8 @@ export function requestPreciseLocation(): Promise<{
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracy: position.coords.accuracy,
+        speed: position.coords.speed,
+        heading: position.coords.heading,
       }),
       (error) => reject(new Error(error.code === error.PERMISSION_DENIED
         ? 'Bạn chưa cấp quyền vị trí. Hãy bật quyền rồi thử lại.'
@@ -68,14 +96,23 @@ export async function stopLiveLocation() {
   return response.data;
 }
 
-export async function getVisibleStudentLocations(): Promise<VisibleStudentLocation[]> {
-  const callable = httpsCallable<Record<string, never>, { locations: VisibleStudentLocation[] }>(
+export async function getVisibleStudentLocations(focusUid?: string): Promise<VisibleStudentLocation[]> {
+  const callable = httpsCallable<{ focusUid?: string }, { locations: VisibleStudentLocation[] }>(
     functions,
     'getVisibleStudentLocations',
     { timeout: 20_000 },
   );
-  const response = await callable({});
+  const response = await callable(focusUid ? { focusUid } : {});
   return response.data.locations;
+}
+
+export async function getStudentRoute(targetUid: string, mode: StudentRouteMode) {
+  const callable = httpsCallable<
+    { targetUid: string; mode: StudentRouteMode },
+    StudentRoute
+  >(functions, 'getStudentRoute', { timeout: 20_000 });
+  const response = await callable({ targetUid, mode });
+  return response.data;
 }
 
 export function subscribeLocationPreferences(

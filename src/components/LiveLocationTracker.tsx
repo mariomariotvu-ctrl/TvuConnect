@@ -9,22 +9,15 @@ import {
   subscribeStudentEncounters,
   updateLiveLocation,
 } from '../services/liveLocationService';
-import { calculateDistance } from '../utils/locationUtils';
+import {
+  LOCATION_KEEP_ALIVE_MS,
+  shouldSendLivePosition,
+  type LivePositionSample,
+} from '../utils/liveLocationUtils';
 
 interface LiveLocationTrackerProps {
   currentUser: User;
 }
-
-interface LastPosition {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  sentAt: number;
-}
-
-const MIN_SEND_INTERVAL_MS = 45_000;
-const KEEP_ALIVE_INTERVAL_MS = 5 * 60_000;
-const MIN_MOVEMENT_KM = 0.03;
 
 export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ currentUser }) => {
   const [preferences, setPreferences] = useState<LocationPreferences>({
@@ -32,7 +25,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
     visibility: 'off',
     encounterAlertsEnabled: false,
   });
-  const lastPositionRef = useRef<LastPosition | null>(null);
+  const lastPositionRef = useRef<LivePositionSample | null>(null);
   const sendingRef = useRef(false);
   const permissionErrorShownRef = useRef(false);
   const seenEncounterIdsRef = useRef(new Set<string>());
@@ -57,18 +50,13 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
         accuracy: position.coords.accuracy,
         sentAt: previous?.sentAt || 0,
       };
-      const movedKm = previous
-        ? calculateDistance(
-            { lat: previous.latitude, lng: previous.longitude },
-            { lat: next.latitude, lng: next.longitude },
-          )
-        : Number.POSITIVE_INFINITY;
-
-      if (!force && previous) {
-        const elapsed = now - previous.sentAt;
-        if (elapsed < MIN_SEND_INTERVAL_MS) return;
-        if (movedKm < MIN_MOVEMENT_KM && elapsed < KEEP_ALIVE_INTERVAL_MS) return;
-      }
+      if (!shouldSendLivePosition(
+        previous,
+        next,
+        now,
+        preferences.encounterAlertsEnabled,
+        force,
+      )) return;
       if (sendingRef.current) return;
 
       sendingRef.current = true;
@@ -79,6 +67,8 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
           accuracy: next.accuracy,
           visibility: activeVisibility,
           encounterAlertsEnabled: preferences.encounterAlertsEnabled,
+          speed: Number.isFinite(position.coords.speed) ? position.coords.speed : null,
+          heading: Number.isFinite(position.coords.heading) ? position.coords.heading : null,
         });
         lastPositionRef.current = { ...next, sentAt: now };
         permissionErrorShownRef.current = false;
@@ -98,7 +88,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
           ? 'Quyền vị trí đang bị tắt. TVU Connect đã ngừng cập nhật vị trí của bạn.'
           : 'Chưa thể cập nhật vị trí. Ứng dụng sẽ tự thử lại khi tín hiệu ổn định.');
       },
-      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 30_000 },
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 10_000 },
     );
 
     const keepAlive = window.setInterval(() => {
@@ -107,14 +97,14 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
         () => undefined,
         { enableHighAccuracy: true, timeout: 20_000, maximumAge: 60_000 },
       );
-    }, KEEP_ALIVE_INTERVAL_MS);
+    }, LOCATION_KEEP_ALIVE_MS);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState !== 'visible') return;
       navigator.geolocation.getCurrentPosition(
         (position) => { void sendPosition(position, true); },
         () => undefined,
-        { enableHighAccuracy: true, timeout: 20_000, maximumAge: 60_000 },
+        { enableHighAccuracy: true, timeout: 20_000, maximumAge: 15_000 },
       );
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -144,7 +134,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
         const peerName = profile.data()?.fullName || 'một sinh viên TVU';
         if ('vibrate' in navigator) navigator.vibrate([120, 80, 120]);
         toast.info(`Bạn vừa chạm mặt ${peerName}.`, {
-          description: 'Chỉ hai người đã bật tính năng này mới nhận được thông báo.',
+          description: `Cách nhau khoảng ${encounter.distanceMeters || 35} m. Chỉ hai người đã cùng bật tính năng mới nhận được báo.`,
           duration: 5_000,
         });
       });

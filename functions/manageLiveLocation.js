@@ -9,8 +9,10 @@ if (!getApps().length) initializeApp();
 
 const LIVE_TTL_MS = 15 * 60 * 1000;
 const RECENT_ENCOUNTER_MS = 2 * 60 * 1000;
-const ENCOUNTER_BUCKET_MS = 10 * 60 * 1000;
 const ENCOUNTER_RADIUS_METERS = 35;
+const ENCOUNTER_REARM_RADIUS_METERS = 70;
+const ENCOUNTER_SEARCH_RADIUS_METERS = 100;
+const ENCOUNTER_REARM_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 const MAX_ENCOUNTER_ACCURACY_METERS = 80;
 const ALLOWED_VISIBILITY = new Set(['friends', 'major', 'tvu']);
 
@@ -24,6 +26,10 @@ function decimalsForVisibility(visibility) {
 
 function roundCoordinate(value, visibility) {
   return Number(Number(value).toFixed(decimalsForVisibility(visibility)));
+}
+
+function roundEncounterDistance(distanceMeters) {
+  return Math.max(5, Math.round(Number(distanceMeters) / 5) * 5);
 }
 
 function canDiscoverLocation(ownerLocation, viewerMajor, isFriend) {
@@ -53,6 +59,8 @@ function requireLocationUpdate(request) {
   const accuracy = Number(request.data?.accuracy);
   const visibility = request.data?.visibility;
   const encounterAlertsEnabled = request.data?.encounterAlertsEnabled === true;
+  const speed = request.data?.speed;
+  const heading = request.data?.heading;
 
   if (!uid) throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập để chia sẻ vị trí.');
   if (!ALLOWED_VISIBILITY.has(visibility)) {
@@ -76,6 +84,12 @@ function requireLocationUpdate(request) {
     accuracy: Number.isFinite(accuracy) ? Math.min(Math.max(accuracy, 0), 5_000) : 0,
     visibility,
     encounterAlertsEnabled,
+    speed: typeof speed === 'number' && Number.isFinite(speed) && speed >= 0
+      ? Math.min(speed, 80)
+      : null,
+    heading: typeof heading === 'number' && Number.isFinite(heading)
+      ? ((heading % 360) + 360) % 360
+      : null,
   };
 }
 
@@ -92,7 +106,7 @@ async function acceptedFriendUids(firestore, uid) {
 }
 
 async function nearbyPrivateLocations(firestore, latitude, longitude) {
-  const bounds = geohashQueryBounds([latitude, longitude], ENCOUNTER_RADIUS_METERS + 25);
+  const bounds = geohashQueryBounds([latitude, longitude], ENCOUNTER_SEARCH_RADIUS_METERS);
   const snapshots = await Promise.all(bounds.map(([startHash, endHash]) => (
     firestore.collection('privateLiveLocations')
       .orderBy('geohash')
@@ -124,6 +138,23 @@ async function createEncounterIfNeeded({ firestore, current, candidate, friendUi
     [current.latitude, current.longitude],
     [candidate.latitude, candidate.longitude],
   ) * 1_000;
+
+  const pairId = pairIdFor(current.uid, candidate.uid);
+  const stateRef = firestore.collection('_systemEncounterPairStates').doc(pairId);
+  if (distanceMeters >= ENCOUNTER_REARM_RADIUS_METERS) {
+    await firestore.runTransaction(async (transaction) => {
+      const state = await transaction.get(stateRef);
+      if (!state.exists || state.data()?.armed !== false) return;
+      transaction.set(stateRef, {
+        participantUids: [current.uid, candidate.uid].sort(),
+        armed: true,
+        rearmedAt: now,
+        lastObservedAt: now,
+        expiresAt: Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000),
+      }, { merge: true });
+    });
+    return null;
+  }
   if (distanceMeters > ENCOUNTER_RADIUS_METERS) return null;
 
   const isFriend = friendUids.has(candidate.uid);
@@ -137,25 +168,39 @@ async function createEncounterIfNeeded({ firestore, current, candidate, friendUi
   ]);
   if (blockedByCurrent.exists || blockedByCandidate.exists) return null;
 
-  const pairId = pairIdFor(current.uid, candidate.uid);
-  const bucket = Math.floor(now.toMillis() / ENCOUNTER_BUCKET_MS);
-  const encounterRef = firestore.collection('studentEncounters').doc(`${pairId}_${bucket}`);
+  const encounterRef = firestore.collection('studentEncounters').doc();
   let created = false;
 
   await firestore.runTransaction(async (transaction) => {
-    const existing = await transaction.get(encounterRef);
-    if (existing.exists) return;
+    created = false;
+    const state = await transaction.get(stateRef);
+    const stateData = state.data() || {};
+    const lastTriggeredAt = stateData.lastTriggeredAt?.toMillis?.() || 0;
+    const timedOut = lastTriggeredAt > 0
+      && now.toMillis() - lastTriggeredAt >= ENCOUNTER_REARM_TIMEOUT_MS;
+    if (state.exists && stateData.armed === false && !timedOut) return;
+
     transaction.create(encounterRef, {
       participantUids: [current.uid, candidate.uid].sort(),
       occurredAt: now,
       expiresAt: Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000),
       distanceBand: distanceMeters <= 15 ? 'very-close' : 'nearby',
+      distanceMeters: roundEncounterDistance(distanceMeters),
+    });
+    transaction.set(stateRef, {
+      participantUids: [current.uid, candidate.uid].sort(),
+      armed: false,
+      lastTriggeredAt: now,
+      lastObservedAt: now,
+      expiresAt: Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000),
     });
     created = true;
   });
 
   if (!created) return null;
   return {
+    encounterId: encounterRef.id,
+    distanceMeters: roundEncounterDistance(distanceMeters),
     candidateUid: candidate.uid,
     candidateName: candidate.displayName || 'Một sinh viên TVU',
     currentName: current.displayName || 'Một sinh viên TVU',
@@ -215,13 +260,13 @@ exports.updateLiveLocation = onCall(async (request) => {
   const createdEncounters = [];
   if (input.encounterAlertsEnabled && input.accuracy <= MAX_ENCOUNTER_ACCURACY_METERS) {
     const candidates = await nearbyPrivateLocations(firestore, input.latitude, input.longitude);
-    const sortedCandidates = [...candidates.values()]
+      const sortedCandidates = [...candidates.values()]
       .filter((candidate) => candidate.uid !== input.uid)
       .sort((left, right) => (
         distanceBetween([left.latitude, left.longitude], [input.latitude, input.longitude])
         - distanceBetween([right.latitude, right.longitude], [input.latitude, input.longitude])
       ))
-      .slice(0, 5);
+      .slice(0, 20);
 
     for (const candidate of sortedCandidates) {
       const encounter = await createEncounterIfNeeded({
@@ -240,12 +285,16 @@ exports.updateLiveLocation = onCall(async (request) => {
       type: 'encounter',
       peerUid: encounter.candidateUid,
       peerName: encounter.candidateName,
+      encounterId: encounter.encounterId,
+      distanceMeters: encounter.distanceMeters,
       body: `Bạn vừa chạm mặt ${encounter.candidateName}.`,
     }),
     sendDataNotification(encounter.candidateUid, {
       type: 'encounter',
       peerUid: input.uid,
       peerName: encounter.currentName,
+      encounterId: encounter.encounterId,
+      distanceMeters: encounter.distanceMeters,
       body: `Bạn vừa chạm mặt ${encounter.currentName}.`,
     }),
   ])).catch((error) => {
@@ -280,6 +329,12 @@ exports.stopLiveLocation = onCall(async (request) => {
 exports.getVisibleStudentLocations = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập để xem bản đồ bạn bè.');
+  const focusUid = typeof request.data?.focusUid === 'string'
+    ? request.data.focusUid.trim()
+    : '';
+  if (focusUid && (focusUid.length > 128 || focusUid === uid)) {
+    throw new HttpsError('invalid-argument', 'Vị trí cần theo dõi không hợp lệ.');
+  }
 
   const firestore = getFirestore();
   const [profileSnapshot, preferencesSnapshot, ownPrivateLocation] = await Promise.all([
@@ -299,20 +354,36 @@ exports.getVisibleStudentLocations = onCall(async (request) => {
 
   const viewerMajor = profileSnapshot.data()?.majorNormalized || '';
   const friendUids = new Set(await acceptedFriendUids(firestore, uid));
-  const [locationSnapshot, blockedByMeSnapshot, blockedByThemSnapshot] = await Promise.all([
-    firestore.collection('privateLiveLocations')
-      .where('expiresAt', '>', now)
-      .limit(200)
-      .get(),
-    firestore.collection('blocks').where('blockerUid', '==', uid).limit(250).get(),
-    firestore.collection('blocks').where('blockedUid', '==', uid).limit(250).get(),
-  ]);
+  let candidateLocationDocs;
+  let blockedUids;
 
-  const blockedUids = new Set([
-    ...blockedByMeSnapshot.docs.map((block) => block.data().blockedUid),
-    ...blockedByThemSnapshot.docs.map((block) => block.data().blockerUid),
-  ]);
-  const visibleLocationDocs = locationSnapshot.docs.filter((locationDocument) => {
+  if (focusUid) {
+    const [focusedLocation, blockedByCurrent, blockedByFocus] = await Promise.all([
+      firestore.collection('privateLiveLocations').doc(focusUid).get(),
+      firestore.collection('blocks').doc(`${uid}_${focusUid}`).get(),
+      firestore.collection('blocks').doc(`${focusUid}_${uid}`).get(),
+    ]);
+    candidateLocationDocs = [ownPrivateLocation, focusedLocation]
+      .filter((location) => location.exists)
+      .filter((location) => (location.data()?.expiresAt?.toMillis?.() || 0) > now.toMillis());
+    blockedUids = new Set(blockedByCurrent.exists || blockedByFocus.exists ? [focusUid] : []);
+  } else {
+    const [locationSnapshot, blockedByMeSnapshot, blockedByThemSnapshot] = await Promise.all([
+      firestore.collection('privateLiveLocations')
+        .where('expiresAt', '>', now)
+        .limit(200)
+        .get(),
+      firestore.collection('blocks').where('blockerUid', '==', uid).limit(250).get(),
+      firestore.collection('blocks').where('blockedUid', '==', uid).limit(250).get(),
+    ]);
+    candidateLocationDocs = locationSnapshot.docs;
+    blockedUids = new Set([
+      ...blockedByMeSnapshot.docs.map((block) => block.data().blockedUid),
+      ...blockedByThemSnapshot.docs.map((block) => block.data().blockerUid),
+    ]);
+  }
+
+  const visibleLocationDocs = candidateLocationDocs.filter((locationDocument) => {
     const location = locationDocument.data();
     if (location.uid === uid) return true;
     if (blockedUids.has(location.uid)) return false;
@@ -345,6 +416,10 @@ exports.getVisibleStudentLocations = onCall(async (request) => {
         major: typeof profile.major === 'string' ? profile.major : '',
         isFriend,
         isOwn,
+        isMoving: (isFriend || isOwn) && Number(location.speed) >= 0.8,
+        heading: (isFriend || isOwn) && Number.isFinite(location.heading)
+          ? Math.round(location.heading / 15) * 15 % 360
+          : null,
       };
     }),
   };
@@ -353,7 +428,7 @@ exports.getVisibleStudentLocations = onCall(async (request) => {
 exports.deleteExpiredLiveLocations = onSchedule('every 30 minutes', async () => {
   const firestore = getFirestore();
   const now = Timestamp.now();
-  const [privateSnapshot, encounterSnapshot] = await Promise.all([
+  const [privateSnapshot, encounterSnapshot, encounterStateSnapshot] = await Promise.all([
     firestore.collection('privateLiveLocations')
       .where('expiresAt', '<=', now)
       .limit(150)
@@ -362,15 +437,20 @@ exports.deleteExpiredLiveLocations = onSchedule('every 30 minutes', async () => 
       .where('expiresAt', '<=', now)
       .limit(150)
       .get(),
+    firestore.collection('_systemEncounterPairStates')
+      .where('expiresAt', '<=', now)
+      .limit(150)
+      .get(),
   ]);
 
-  if (privateSnapshot.empty && encounterSnapshot.empty) return null;
+  if (privateSnapshot.empty && encounterSnapshot.empty && encounterStateSnapshot.empty) return null;
   const batch = firestore.batch();
   privateSnapshot.docs.forEach((location) => {
     batch.delete(location.ref);
     batch.delete(firestore.collection('sharedStudentLocations').doc(location.id));
   });
   encounterSnapshot.docs.forEach((encounter) => batch.delete(encounter.ref));
+  encounterStateSnapshot.docs.forEach((state) => batch.delete(state.ref));
   await batch.commit();
   return null;
 });
@@ -378,5 +458,6 @@ exports.deleteExpiredLiveLocations = onSchedule('every 30 minutes', async () => 
 exports.canDiscoverLocation = canDiscoverLocation;
 exports.decimalsForVisibility = decimalsForVisibility;
 exports.requireLocationUpdate = requireLocationUpdate;
+exports.roundEncounterDistance = roundEncounterDistance;
 exports.roundCoordinate = roundCoordinate;
 exports.visibilityForViewer = visibilityForViewer;

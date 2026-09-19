@@ -5,6 +5,21 @@
   font-family: inherit;
 }
 
+@keyframes student-map-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.16); }
+}
+
+.student-map-marker--moving > span {
+  animation: student-map-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-map-marker--moving > span {
+    animation: none;
+  }
+}
+
 /* Mobile Performance Optimizations */
 @media (max-width: 768px) {
   .leaflet-container {

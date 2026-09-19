@@ -134,6 +134,8 @@ export interface VisibleStudentLocation {
   major?: string;
   isFriend: boolean;
   isOwn: boolean;
+  isMoving?: boolean;
+  heading?: number | null;
 }
 
 export interface StudentEncounter {
@@ -141,6 +143,7 @@ export interface StudentEncounter {
   participantUids: string[];
   occurredAt?: Timestamp;
   distanceBand: 'very-close' | 'nearby';
+  distanceMeters?: number;
 }
 
 export interface Favorite {
