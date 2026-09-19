@@ -9,6 +9,7 @@ import {
   TileLayer,
   Tooltip,
   useMap,
+  useMapEvents,
 } from 'react-leaflet';
 import { getMapTileUrl, MAP_TILE_ATTRIBUTION } from '../utils/mapTiles';
 import {
@@ -55,6 +56,11 @@ import {
   routeInstruction,
   type StudentLocationPrecision,
 } from '../utils/studentLocationPresentation';
+import {
+  geolocationSample,
+  shouldAcceptGeolocationSample,
+  type PreciseGeolocation,
+} from '../utils/geolocation';
 
 interface StudentMapProps {
   currentUser: User;
@@ -64,8 +70,8 @@ interface StudentMapProps {
 }
 
 const DEFAULT_MAP_CENTER: [number, number] = [9.9345, 106.3461];
-const LOCATION_REFRESH_MS = 60_000;
-const FOCUSED_LOCATION_REFRESH_MS = 10_000;
+const LOCATION_REFRESH_MS = 30_000;
+const FOCUSED_LOCATION_REFRESH_MS = 6_000;
 const ROUTE_REFRESH_MS = 2 * 60_000;
 
 const ROUTE_MODES: Array<{
@@ -131,8 +137,13 @@ const formatLastShared = (timestamp: number) => {
 const StudentMapViewport: React.FC<{
   center: [number, number];
   routePath?: StudentRoute['path'];
-}> = ({ center, routePath }) => {
+  followUser: boolean;
+  onFollowChange: (following: boolean) => void;
+  recenterToken: number;
+}> = ({ center, routePath, followUser, onFollowChange, recenterToken }) => {
   const map = useMap();
+
+  useMapEvents({ dragstart: () => onFollowChange(false) });
 
   useEffect(() => {
     if (routePath && routePath.length > 1) {
@@ -142,8 +153,17 @@ const StudentMapViewport: React.FC<{
       });
       return;
     }
-    map.flyTo(center, Math.max(map.getZoom(), 15), { duration: 0.6 });
-  }, [center[0], center[1], map, routePath]);
+  }, [map, routePath]);
+
+  useEffect(() => {
+    if (!followUser || routePath?.length) return;
+    map.flyTo(center, Math.max(map.getZoom(), 15), { duration: 0.45 });
+  }, [center[0], center[1], followUser, map, routePath?.length]);
+
+  useEffect(() => {
+    if (!recenterToken) return;
+    map.flyTo(center, Math.max(map.getZoom(), 15), { duration: 0.45 });
+  }, [map, recenterToken]);
 
   return null;
 };
@@ -172,9 +192,13 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const [studentRoute, setStudentRoute] = useState<StudentRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [localPosition, setLocalPosition] = useState<PreciseGeolocation | null>(null);
+  const [followUser, setFollowUser] = useState(true);
+  const [recenterToken, setRecenterToken] = useState(0);
   const loadingLocationsRef = useRef(false);
   const loadingFocusedLocationRef = useRef(false);
   const routeRequestRef = useRef(0);
+  const localPositionRef = useRef<PreciseGeolocation | null>(null);
 
   const sharingActive = preferences.visibility !== 'off';
 
@@ -231,6 +255,21 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     };
   }, [loadLocations, sharingActive]);
 
+  useEffect(() => {
+    if (!sharingActive || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition((position) => {
+      const sample = geolocationSample(position);
+      if (!shouldAcceptGeolocationSample(localPositionRef.current, sample)) return;
+      localPositionRef.current = sample;
+      setLocalPosition(sample);
+    }, () => undefined, {
+      enableHighAccuracy: true,
+      timeout: 15_000,
+      maximumAge: 0,
+    });
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [sharingActive]);
+
   const selectedUid = selectedLocation?.isOwn ? null : selectedLocation?.uid || null;
 
   const loadFocusedLocation = useCallback(async (focusUid: string) => {
@@ -268,6 +307,16 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     setSaving(true);
     try {
       const position = await requestPreciseLocation();
+      const local = {
+        lat: position.latitude,
+        lng: position.longitude,
+        accuracy: position.accuracy,
+        observedAt: Date.now(),
+        speed: position.speed,
+        heading: position.heading,
+      };
+      localPositionRef.current = local;
+      setLocalPosition(local);
       await updateLiveLocation({
         ...position,
         visibility: draftVisibility,
@@ -305,7 +354,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   };
 
   const ownLocation = locations.find((location) => location.isOwn);
-  const center = ownLocation
+  const center = localPosition
+    ? [localPosition.lat, localPosition.lng] as [number, number]
+    : ownLocation
     ? [ownLocation.latitude, ownLocation.longitude] as [number, number]
     : DEFAULT_MAP_CENTER;
 
@@ -334,9 +385,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   };
 
   const distanceFor = (location: VisibleStudentLocation) => {
-    if (!ownLocation || location.isOwn) return null;
+    if ((!ownLocation && !localPosition) || location.isOwn) return null;
     const distanceMeters = calculateDistanceMeters(
-      { lat: ownLocation.latitude, lng: ownLocation.longitude },
+      localPosition || { lat: ownLocation!.latitude, lng: ownLocation!.longitude },
       { lat: location.latitude, lng: location.longitude },
     );
     const relation = relationFor(location);
@@ -360,7 +411,22 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     setRouteLoading(true);
     if (!quiet) setRouteError(null);
     try {
-      const nextRoute = await getStudentRoute(target.uid, mode);
+      const position = await requestPreciseLocation();
+      const nextRoute = await getStudentRoute(target.uid, mode, {
+        latitude: position.latitude,
+        longitude: position.longitude,
+        accuracy: position.accuracy,
+      });
+      const local = {
+        lat: position.latitude,
+        lng: position.longitude,
+        accuracy: position.accuracy,
+        observedAt: Date.now(),
+        speed: position.speed,
+        heading: position.heading,
+      };
+      localPositionRef.current = local;
+      setLocalPosition(local);
       if (requestId !== routeRequestRef.current) return;
       setStudentRoute(nextRoute);
       setRouteError(null);
@@ -388,8 +454,17 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       !studentRoute
       || !selectedLocation
       || studentRoute.targetUid !== selectedLocation.uid
-      || selectedLocation.updatedAt <= studentRoute.targetUpdatedAt
     ) return;
+
+    const routeStart = studentRoute.path[0];
+    const movedFromRouteStart = localPosition && routeStart
+      ? calculateDistanceMeters(localPosition, {
+        lat: routeStart.latitude,
+        lng: routeStart.longitude,
+      })
+      : 0;
+    const targetMoved = selectedLocation.updatedAt > studentRoute.targetUpdatedAt;
+    if (!targetMoved && movedFromRouteStart < 80) return;
 
     const delay = Math.max(0, ROUTE_REFRESH_MS - (Date.now() - studentRoute.generatedAt));
     const timeout = window.setTimeout(() => {
@@ -398,7 +473,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       }
     }, delay);
     return () => window.clearTimeout(timeout);
-  }, [loadStudentRoute, selectedLocation, studentRoute]);
+  }, [loadStudentRoute, localPosition, selectedLocation, studentRoute]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-3 pb-24 dark:bg-slate-950 sm:p-5">
@@ -491,8 +566,14 @@ export const StudentMap: React.FC<StudentMapProps> = ({
             </div>
             {error && <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{error}</p>}
             <div className="relative h-[52vh] min-h-[380px] w-full">
-              <MapContainer center={center} zoom={15} className="h-full w-full" scrollWheelZoom>
-                <StudentMapViewport center={center} routePath={studentRoute?.path} />
+              <MapContainer center={center} zoom={15} minZoom={2} worldCopyJump className="h-full w-full" scrollWheelZoom touchZoom doubleClickZoom>
+                <StudentMapViewport
+                  center={center}
+                  routePath={studentRoute?.path}
+                  followUser={followUser}
+                  onFollowChange={setFollowUser}
+                  recenterToken={recenterToken}
+                />
                 <TileLayer
                   attribution={MAP_TILE_ATTRIBUTION}
                   url={getMapTileUrl()}
@@ -517,13 +598,23 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                     }}
                   />
                 )}
+                {localPosition && (
+                  <Circle
+                    center={[localPosition.lat, localPosition.lng]}
+                    radius={localPosition.accuracy}
+                    pathOptions={{ color: '#2563eb', fillColor: '#60a5fa', fillOpacity: 0.1, weight: 1 }}
+                  />
+                )}
                 {locations.map((location) => {
                   const relation = relationFor(location);
                   const distance = distanceFor(location);
+                  const markerPosition: [number, number] = location.isOwn && localPosition
+                    ? [localPosition.lat, localPosition.lng]
+                    : [location.latitude, location.longitude];
                   return (
                     <Marker
                       key={location.uid}
-                      position={[location.latitude, location.longitude]}
+                      position={markerPosition}
                       icon={markerIcon(relation.kind, location.isMoving)}
                       eventHandlers={{ click: () => setSelectedLocation(location) }}
                     >
@@ -535,6 +626,17 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                   );
                 })}
               </MapContainer>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowUser(true);
+                  setRecenterToken((value) => value + 1);
+                }}
+                className={`absolute bottom-14 right-3 z-[500] flex h-11 w-11 items-center justify-center rounded-full border bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900 ${followUser ? 'text-blue-600 ring-4 ring-blue-500/15' : 'text-slate-600 dark:text-slate-300'}`}
+                title="Về vị trí của tôi"
+              >
+                <LocateFixed className="h-5 w-5" />
+              </button>
               <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex flex-wrap gap-2 rounded-xl bg-white/90 p-2 text-[11px] font-bold text-slate-600 shadow-md backdrop-blur dark:bg-slate-900/90 dark:text-slate-300">
                 <span className="text-indigo-600">Bạn</span><span className="text-emerald-600">Bạn bè</span><span className="text-violet-600">Cùng ngành</span><span>Sinh viên TVU</span>
               </div>

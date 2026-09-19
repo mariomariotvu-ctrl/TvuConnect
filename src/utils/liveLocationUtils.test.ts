@@ -29,8 +29,8 @@ describe('live location update cadence', () => {
     )).toBe(false);
   });
 
-  it('gửi chuyển động khoảng 30 m sau thời gian tối thiểu', () => {
-    const next = { ...previous, latitude: previous.latitude + 0.00027 };
+  it('gửi chuyển động khoảng 7 m sau thời gian tối thiểu', () => {
+    const next = { ...previous, latitude: previous.latitude + 0.000065 };
     expect(shouldSendLivePosition(
       previous,
       next,
@@ -39,8 +39,8 @@ describe('live location update cadence', () => {
     )).toBe(true);
   });
 
-  it('chế độ chạm mặt cập nhật sớm hơn khi di chuyển 10 m', () => {
-    const next = { ...previous, latitude: previous.latitude + 0.00009 };
+  it('chế độ chạm mặt cập nhật sớm hơn khi di chuyển khoảng 5 m', () => {
+    const next = { ...previous, latitude: previous.latitude + 0.000045 };
     expect(shouldSendLivePosition(
       previous,
       next,

@@ -1,4 +1,5 @@
 import { Coordinates } from './locationUtils';
+import { requestFreshGeolocation } from './geolocation';
 
 /**
  * A 0.02 degree grid is roughly 1.5–2.2km wide around Trà Vinh. It is a
@@ -45,25 +46,7 @@ export function nearbyCells(coordinates: Coordinates): string[] {
   return cells;
 }
 
-export function requestBrowserLocation(): Promise<Coordinates> {
-  if (!('geolocation' in navigator)) {
-    return Promise.reject(new Error('Thiết bị của bạn không hỗ trợ định vị.'));
-  }
-
-  return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude }),
-      (error) => {
-        const message = error.code === error.PERMISSION_DENIED
-          ? 'Bạn chưa cho phép vị trí. Hãy bật quyền vị trí rồi thử lại.'
-          : 'Không thể lấy vị trí hiện tại. Vui lòng thử lại ở nơi có kết nối tốt.';
-        reject(new Error(message));
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 12_000,
-        maximumAge: 5 * 60_000,
-      },
-    );
-  });
+export async function requestBrowserLocation(): Promise<Coordinates> {
+  const position = await requestFreshGeolocation();
+  return { lat: position.lat, lng: position.lng };
 }

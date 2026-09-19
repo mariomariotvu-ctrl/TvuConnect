@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, useRef } from 'react';
 import { User } from 'firebase/auth';
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { divIcon, Icon, LatLngBounds, point } from 'leaflet';
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { divIcon, Icon, latLngBounds, LatLngBounds, point } from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Place, CheckIn, PlaceEvent, StudentProfile } from '../types';
 import { db, collection, query, where, onSnapshot, orderBy, limit } from '../firebase';
-import { MapPin, Users, Calendar, Bot, Navigation, Home, LocateFixed, Phone, Star, Utensils, X } from 'lucide-react';
+import { Bike, Bot, Calendar, Car, Footprints, Home, Loader2, LocateFixed, MapPin, Navigation, Phone, Route as RouteIcon, Star, Utensils, Users, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { PlaceList } from './PlaceList';
 import { RentalList } from './RentalList';
@@ -21,9 +21,13 @@ import {
   getCategoryLabel,
   Coordinates,
   calculateDistance,
+  formatDistance,
   sortByDistance
 } from '../utils/locationUtils';
 import { requestBrowserLocation } from '../utils/proximity';
+import { geolocationSample, shouldAcceptGeolocationSample, type PreciseGeolocation } from '../utils/geolocation';
+import { getMapRoute, type MapRoute, type StudentRouteMode } from '../services/liveLocationService';
+import { formatRouteDuration } from '../utils/studentLocationPresentation';
 import { FirestoreQueryOptimizer } from '../utils/firestoreQueryOptimizer';
 import { FirestoreCacheManager } from '../utils/firestoreCacheManager';
 import { listenerRegistry } from '../utils/listenerRegistry';
@@ -82,16 +86,66 @@ const BoundsTracker: React.FC<{ onBoundsChange: (bounds: LatLngBounds) => void }
   return null;
 };
 
-const MapFocusController: React.FC<{ position: Coordinates | null }> = ({ position }) => {
+const MapViewportController: React.FC<{
+  currentPosition: Coordinates | null;
+  focusPosition: Coordinates | null;
+  routePath?: MapRoute['path'];
+  followUser: boolean;
+  onFollowChange: (following: boolean) => void;
+  recenterToken: number;
+}> = ({ currentPosition, focusPosition, routePath, followUser, onFollowChange, recenterToken }) => {
   const map = useMap();
 
+  useMapEvents({
+    dragstart: () => onFollowChange(false),
+  });
+
   useEffect(() => {
-    if (!position) return;
-    map.flyTo([position.lat, position.lng], 17, { duration: 0.5 });
-  }, [map, position]);
+    if (routePath && routePath.length > 1) {
+      map.fitBounds(latLngBounds(routePath.map((item) => [item.latitude, item.longitude])), {
+        paddingTopLeft: [32, 100],
+        paddingBottomRight: [32, 170],
+        maxZoom: 17,
+        animate: true,
+      });
+      return;
+    }
+    if (focusPosition && currentPosition) {
+      map.fitBounds(latLngBounds([
+        [currentPosition.lat, currentPosition.lng],
+        [focusPosition.lat, focusPosition.lng],
+      ]), { padding: [54, 54], maxZoom: 17, animate: true });
+      return;
+    }
+    if (focusPosition) map.flyTo([focusPosition.lat, focusPosition.lng], 17, { duration: 0.5 });
+  }, [focusPosition, map, routePath]);
+
+  useEffect(() => {
+    if (!currentPosition || !followUser || routePath?.length) return;
+    const nextZoom = Math.max(map.getZoom(), 16);
+    map.flyTo([currentPosition.lat, currentPosition.lng], nextZoom, { duration: 0.45 });
+  }, [currentPosition?.lat, currentPosition?.lng, followUser, map, routePath?.length]);
+
+  useEffect(() => {
+    if (!recenterToken || !currentPosition) return;
+    map.flyTo([currentPosition.lat, currentPosition.lng], Math.max(map.getZoom(), 16), { duration: 0.45 });
+  }, [map, recenterToken]);
 
   return null;
 };
+
+const currentLocationIcon = divIcon({
+  className: 'tvu-current-location-marker',
+  html: '<span style="display:block;width:20px;height:20px;border-radius:9999px;background:#2563eb;border:4px solid white;box-shadow:0 0 0 5px rgba(37,99,235,.2),0 5px 14px rgba(15,23,42,.32)"></span>',
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+});
+
+const ROUTE_MODES: Array<{ value: StudentRouteMode; label: string; Icon: typeof Footprints }> = [
+  { value: 'walking', label: 'Đi bộ', Icon: Footprints },
+  { value: 'cycling', label: 'Xe đạp', Icon: Bike },
+  { value: 'driving', label: 'Xe máy / ô tô', Icon: Car },
+];
 
 // Task 7.1 — PlaceInfoBottomSheet component
 // Bug_Condition: activeTab = 'map' AND isMobile = true AND selectedPlace != null AND panel overlaps map
@@ -101,7 +155,8 @@ const PlaceInfoBottomSheet: React.FC<{
   currentUser: User;
   onClose: () => void;
   onOpenMap: () => void;
-}> = ({ place, currentUser, onClose, onOpenMap }) => {
+  onRoute: () => void;
+}> = ({ place, currentUser, onClose, onOpenMap, onRoute }) => {
   const { theme } = useTheme();
   const isGooglePlace = place.dataSource === 'google_places';
 
@@ -137,7 +192,7 @@ const PlaceInfoBottomSheet: React.FC<{
           {place.description && <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{place.description}</p>}
           {place.phone && <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 p-3 text-sm text-slate-700 dark:text-slate-200"><Phone className="w-4 h-4 inline mr-2" />{place.phone}</div>}
           {isGooglePlace ? (
-            <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-500 dark:bg-slate-800 dark:text-slate-400">Địa chỉ và khoảng cách được xem ngay trong TVU Connect. Nội dung Google Places không được đặt lên bản đồ OpenStreetMap để tuân thủ điều khoản dữ liệu của nguồn.</p>
+            <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-500 dark:bg-slate-800 dark:text-slate-400">Địa chỉ và thông tin quán đến từ Google Maps. Tuyến đường được TVU Connect tính bằng dữ liệu đường OpenStreetMap.</p>
           ) : (
             <>
               <InlineLocationMap
@@ -155,6 +210,13 @@ const PlaceInfoBottomSheet: React.FC<{
               </button>
             </>
           )}
+          <button
+            type="button"
+            onClick={onRoute}
+            className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-black text-white hover:bg-indigo-700"
+          >
+            <RouteIcon className="h-4 w-4" /> Chỉ đường ngắn nhất đến đây
+          </button>
           {place.id && <CommunityReviews targetKind={isGooglePlace ? 'google_place' : 'place'} targetId={place.id} currentUser={currentUser} />}
         </div>
       </div>
@@ -174,6 +236,16 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
   const [visibleMarkers, setVisibleMarkers] = useState(20); // First batch for progressive rendering
   const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
   const [mapFocus, setMapFocus] = useState<Coordinates | null>(null);
+  const [followUser, setFollowUser] = useState(true);
+  const [userAccuracy, setUserAccuracy] = useState<number | null>(null);
+  const [routeMode, setRouteMode] = useState<StudentRouteMode>('walking');
+  const [placeRoute, setPlaceRoute] = useState<MapRoute | null>(null);
+  const [routeDestination, setRouteDestination] = useState<(Place & { distance?: number }) | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [recenterToken, setRecenterToken] = useState(0);
+  const lastMapPositionRef = useRef<PreciseGeolocation | null>(null);
+  const locationErrorShownRef = useRef(false);
   
   // Firestore optimization - Task 8
   const [cacheManager] = useState(() => new FirestoreCacheManager({
@@ -226,6 +298,8 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
     try {
       const coordinates = await requestBrowserLocation();
       setUserLocation(coordinates);
+      setMapFocus(coordinates);
+      setFollowUser(true);
       toast.success('Đã cập nhật vị trí hiện tại. Vị trí chỉ được giữ trong phiên này.');
       return coordinates;
     } catch (locationError) {
@@ -235,6 +309,34 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
       setLocating(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'map' || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const sample = geolocationSample(position);
+        if (!shouldAcceptGeolocationSample(lastMapPositionRef.current, sample)) return;
+        const isFirstPosition = !lastMapPositionRef.current;
+        lastMapPositionRef.current = sample;
+        setUserLocation({ lat: sample.lat, lng: sample.lng });
+        setUserAccuracy(sample.accuracy);
+        if (isFirstPosition) {
+          setMapFocus({ lat: sample.lat, lng: sample.lng });
+          setFollowUser(true);
+        }
+        locationErrorShownRef.current = false;
+      },
+      (locationError) => {
+        if (locationErrorShownRef.current) return;
+        locationErrorShownRef.current = true;
+        toast.error(locationError.code === locationError.PERMISSION_DENIED
+          ? 'Hãy bật quyền Vị trí chính xác để bản đồ đi theo bạn.'
+          : 'GPS chưa ổn định. Bản đồ sẽ tự cập nhật khi có tín hiệu tốt hơn.');
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [activeTab]);
 
   const handlePlaceSelect = useCallback((place: Place & { distance?: number }) => {
     setSelectedPlace(place);
@@ -265,6 +367,50 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
     navigate(pathForExplore(tab));
     window.requestAnimationFrame(scrollMainContentToTop);
   }, [activeTab, navigate, scrollMainContentToTop, shouldLoadMap]);
+
+  const loadPlaceRoute = useCallback(async (
+    place: Place & { distance?: number },
+    mode: StudentRouteMode,
+  ) => {
+    setRouteLoading(true);
+    setRouteError(null);
+    try {
+      const current = await requestBrowserLocation();
+      setUserLocation(current);
+      setUserAccuracy(lastMapPositionRef.current?.accuracy || null);
+      const route = await getMapRoute(
+        { latitude: current.lat, longitude: current.lng },
+        { latitude: place.location.lat, longitude: place.location.lng },
+        mode,
+      );
+      setRouteDestination(place);
+      setPlaceRoute(route);
+      setMapFocus({ lat: place.location.lat, lng: place.location.lng });
+      setFollowUser(false);
+      setPanelOpen(false);
+      handleTabChange('map');
+    } catch (routeRequestError) {
+      const message = routeRequestError instanceof Error
+        ? routeRequestError.message
+        : 'Chưa thể tạo tuyến đường lúc này.';
+      setRouteError(message);
+      toast.error('Chưa thể tạo tuyến đường. Hãy kiểm tra quyền vị trí rồi thử lại.');
+    } finally {
+      setRouteLoading(false);
+    }
+  }, [handleTabChange]);
+
+  useEffect(() => {
+    if (!placeRoute || !routeDestination || !userLocation || routeLoading) return;
+    const firstPoint = placeRoute.path[0];
+    if (!firstPoint) return;
+    const movedFromRouteStart = calculateDistance(userLocation, {
+      lat: firstPoint.latitude,
+      lng: firstPoint.longitude,
+    }) * 1_000;
+    if (movedFromRouteStart < 80 || Date.now() - placeRoute.generatedAt < 75_000) return;
+    void loadPlaceRoute(routeDestination, placeRoute.mode);
+  }, [loadPlaceRoute, placeRoute, routeDestination, routeLoading, userLocation]);
 
   useEffect(() => {
     scrollMainContentToTop();
@@ -789,7 +935,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
           {activeTab === 'map' && (
             <div className="absolute inset-0 z-0">
               {/* Dynamic Places Counter Badge - Top Left */}
-              <div 
+              {!placeRoute && <div
                 onClick={() => {
                   // Scroll to list
                   if (activeTab === 'map') {
@@ -823,7 +969,50 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                     </span>
                   </div>
                 </div>
-              </div>
+              </div>}
+
+              {placeRoute && routeDestination && (
+                <div className="absolute left-3 right-3 top-3 z-[900] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:left-4 sm:right-auto sm:w-[390px]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">Tuyến đường ngắn nhất</p>
+                      <h3 className="truncate text-sm font-black text-slate-900 dark:text-white">Đến {routeDestination.name}</h3>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {formatDistance(placeRoute.distanceMeters / 1_000)} · {formatRouteDuration(placeRoute.durationSeconds)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlaceRoute(null);
+                        setRouteDestination(null);
+                        setRouteError(null);
+                        setMapFocus(userLocation);
+                        setFollowUser(true);
+                      }}
+                      className="rounded-lg bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                      aria-label="Đóng chỉ đường"
+                    ><X className="h-4 w-4" /></button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {ROUTE_MODES.map(({ value, label, Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={routeLoading}
+                        onClick={() => {
+                          setRouteMode(value);
+                          void loadPlaceRoute(routeDestination, value);
+                        }}
+                        className={`min-h-9 rounded-xl border px-2 text-[11px] font-bold ${routeMode === value ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`}
+                      >
+                        <span className="inline-flex items-center gap-1"><Icon className="h-3.5 w-3.5" />{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {routeError && <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">{routeError}</p>}
+                </div>
+              )}
 
               {shouldLoadMap ? (
                 <>
@@ -897,29 +1086,61 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                     style={{ height: '100%', width: '100%' }}
                     zoomControl={!isMobile}
                     preferCanvas={true} // CRITICAL: Use Canvas for better performance
-                    touchZoom={isMobile}
-                    doubleClickZoom={!isMobile}
-                    scrollWheelZoom={!isMobile}
+                    touchZoom
+                    doubleClickZoom
+                    scrollWheelZoom
                     dragging={true}
                     // Performance optimizations for mobile
                     zoomAnimation={!isMobile} // Disable zoom animation on mobile
                     fadeAnimation={!isMobile} // Disable fade animation on mobile
                     markerZoomAnimation={!isMobile} // Disable marker zoom animation on mobile
-                    worldCopyJump={false} // Disable world copy jump
-                    maxBoundsViscosity={1.0} // Prevent map from going outside bounds
+                    worldCopyJump
                     whenReady={() => setIsMapReady(true)}
                   >
                   <BoundsTracker onBoundsChange={setMapBounds} />
-                  <MapFocusController position={mapFocus} />
+                  <MapViewportController
+                    currentPosition={userLocation}
+                    focusPosition={mapFocus}
+                    routePath={placeRoute?.path}
+                    followUser={followUser}
+                    onFollowChange={setFollowUser}
+                    recenterToken={recenterToken}
+                  />
                   <TileLayer
                     attribution={MAP_TILE_ATTRIBUTION}
                     url={getMapTileUrl()}
                     maxZoom={19}
-                    minZoom={isMobile ? 12 : 13}
+                    minZoom={2}
                     keepBuffer={isMobile ? 1 : 2}
                     updateInterval={isMobile ? 200 : 100}
                     className={theme === 'dark' ? 'map-tiles-dark' : undefined}
                   />
+
+                  {placeRoute && (
+                    <Polyline
+                      positions={placeRoute.path.map((item) => [item.latitude, item.longitude])}
+                      pathOptions={{ color: '#4f46e5', weight: 6, opacity: 0.92 }}
+                    />
+                  )}
+                  {userLocation && (
+                    <>
+                      {userAccuracy && (
+                        <Circle
+                          center={[userLocation.lat, userLocation.lng]}
+                          radius={userAccuracy}
+                          pathOptions={{ color: '#2563eb', fillColor: '#60a5fa', fillOpacity: 0.12, weight: 1 }}
+                        />
+                      )}
+                      <Marker position={[userLocation.lat, userLocation.lng]} icon={currentLocationIcon}>
+                        <Popup>Vị trí hiện tại của bạn{userAccuracy ? ` · sai số khoảng ${Math.round(userAccuracy)} m` : ''}</Popup>
+                      </Marker>
+                    </>
+                  )}
+                  {routeDestination && (
+                    <Marker position={[routeDestination.location.lat, routeDestination.location.lng]} icon={DefaultIcon}>
+                      <Popup><strong>{routeDestination.name}</strong></Popup>
+                    </Marker>
+                  )}
 
                   <MarkerClusterGroup
                     chunkedLoading
@@ -982,7 +1203,24 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
               )}
 
               {/* Floating Action Button */}
-              <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-[1000]">
+              <div className="absolute bottom-6 right-4 flex flex-col gap-3 z-[1000] sm:right-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (userLocation) {
+                      setMapFocus({ ...userLocation });
+                      setFollowUser(true);
+                      setRecenterToken((value) => value + 1);
+                    } else {
+                      void requestCurrentLocation();
+                    }
+                  }}
+                  disabled={locating}
+                  className={`flex h-12 w-12 items-center justify-center rounded-full border bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900 ${followUser ? 'text-blue-600 ring-4 ring-blue-500/15' : 'text-slate-600 dark:text-slate-300'}`}
+                  title="Về vị trí của tôi"
+                >
+                  {locating ? <Loader2 className="h-5 w-5 animate-spin" /> : <LocateFixed className="h-5 w-5" />}
+                </button>
                 <button
                   onClick={() => setShowEventModal(true)}
                   className="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 flex items-center justify-center"
@@ -1063,9 +1301,11 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
           }}
           onOpenMap={() => {
             setMapFocus({ lat: selectedPlace.location.lat, lng: selectedPlace.location.lng });
+            setFollowUser(false);
             setPanelOpen(false);
             handleTabChange('map');
           }}
+          onRoute={() => void loadPlaceRoute(selectedPlace, routeMode)}
         />
       )}
 

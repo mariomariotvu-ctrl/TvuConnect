@@ -15,6 +15,11 @@ import {
   type LivePositionSample,
 } from '../utils/liveLocationUtils';
 import { playAppSound } from '../utils/appSounds';
+import {
+  geolocationSample,
+  shouldAcceptGeolocationSample,
+  type PreciseGeolocation,
+} from '../utils/geolocation';
 
 interface LiveLocationTrackerProps {
   currentUser: User;
@@ -27,6 +32,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
     encounterAlertsEnabled: false,
   });
   const lastPositionRef = useRef<LivePositionSample | null>(null);
+  const lastAcceptedSampleRef = useRef<PreciseGeolocation | null>(null);
   const sendingRef = useRef(false);
   const permissionErrorShownRef = useRef(false);
   const seenEncounterIdsRef = useRef(new Set<string>());
@@ -43,13 +49,17 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
     const activeVisibility = preferences.visibility;
 
     const sendPosition = async (position: GeolocationPosition, force = false) => {
+      const sample = geolocationSample(position);
+      if (!shouldAcceptGeolocationSample(lastAcceptedSampleRef.current, sample)) return;
+      lastAcceptedSampleRef.current = sample;
       const previous = lastPositionRef.current;
       const now = Date.now();
       const next = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
+        latitude: sample.lat,
+        longitude: sample.lng,
+        accuracy: sample.accuracy,
         sentAt: previous?.sentAt || 0,
+        observedAt: sample.observedAt,
       };
       if (!shouldSendLivePosition(
         previous,
@@ -68,8 +78,8 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
           accuracy: next.accuracy,
           visibility: activeVisibility,
           encounterAlertsEnabled: preferences.encounterAlertsEnabled,
-          speed: Number.isFinite(position.coords.speed) ? position.coords.speed : null,
-          heading: Number.isFinite(position.coords.heading) ? position.coords.heading : null,
+          speed: sample.speed,
+          heading: sample.heading,
         });
         lastPositionRef.current = { ...next, sentAt: now };
         permissionErrorShownRef.current = false;
@@ -89,14 +99,14 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
           ? 'Quyền vị trí đang bị tắt. TVU Connect đã ngừng cập nhật vị trí của bạn.'
           : 'Chưa thể cập nhật vị trí. Ứng dụng sẽ tự thử lại khi tín hiệu ổn định.');
       },
-      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 10_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
 
     const keepAlive = window.setInterval(() => {
       navigator.geolocation.getCurrentPosition(
         (position) => { void sendPosition(position, true); },
         () => undefined,
-        { enableHighAccuracy: true, timeout: 20_000, maximumAge: 60_000 },
+        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
       );
     }, LOCATION_KEEP_ALIVE_MS);
 
@@ -105,7 +115,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
       navigator.geolocation.getCurrentPosition(
         (position) => { void sendPosition(position, true); },
         () => undefined,
-        { enableHighAccuracy: true, timeout: 20_000, maximumAge: 15_000 },
+        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
       );
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);

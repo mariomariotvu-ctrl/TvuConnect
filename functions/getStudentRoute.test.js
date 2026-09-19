@@ -10,7 +10,16 @@ test('route input is authenticated and accepts supported travel modes', () => {
   assert.deepEqual(requireRouteInput({
     auth: { uid: 'student-a' },
     data: { targetUid: 'student-b', mode: 'walking' },
-  }), { uid: 'student-a', targetUid: 'student-b', mode: 'walking' });
+  }), { uid: 'student-a', targetUid: 'student-b', mode: 'walking', origin: null });
+
+  assert.deepEqual(requireRouteInput({
+    auth: { uid: 'student-a' },
+    data: {
+      targetUid: 'student-b',
+      mode: 'cycling',
+      origin: { latitude: 9.93, longitude: 106.34, accuracy: 12 },
+    },
+  }).origin, { latitude: 9.93, longitude: 106.34, accuracy: 12 });
 
   assert.throws(() => requireRouteInput({
     auth: { uid: 'student-a' },

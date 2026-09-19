@@ -5,13 +5,14 @@ export interface LivePositionSample {
   longitude: number;
   accuracy: number;
   sentAt: number;
+  observedAt?: number;
 }
 
-export const NORMAL_LOCATION_INTERVAL_MS = 20_000;
-export const ENCOUNTER_LOCATION_INTERVAL_MS = 10_000;
-export const LOCATION_KEEP_ALIVE_MS = 2 * 60_000;
-export const NORMAL_MOVEMENT_METERS = 15;
-export const ENCOUNTER_MOVEMENT_METERS = 8;
+export const NORMAL_LOCATION_INTERVAL_MS = 6_000;
+export const ENCOUNTER_LOCATION_INTERVAL_MS = 4_000;
+export const LOCATION_KEEP_ALIVE_MS = 45_000;
+export const NORMAL_MOVEMENT_METERS = 6;
+export const ENCOUNTER_MOVEMENT_METERS = 4;
 
 export function shouldSendLivePosition(
   previous: LivePositionSample | null,

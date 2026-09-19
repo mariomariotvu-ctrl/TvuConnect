@@ -25,7 +25,27 @@ function requireRouteInput(request) {
   if (!Object.hasOwn(ROUTE_PROVIDERS, mode)) {
     throw new HttpsError('invalid-argument', 'Phương tiện chỉ đường không hợp lệ.');
   }
-  return { uid, targetUid, mode };
+  const requestedOrigin = request.data?.origin;
+  const origin = requestedOrigin
+    && Number.isFinite(Number(requestedOrigin.latitude))
+    && Number.isFinite(Number(requestedOrigin.longitude))
+    && Number.isFinite(Number(requestedOrigin.accuracy))
+    && Number(requestedOrigin.latitude) >= -90
+    && Number(requestedOrigin.latitude) <= 90
+    && Number(requestedOrigin.longitude) >= -180
+    && Number(requestedOrigin.longitude) <= 180
+    && Number(requestedOrigin.accuracy) > 0
+    && Number(requestedOrigin.accuracy) <= 250
+    ? {
+      latitude: Number(requestedOrigin.latitude),
+      longitude: Number(requestedOrigin.longitude),
+      accuracy: Number(requestedOrigin.accuracy),
+    }
+    : null;
+  if (requestedOrigin && !origin) {
+    throw new HttpsError('invalid-argument', 'Vị trí bắt đầu không hợp lệ.');
+  }
+  return { uid, targetUid, mode, origin };
 }
 
 function projectedCoordinate(value) {
@@ -125,9 +145,10 @@ exports.getStudentRoute = onCall(
       );
     }
 
-    const origin = currentLocation.data();
+    const storedOrigin = currentLocation.data();
     const destination = targetLocation.data();
-    const originActive = currentLocation.exists && (origin?.expiresAt?.toMillis?.() || 0) > now;
+    const originActive = Boolean(input.origin)
+      || (currentLocation.exists && (storedOrigin?.expiresAt?.toMillis?.() || 0) > now);
     const destinationActive = targetLocation.exists && (destination?.expiresAt?.toMillis?.() || 0) > now;
     if (!originActive || !destinationActive) {
       throw new HttpsError(
@@ -140,8 +161,9 @@ exports.getStudentRoute = onCall(
 
     // The public routing provider receives only the same ~10 m projection a
     // friend can already see, never the original private Firestore point.
-    const originLat = projectedCoordinate(origin.latitude);
-    const originLng = projectedCoordinate(origin.longitude);
+    const routeOrigin = input.origin || storedOrigin;
+    const originLat = projectedCoordinate(routeOrigin.latitude);
+    const originLng = projectedCoordinate(routeOrigin.longitude);
     const destinationLat = projectedCoordinate(destination.latitude);
     const destinationLng = projectedCoordinate(destination.longitude);
     const provider = ROUTE_PROVIDERS[input.mode];
