@@ -12,7 +12,6 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-  getDoc,
   serverTimestamp
 } from '../firebase';
 import { Send, Reply, Trash2, User as UserIcon, MessageCircle } from 'lucide-react';
@@ -71,7 +70,7 @@ interface CommentItemProps {
   theme: string;
   onProfileClick?: (uid: string) => void;
   onReaction: (commentId: string, type: ReactionType) => void;
-  onDelete: (commentId: string, parentCommentId?: string) => void;
+  onDelete: (commentId: string) => void;
   onReply: (commentId: string) => void;
   replyTo: string | null;
   replyContent: string;
@@ -213,7 +212,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
             {isOwner && (
               <button
-                onClick={() => onDelete(comment.id!, comment.parentCommentId)}
+                onClick={() => onDelete(comment.id!)}
                 className="text-xs text-gray-400 hover:text-red-500"
               >
                 Xóa
@@ -325,7 +324,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [currentUserAvatar, setCurrentUserAvatar] = useState(currentUser.photoURL || '');
   const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
   const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
-  const [pendingDeleteParentId, setPendingDeleteParentId] = useState<string | undefined>(undefined);
 
   // Listen to current user's profile for avatar updates
   useEffect(() => {
@@ -396,21 +394,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
       // Direct write without quota check for comments
       await addDoc(collection(db, 'comments'), commentData);
-      
-      // Update post comment count - fire and forget, don't block on failure
-      try {
-        const postRef = doc(db, 'posts', postId);
-        const postDoc = await getDoc(postRef);
-        if (postDoc.exists()) {
-          const currentCount = postDoc.data()?.commentCount || 0;
-          await updateDoc(postRef, {
-            commentCount: currentCount + 1
-          });
-        }
-      } catch (updateError) {
-        // Non-critical: ignore commentCount update failure
-        console.warn('Failed to update comment count:', updateError);
-      }
 
       setNewComment('');
       toast.success('Đã đăng bình luận!');
@@ -448,14 +431,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
       // Direct write without quota check for replies
       await addDoc(collection(db, 'comments'), replyData);
-      
-      // Update parent comment reply count
-      const parentRef = doc(db, 'comments', parentCommentId);
-      const parentDoc = await getDoc(parentRef);
-      const currentCount = parentDoc.data()?.replyCount || 0;
-      await updateDoc(parentRef, {
-        replyCount: currentCount + 1
-      });
 
       setReplyContent('');
       setReplyTo(null);
@@ -545,11 +520,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     }
   };
 
-  const handleDeleteComment = async (commentId: string, parentCommentId?: string) => {
+  const handleDeleteComment = async (commentId: string) => {
     // 2-step delete: first call shows toast, second confirms
     if (pendingDeleteCommentId !== commentId) {
       setPendingDeleteCommentId(commentId);
-      setPendingDeleteParentId(parentCommentId);
       toast(
         <div className="flex flex-col gap-2">
           <p className="font-semibold text-gray-900">Xóa bình luận này?</p>
@@ -561,7 +535,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
               Huỷ
             </button>
             <button
-              onClick={() => { toast.dismiss(); handleDeleteComment(commentId, parentCommentId); }}
+              onClick={() => { toast.dismiss(); handleDeleteComment(commentId); }}
               className="flex-1 py-1.5 px-3 bg-red-500 text-white rounded-lg text-sm font-medium"
             >
               Xóa
@@ -579,23 +553,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       await safeWrite(
         async () => {
           await deleteDoc(doc(db, 'comments', commentId));
-          
-          // Update counts
-          if (parentCommentId) {
-            const parentRef = doc(db, 'comments', parentCommentId);
-            const parentDoc = await getDoc(parentRef);
-            const currentCount = parentDoc.data()?.replyCount || 0;
-            await updateDoc(parentRef, {
-              replyCount: Math.max(0, currentCount - 1)
-            });
-          } else {
-            const postRef = doc(db, 'posts', postId);
-            const postDoc = await getDoc(postRef);
-            const currentCount = postDoc.data()?.commentCount || 0;
-            await updateDoc(postRef, {
-              commentCount: Math.max(0, currentCount - 1)
-            });
-          }
         },
         'deleteComment'
       );

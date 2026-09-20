@@ -14,6 +14,7 @@ const getStudentRoute = require('./getStudentRoute');
 const getMapRoute = require('./getMapRoute');
 const announceNewProfile = require('./announceNewProfile');
 const sendCommentNotification = require('./sendCommentNotification');
+const syncCommentCounters = require('./syncCommentCounters');
 
 exports.sendMessageNotification = sendMessageNotification.sendMessageNotification;
 exports.sendCallNotification = sendCallNotification.sendCallNotification;
@@ -35,3 +36,4 @@ exports.getStudentRoute = getStudentRoute.getStudentRoute;
 exports.getMapRoute = getMapRoute.getMapRoute;
 exports.announceNewProfile = announceNewProfile.announceNewProfile;
 exports.sendCommentNotification = sendCommentNotification.sendCommentNotification;
+exports.syncCommentCounters = syncCommentCounters.syncCommentCounters;

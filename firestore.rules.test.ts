@@ -171,6 +171,50 @@ describeWithEmulator('Firestore security rules for social features', () => {
     }));
   });
 
+  it('xác thực tác giả bình luận và khóa bộ đếm phía server', async () => {
+    await seed([
+      ['posts/post-1', {
+        userId: 'student-a',
+        content: 'Bài viết',
+        commentCount: 0,
+      }],
+      ['comments/comment-1', {
+        postId: 'post-1',
+        userId: 'student-a',
+        content: 'Bình luận gốc',
+        likes: [],
+        likeCount: 0,
+        replyCount: 0,
+      }],
+    ]);
+    const studentA = environment.authenticatedContext('student-a').firestore();
+    const studentB = environment.authenticatedContext('student-b').firestore();
+
+    await assertSucceeds(setDoc(doc(studentB, 'comments/reply-1'), {
+      postId: 'post-1',
+      parentCommentId: 'comment-1',
+      userId: 'student-b',
+      content: 'Một phản hồi hợp lệ',
+      likes: [],
+      likeCount: 0,
+      createdAt: serverTimestamp(),
+    }));
+    await assertFails(setDoc(doc(studentB, 'comments/forged'), {
+      postId: 'post-1',
+      userId: 'student-a',
+      content: 'Giả mạo tác giả',
+      likes: [],
+      likeCount: 0,
+    }));
+    await assertFails(updateDoc(doc(studentB, 'comments/comment-1'), { replyCount: 99 }));
+    await assertFails(updateDoc(doc(studentB, 'posts/post-1'), { commentCount: 99 }));
+    await assertSucceeds(updateDoc(doc(studentA, 'comments/comment-1'), {
+      content: 'Nội dung đã sửa',
+      isEdited: true,
+      editedAt: serverTimestamp(),
+    }));
+  });
+
   it('chặn ghi sai phạm vi phòng học, đánh giá và vị trí trọ', async () => {
     await seed([
       ['studyRooms/room-1', { ownerUid: 'student-a', status: 'open' }],
