@@ -7,8 +7,8 @@ const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/icon-192.png?v=20260920',
+  '/icon-512.png?v=20260920'
 ];
 
 // Install event - cache essential assets
@@ -110,8 +110,8 @@ self.addEventListener('push', (event) => {
   
   const options = {
     body: data.body || 'Bạn có thông báo mới',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/icon-192.png?v=20260920',
+    badge: '/icon-192.png?v=20260920',
     vibrate: [200, 100, 200],
     data: {
       url: data.url || '/'

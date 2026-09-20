@@ -109,18 +109,18 @@ export const getFCMToken = async (
       // Use the explicit app worker instead of relying on SDK timing/default
       // registration. This is important on the first mobile visit.
       const serviceWorkerRegistration = await navigator.serviceWorker.ready;
-      let token: string;
-      try {
-        token = vapidKey
-          ? await getToken(messaging, { vapidKey, serviceWorkerRegistration })
-          : await getToken(messaging, { serviceWorkerRegistration });
-      } catch (customKeyError) {
-        // Older deployments may still carry a VAPID key from another Firebase
-        // project. Firebase's project-default key is a safe compatibility path
-        // until the project owner generates and deploys its own Web Push key.
-        logger.warn('Custom Web Push key was rejected; retrying with Firebase default.', customKeyError);
-        token = await getToken(messaging, { serviceWorkerRegistration });
+      if (!vapidKey) {
+        logger.warn('Web Push is not configured for this deployment.');
+        markTokenRequestFailed(userId);
+        return null;
       }
+
+      // A VAPID public key belongs to exactly one Firebase project. Retrying
+      // with Firebase's legacy default key after a 401 only creates a second
+      // failing request and leaves the browser with a misleading error trail.
+      // Once the project key is configured, the SDK rotates stale local token
+      // metadata automatically when this value changes.
+      const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration });
     
       if (token) {
         clearTokenRequestFailure(userId);

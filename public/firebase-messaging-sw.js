@@ -50,8 +50,8 @@ const notificationFor = (data = {}) => {
     title,
     options: {
       body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/icon-192.png?v=20260920',
+      badge: '/icon-192.png?v=20260920',
       tag,
       renotify: true,
       silent: false,
