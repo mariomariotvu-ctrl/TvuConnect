@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { User } from 'firebase/auth';
 import type { Timestamp } from 'firebase/firestore';
@@ -31,13 +31,20 @@ const profile = (overrides: Partial<StudentProfile> = {}): StudentProfile => ({
   ...overrides,
 });
 
-const renderDeck = (currentProfile: StudentProfile, profiles: StudentProfile[]) => render(
+const renderDeck = (
+  currentProfile: StudentProfile,
+  profiles: StudentProfile[],
+  genderFilter: 'any' | 'male' | 'female' = 'any',
+  onGenderFilterChange = vi.fn(),
+) => render(
   <DatingDeck
     currentUser={user}
     currentProfile={currentProfile}
     profiles={profiles}
     loading={false}
     onFindProfiles={vi.fn()}
+    genderFilter={genderFilter}
+    onGenderFilterChange={onGenderFilterChange}
     onLoadMore={vi.fn()}
     onStartChat={vi.fn()}
   />,
@@ -76,5 +83,18 @@ describe('DatingDeck privacy and age gates', () => {
 
     expect(screen.getByText('Hẹn hò chỉ dành cho sinh viên từ 18 tuổi')).toBeInTheDocument();
     expect(screen.queryByText('Tìm hồ sơ phù hợp')).not.toBeInTheDocument();
+  });
+
+  it('lọc Nam/Nữ và yêu cầu tải lại đúng giới tính', () => {
+    const onGenderFilterChange = vi.fn();
+    renderDeck(profile(), [
+      profile({ uid: 'male-candidate', fullName: 'Bạn Nam', gender: 'male' }),
+      profile({ uid: 'female-candidate', fullName: 'Bạn Nữ', gender: 'female' }),
+    ], 'female', onGenderFilterChange);
+
+    expect(screen.getByText(/Bạn Nữ/)).toBeInTheDocument();
+    expect(screen.queryByText(/Bạn Nam/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Nam' }));
+    expect(onGenderFilterChange).toHaveBeenCalledWith('male');
   });
 });

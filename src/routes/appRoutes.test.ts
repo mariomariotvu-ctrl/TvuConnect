@@ -13,6 +13,7 @@ describe('appRoutes', () => {
   it('maps primary views to stable paths', () => {
     expect(pathForView('students')).toBe('/friends');
     expect(pathForView('documents')).toBe('/library');
+    expect(pathForView('notifications')).toBe('/notifications');
     expect(pathForChat('student/01')).toBe('/messages/student%2F01');
   });
 
@@ -21,6 +22,7 @@ describe('appRoutes', () => {
     expect(resolveAppRoute(pathForMatching('study'))).toEqual({ view: 'matching', matchingMode: 'study' });
     expect(resolveAppRoute(pathForExplore('rental'))).toEqual({ view: 'explore', exploreTab: 'rental' });
     expect(resolveAppRoute(pathForExplore('people'))).toEqual({ view: 'explore', exploreTab: 'people' });
+    expect(resolveAppRoute('/notifications')).toEqual({ view: 'notifications' });
   });
 
   it('uses safe defaults for unsupported nested values and paths', () => {

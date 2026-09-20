@@ -1,5 +1,5 @@
 const { getApps, initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 
 if (!getApps().length) {
@@ -24,6 +24,12 @@ const stringData = (data) => Object.fromEntries(
     .filter(([, value]) => value !== undefined && value !== null)
     .map(([key, value]) => [key, String(value)]),
 );
+
+const safeText = (value, maxLength) => String(value || '').trim().slice(0, maxLength);
+const safePhotoURL = (value) => {
+  if (typeof value !== 'string' || value.length > 2_048) return null;
+  return /^https:\/\//i.test(value) ? value : null;
+};
 
 async function activeTokenDocs(userId) {
   const snapshot = await getFirestore()
@@ -76,4 +82,66 @@ async function sendDataNotification(recipientUid, data) {
   return { successCount, failureCount };
 }
 
-module.exports = { sendDataNotification };
+const cleanNotificationId = (value) => String(value || 'event')
+  .replace(/[^A-Za-z0-9_-]/g, '_')
+  .slice(0, 180);
+
+/**
+ * Store one immutable inbox item before attempting push delivery. Using
+ * DocumentReference.create with a deterministic id makes retries safe: only
+ * the first invocation writes the item and sends the push notification.
+ */
+async function createInboxNotification(recipientUid, notificationId, data) {
+  const reference = getFirestore()
+    .collection('users')
+    .doc(recipientUid)
+    .collection('notifications')
+    .doc(cleanNotificationId(notificationId));
+
+  try {
+    await reference.create({
+      recipientUid,
+      type: data.type || 'system',
+      title: safeText(data.title || 'TVU Connect', 160),
+      body: safeText(data.body, 600),
+      actorUid: data.actorUid || null,
+      actorName: data.actorName || null,
+      actorPhotoURL: safePhotoURL(data.actorPhotoURL),
+      entityId: data.entityId || null,
+      route: data.route || '/notifications',
+      reason: data.reason || null,
+      readAt: null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    // gRPC 6 / ALREADY_EXISTS means another retry already delivered it.
+    if (error?.code === 6 || error?.code === 'already-exists') return false;
+    throw error;
+  }
+}
+
+async function deliverNotification(recipientUid, notificationId, data) {
+  const created = await createInboxNotification(recipientUid, notificationId, data);
+  if (!created) return { created: false, successCount: 0, failureCount: 0 };
+
+  const pushResult = await sendDataNotification(recipientUid, {
+    type: data.type || 'system',
+    title: safeText(data.title || 'TVU Connect', 160),
+    body: safeText(data.body, 500),
+    actorUid: data.actorUid,
+    actorName: data.actorName,
+    actorPhotoURL: safePhotoURL(data.actorPhotoURL),
+    entityId: data.entityId,
+    route: data.route || '/notifications',
+    ...data.pushData,
+  });
+  return { created: true, ...pushResult };
+}
+
+module.exports = {
+  cleanNotificationId,
+  createInboxNotification,
+  deliverNotification,
+  sendDataNotification,
+};

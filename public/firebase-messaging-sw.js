@@ -17,13 +17,14 @@ const messaging = firebase.messaging();
 const notificationFor = (data = {}) => {
   const isCall = data.type === 'call';
   const isEncounter = data.type === 'encounter';
+  const isMessage = data.type === 'message';
   const senderName = data.senderName || data.callerName || data.peerName || 'TVU Connect';
   const encounterDistance = Number(data.distanceMeters);
-  const title = isEncounter
+  const title = data.title || (isEncounter
     ? `Bạn vừa chạm mặt ${senderName}`
     : isCall
       ? `${data.kind === 'video' ? 'Cuộc gọi video' : 'Cuộc gọi thoại'} từ ${senderName}`
-      : senderName;
+      : senderName);
   const body = isEncounter
     ? `Hai bạn vừa ở cách nhau khoảng ${Number.isFinite(encounterDistance) ? `${encounterDistance} m` : '35 m'}. Mở bản đồ để xem lại.`
     : isCall
@@ -33,12 +34,16 @@ const notificationFor = (data = {}) => {
     ? `encounter:${data.encounterId || data.peerUid || 'nearby'}`
     : isCall
       ? `call:${data.callId || 'incoming'}`
-      : `message:${data.conversationId || 'default'}`;
-  const url = isCall
-    ? '/'
+      : isMessage
+        ? `message:${data.conversationId || 'default'}`
+        : `${data.type || 'system'}:${data.entityId || data.actorUid || 'default'}`;
+  const url = data.route || (isCall
+    ? `/messages/${encodeURIComponent(data.callerUid || '')}`
     : isEncounter
       ? '/explore/people'
-      : `/messages/${encodeURIComponent(data.senderUid || '')}`;
+      : isMessage
+        ? `/messages/${encodeURIComponent(data.senderUid || '')}`
+        : '/notifications');
 
   return {
     title,
@@ -57,7 +62,9 @@ const notificationFor = (data = {}) => {
         ? [{ action: 'open', title: 'Mở TVU Connect' }, { action: 'close', title: 'Đóng' }]
         : isEncounter
           ? [{ action: 'open', title: 'Xem bản đồ' }, { action: 'close', title: 'Đóng' }]
-          : [{ action: 'open', title: 'Mở tin nhắn' }, { action: 'close', title: 'Đóng' }],
+          : isMessage
+            ? [{ action: 'open', title: 'Mở tin nhắn' }, { action: 'close', title: 'Đóng' }]
+            : [{ action: 'open', title: 'Xem thông báo' }, { action: 'close', title: 'Đóng' }],
     },
   };
 };

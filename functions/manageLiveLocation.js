@@ -3,7 +3,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { distanceBetween, geohashForLocation, geohashQueryBounds } = require('geofire-common');
-const { sendDataNotification } = require('./notificationHelpers');
+const { deliverNotification } = require('./notificationHelpers');
 
 if (!getApps().length) initializeApp();
 
@@ -281,21 +281,35 @@ exports.updateLiveLocation = onCall(async (request) => {
   }
 
   await Promise.all(createdEncounters.flatMap((encounter) => [
-    sendDataNotification(input.uid, {
+    deliverNotification(input.uid, `encounter_${encounter.encounterId}`, {
       type: 'encounter',
-      peerUid: encounter.candidateUid,
-      peerName: encounter.candidateName,
-      encounterId: encounter.encounterId,
-      distanceMeters: encounter.distanceMeters,
+      title: `Bạn vừa chạm mặt ${encounter.candidateName}`,
       body: `Bạn vừa chạm mặt ${encounter.candidateName}.`,
+      actorUid: encounter.candidateUid,
+      actorName: encounter.candidateName,
+      entityId: encounter.encounterId,
+      route: '/explore/people',
+      pushData: {
+        peerUid: encounter.candidateUid,
+        peerName: encounter.candidateName,
+        encounterId: encounter.encounterId,
+        distanceMeters: encounter.distanceMeters,
+      },
     }),
-    sendDataNotification(encounter.candidateUid, {
+    deliverNotification(encounter.candidateUid, `encounter_${encounter.encounterId}`, {
       type: 'encounter',
-      peerUid: input.uid,
-      peerName: encounter.currentName,
-      encounterId: encounter.encounterId,
-      distanceMeters: encounter.distanceMeters,
+      title: `Bạn vừa chạm mặt ${encounter.currentName}`,
       body: `Bạn vừa chạm mặt ${encounter.currentName}.`,
+      actorUid: input.uid,
+      actorName: encounter.currentName,
+      entityId: encounter.encounterId,
+      route: '/explore/people',
+      pushData: {
+        peerUid: input.uid,
+        peerName: encounter.currentName,
+        encounterId: encounter.encounterId,
+        distanceMeters: encounter.distanceMeters,
+      },
     }),
   ])).catch((error) => {
     console.error('Could not send encounter notification:', error);

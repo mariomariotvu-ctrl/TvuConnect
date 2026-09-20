@@ -146,6 +146,31 @@ describeWithEmulator('Firestore security rules for social features', () => {
     }));
   });
 
+  it('chỉ cho chủ hộp thư đọc và đánh dấu thông báo do server tạo', async () => {
+    await seed([
+      ['users/student-a/notifications/event-1', {
+        recipientUid: 'student-a',
+        type: 'friend_request',
+        title: 'Bạn có lời mời kết bạn',
+        body: 'Mở ứng dụng để xem.',
+        readAt: null,
+        createdAt: new Date('2026-09-19T00:00:00Z'),
+      }],
+    ]);
+    const studentA = environment.authenticatedContext('student-a').firestore();
+    const studentB = environment.authenticatedContext('student-b').firestore();
+    const notification = doc(studentA, 'users/student-a/notifications/event-1');
+
+    await assertSucceeds(getDoc(notification));
+    await assertFails(getDoc(doc(studentB, 'users/student-a/notifications/event-1')));
+    await assertSucceeds(updateDoc(notification, { readAt: serverTimestamp() }));
+    await assertFails(updateDoc(notification, { title: 'Nội dung giả mạo' }));
+    await assertFails(setDoc(doc(studentA, 'users/student-a/notifications/fake'), {
+      recipientUid: 'student-a',
+      type: 'system',
+    }));
+  });
+
   it('chặn ghi sai phạm vi phòng học, đánh giá và vị trí trọ', async () => {
     await seed([
       ['studyRooms/room-1', { ownerUid: 'student-a', status: 'open' }],

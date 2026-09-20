@@ -66,7 +66,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({ view, mobile = fal
           type="button"
           data-menu-toggle="true"
           data-tour="more"
-          className={moreOpen || ['profile', 'settings', 'documents', 'posts'].includes(view) ? 'is-active' : undefined}
+          className={moreOpen || ['profile', 'notifications', 'settings', 'documents', 'posts'].includes(view) ? 'is-active' : undefined}
           aria-expanded={moreOpen}
           aria-controls="mobile-menu-container"
           onClick={onMore}

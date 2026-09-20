@@ -49,6 +49,8 @@ export interface StudentProfile {
   datingEnabled?: boolean;
   /** Hide the profile photo inside the dating deck until the owner disables it. */
   hideFaceInDating?: boolean;
+  /** Optional candidate filter remembered for the dating deck. */
+  datingGenderPreference?: 'any' | 'male' | 'female';
   datingBio?: string;
   university?: string;
   campus?: string;
@@ -56,7 +58,33 @@ export interface StudentProfile {
   updatedAt: Timestamp;
 }
 
-export type View = 'home' | 'profile' | 'matching' | 'students' | 'results' | 'chat' | 'conversations' | 'settings' | 'posts' | 'explore' | 'documents';
+export type View = 'home' | 'profile' | 'matching' | 'students' | 'results' | 'chat' | 'conversations' | 'notifications' | 'settings' | 'posts' | 'explore' | 'documents';
+
+export type AppNotificationType =
+  | 'message'
+  | 'call'
+  | 'friend_request'
+  | 'friend_accepted'
+  | 'encounter'
+  | 'new_profile'
+  | 'dating_match'
+  | 'system';
+
+export interface AppNotification {
+  id: string;
+  recipientUid: string;
+  type: AppNotificationType;
+  title: string;
+  body: string;
+  actorUid?: string | null;
+  actorName?: string | null;
+  actorPhotoURL?: string | null;
+  entityId?: string | null;
+  route?: string | null;
+  reason?: string | null;
+  readAt?: Timestamp | null;
+  createdAt?: Timestamp | null;
+}
 
 export interface Message {
   id?: string;

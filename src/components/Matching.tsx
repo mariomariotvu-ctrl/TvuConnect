@@ -91,8 +91,9 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, o
     onMatchFound(profile);
   }, [reasonsMap, currentUser.uid, onMatchFound]);
 
-  const startMatching = useCallback(async () => {
+  const startMatching = useCallback(async (filterOverrides: Partial<typeof filters> = {}) => {
     const usesDailyLimit = mode === 'hobby';
+    const isFilterRefresh = Object.keys(filterOverrides).length > 0;
     // Check if out of matches - just show toast, banner already visible
     if (usesDailyLimit && remainingMatches === 0) {
       const { hours, minutes } = getTimeUntilReset(currentUser.uid);
@@ -102,17 +103,18 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, o
     }
     
     const now = Date.now();
-    if (now - lastActionTime < TIMING.MATCHING_THROTTLE) {
+    if (!isFilterRefresh && now - lastActionTime < TIMING.MATCHING_THROTTLE) {
       toast.error(`Vui lòng đợi ${Math.ceil((TIMING.MATCHING_THROTTLE - (now - lastActionTime)) / 1000)} giây`);
       return;
     }
-    setLastActionTime(now);
+    if (!isFilterRefresh) setLastActionTime(now);
 
     // Track matching start (fire-and-forget)
-    trackMatchingStart(currentUser.uid, mode, filters);
+    const effectiveFilters = { ...filters, ...filterOverrides };
+    trackMatchingStart(currentUser.uid, mode, effectiveFilters);
 
     // Task 4.5: Use cached matching hook
-    await startCachedMatching();
+    await startCachedMatching(filterOverrides);
     
     // Update remaining matches after matching
     if (usesDailyLimit) setRemainingMatches(getRemainingMatches(currentUser.uid));
@@ -184,7 +186,16 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, o
           currentProfile={currentProfile}
           profiles={matchedProfiles}
           loading={isMatching}
-          onFindProfiles={() => { void startMatching(); }}
+          onFindProfiles={() => {
+            const preference = currentProfile?.datingGenderPreference || 'any';
+            void startMatching({ gender: preference === 'any' ? '' : preference });
+          }}
+          genderFilter={(filters.gender || currentProfile?.datingGenderPreference || 'any') as 'any' | 'male' | 'female'}
+          onGenderFilterChange={(gender) => {
+            const queryGender = gender === 'any' ? '' : gender;
+            setFilters({ gender: queryGender });
+            void startMatching({ gender: queryGender });
+          }}
           onLoadMore={() => { void loadOneMore(); }}
           onStartChat={onStartChat}
         />
@@ -259,7 +270,7 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, o
 
         {/* Start Matching Button */}
         <button
-          onClick={startMatching}
+          onClick={() => void startMatching()}
           disabled={isMatching || (mode === 'hobby' && remainingMatches === 0)}
           className={`w-full py-3.5 md:py-4 ${
             mode === 'hobby' && remainingMatches === 0

@@ -20,6 +20,7 @@ export const VIEW_PATHS: Record<Exclude<View, 'chat'>, string> = {
   students: '/friends',
   results: '/match-result',
   conversations: '/messages',
+  notifications: '/notifications',
   settings: '/settings',
   posts: '/community',
   explore: '/explore',
@@ -42,6 +43,7 @@ export function resolveAppRoute(pathname: string): AppRoute {
   if (path === '/settings') return { view: 'settings' };
   if (path === '/community') return { view: 'posts' };
   if (path === '/library') return { view: 'documents' };
+  if (path === '/notifications') return { view: 'notifications' };
 
   if (parts[0] === 'messages') {
     return parts[1]
@@ -109,7 +111,7 @@ export function migrateLegacyHash(hash: string): string | null {
   const legacyView = hash.slice(1) as View;
   const validViews = new Set<View>([
     'home', 'profile', 'matching', 'students', 'results', 'chat',
-    'conversations', 'settings', 'posts', 'explore', 'documents',
+    'conversations', 'notifications', 'settings', 'posts', 'explore', 'documents',
   ]);
 
   return validViews.has(legacyView) ? pathForView(legacyView) : null;

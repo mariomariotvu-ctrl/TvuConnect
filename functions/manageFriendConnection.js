@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { deliverNotification } = require('./notificationHelpers');
 
 if (!getApps().length) initializeApp();
 
@@ -30,6 +31,7 @@ exports.manageFriendConnection = onCall(async (request) => {
   const { uid, friendUid, action } = requireFriendAction(request);
   const firestore = getFirestore();
   const pairId = pairIdFor(uid, friendUid);
+  const actionEventId = firestore.collection('_notificationEvents').doc().id;
   const friendshipRef = firestore.collection('friendships').doc(pairId);
   const outgoingRequestRef = firestore.collection('friendRequests').doc(`${uid}_${friendUid}`);
   const incomingRequestRef = firestore.collection('friendRequests').doc(`${friendUid}_${uid}`);
@@ -40,7 +42,7 @@ exports.manageFriendConnection = onCall(async (request) => {
   const ownSharedLocationRef = firestore.collection('sharedStudentLocations').doc(uid);
   const friendSharedLocationRef = firestore.collection('sharedStudentLocations').doc(friendUid);
 
-  return firestore.runTransaction(async (transaction) => {
+  const outcome = await firestore.runTransaction(async (transaction) => {
     const [
       friendship,
       outgoingRequest,
@@ -95,13 +97,17 @@ exports.manageFriendConnection = onCall(async (request) => {
     };
 
     if (action === 'send') {
-      if (friendship.exists) return { status: 'accepted' };
+      if (friendship.exists) return { status: 'accepted', notification: null };
 
       if (incomingRequest.exists && incomingRequest.data()?.status === 'pending') {
         connect();
         transaction.update(incomingRequestRef, { status: 'accepted', respondedAt: now });
         if (outgoingRequest.exists) transaction.delete(outgoingRequestRef);
-        return { status: 'accepted' };
+        return { status: 'accepted', notification: 'friend_accepted' };
+      }
+
+      if (outgoingRequest.exists && outgoingRequest.data()?.status === 'pending') {
+        return { status: 'pending', notification: null };
       }
 
       transaction.set(outgoingRequestRef, {
@@ -114,32 +120,32 @@ exports.manageFriendConnection = onCall(async (request) => {
           : now,
         updatedAt: now,
       });
-      return { status: 'pending' };
+      return { status: 'pending', notification: 'friend_request' };
     }
 
     if (action === 'accept') {
-      if (friendship.exists) return { status: 'accepted' };
+      if (friendship.exists) return { status: 'accepted', notification: null };
       if (!incomingRequest.exists || incomingRequest.data()?.status !== 'pending') {
         throw new HttpsError('failed-precondition', 'Lời mời kết bạn không còn hiệu lực.');
       }
       connect();
       transaction.update(incomingRequestRef, { status: 'accepted', respondedAt: now });
       if (outgoingRequest.exists) transaction.delete(outgoingRequestRef);
-      return { status: 'accepted' };
+      return { status: 'accepted', notification: 'friend_accepted' };
     }
 
     if (action === 'decline') {
       if (incomingRequest.exists && incomingRequest.data()?.status === 'pending') {
         transaction.update(incomingRequestRef, { status: 'declined', respondedAt: now });
       }
-      return { status: 'none' };
+      return { status: 'none', notification: null };
     }
 
     if (action === 'cancel') {
       if (outgoingRequest.exists && outgoingRequest.data()?.status === 'pending') {
         transaction.delete(outgoingRequestRef);
       }
-      return { status: friendship.exists ? 'accepted' : 'none' };
+      return { status: friendship.exists ? 'accepted' : 'none', notification: null };
     }
 
     if (friendship.exists) transaction.delete(friendshipRef);
@@ -157,8 +163,37 @@ exports.manageFriendConnection = onCall(async (request) => {
         updatedAt: now,
       });
     }
-    return { status: 'none' };
+    return { status: 'none', notification: null };
   });
+
+  if (outcome.notification) {
+    try {
+      const actorProfile = await ownProfileRef.get();
+      const actor = actorProfile.data() || {};
+      const actorName = actor.fullName || actor.nickname || 'Một sinh viên TVU';
+      const accepted = outcome.notification === 'friend_accepted';
+      await deliverNotification(
+        friendUid,
+        `${outcome.notification}_${pairId}_${actionEventId}`,
+        {
+          type: outcome.notification,
+          title: accepted ? `${actorName} đã đồng ý kết bạn` : `${actorName} muốn kết bạn`,
+          body: accepted
+            ? 'Hai bạn đã có thể chia sẻ và trò chuyện với nhau.'
+            : 'Mở TVU Connect để xem hồ sơ và phản hồi lời mời.',
+          actorUid: uid,
+          actorName,
+          actorPhotoURL: actor.photoURL || null,
+          entityId: pairId,
+          route: '/friends',
+        },
+      );
+    } catch (error) {
+      console.error('Could not deliver friend notification:', error);
+    }
+  }
+
+  return { status: outcome.status };
 });
 
 exports.pairIdFor = pairIdFor;

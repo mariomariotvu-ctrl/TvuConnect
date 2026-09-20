@@ -61,6 +61,11 @@ export const LazyConversationsList = lazyWithRetry(() =>
   'conversations'
 );
 
+export const LazyNotificationCenter = lazyWithRetry(() =>
+  import(/* webpackChunkName: "notifications" */ '../components/NotificationCenter').then(module => ({ default: module.NotificationCenter })),
+  'notifications'
+);
+
 export const LazyMapView = lazyWithRetry(() => 
   import(/* webpackChunkName: "map" */ '../components/MapView').then(module => ({ default: module.MapView })),
   'map'

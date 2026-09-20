@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { deliverNotification } = require('./notificationHelpers');
 
 if (!getApps().length) {
   initializeApp();
@@ -44,7 +45,7 @@ exports.recordDatingDecision = onCall(async (request) => {
   const participantUids = [fromUid, toUid].sort();
   const matchRef = firestore.collection('datingMatches').doc(participantUids.join('_'));
 
-  return firestore.runTransaction(async (transaction) => {
+  const outcome = await firestore.runTransaction(async (transaction) => {
     // All reads deliberately happen before writes. Firestore retries this
     // transaction when another tab changes either participant's decision.
     const [
@@ -93,7 +94,7 @@ exports.recordDatingDecision = onCall(async (request) => {
 
     if (action === 'pass') {
       if (currentLike.exists) transaction.delete(likeRef);
-      return { matched: false };
+      return { matched: false, matchCreated: false };
     }
 
     transaction.set(likeRef, {
@@ -111,8 +112,49 @@ exports.recordDatingDecision = onCall(async (request) => {
       });
     }
 
-    return { matched };
+    return { matched, matchCreated: matched && !currentMatch.exists };
   });
+
+  if (outcome.matchCreated) {
+    try {
+      const [fromProfile, toProfile] = await Promise.all([
+        firestore.collection('profiles').doc(fromUid).get(),
+        firestore.collection('profiles').doc(toUid).get(),
+      ]);
+      const from = fromProfile.data() || {};
+      const to = toProfile.data() || {};
+      const fromName = from.fullName || from.nickname || 'Một sinh viên TVU';
+      const toName = to.fullName || to.nickname || 'Một sinh viên TVU';
+      const matchId = participantUids.join('_');
+
+      await Promise.all([
+        deliverNotification(fromUid, `dating_match_${matchId}`, {
+          type: 'dating_match',
+          title: `Bạn và ${toName} đã cùng thích nhau`,
+          body: 'Mở cuộc trò chuyện và bắt đầu bằng một lời chào lịch sự.',
+          actorUid: toUid,
+          actorName: toName,
+          actorPhotoURL: to.photoURL || null,
+          entityId: matchId,
+          route: `/messages/${encodeURIComponent(toUid)}`,
+        }),
+        deliverNotification(toUid, `dating_match_${matchId}`, {
+          type: 'dating_match',
+          title: `Bạn và ${fromName} đã cùng thích nhau`,
+          body: 'Mở cuộc trò chuyện và bắt đầu bằng một lời chào lịch sự.',
+          actorUid: fromUid,
+          actorName: fromName,
+          actorPhotoURL: from.photoURL || null,
+          entityId: matchId,
+          route: `/messages/${encodeURIComponent(fromUid)}`,
+        }),
+      ]);
+    } catch (error) {
+      console.error('Could not deliver dating match notification:', error);
+    }
+  }
+
+  return { matched: outcome.matched };
 });
 
 exports.requireDatingRequest = requireDatingRequest;

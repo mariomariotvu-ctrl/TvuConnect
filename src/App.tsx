@@ -8,11 +8,12 @@ import { FeedbackModal } from './components/FeedbackModal';
 import { useFeedbackPrompt } from './hooks/useFeedbackPrompt';
 import { useTheme } from './contexts/ThemeContext';
 import { StudentProfile, View, Message } from './types';
-import { Sparkles, User as UserIcon, Home, Heart, Search, Users, Zap, BookOpen, Smile, Settings as SettingsIcon, Utensils, LogOut, FileText } from 'lucide-react';
+import { Bell, Sparkles, User as UserIcon, Home, Heart, Search, Users, Zap, BookOpen, Smile, Settings as SettingsIcon, Utensils, LogOut, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Logo } from './components/Logo';
 import { LandingPage } from './components/LandingPage';
 import { AppNavigation } from './components/AppNavigation';
+import { NotificationBell } from './components/NotificationBell';
 import { toast } from 'sonner';
 import { quotaManager } from './utils/quotaManager';
 
@@ -28,6 +29,7 @@ import { onlineStatusManager } from './utils/onlineStatusManager';
 import { subscribeToIncomingCalls } from './services/callService';
 import { CallKind, CallSession } from './types/call';
 import { initializeAppSounds, playAppSound } from './utils/appSounds';
+import { safeNotificationRoute } from './services/notificationCenterService';
 
 // Lazy-loaded components for code splitting
 import { 
@@ -35,6 +37,7 @@ import {
   LazyMatching, 
   LazyChat, 
   LazyConversationsList, 
+  LazyNotificationCenter,
   LazyProfileCard, 
   LazySettings, 
   LazyPostsList, 
@@ -817,6 +820,15 @@ export default function App() {
             <LazyConversationsList onStartChat={handleStartChat} onNewChat={() => navigate(pathForMatching('quick'))} />
           </RouteLoader>
         );
+      case 'notifications':
+        return (
+          <RouteLoader minHeight="min-h-[500px]">
+            <LazyNotificationCenter
+              currentUser={user}
+              onOpenRoute={(routePath) => navigate(routePath)}
+            />
+          </RouteLoader>
+        );
       case 'settings':
         return user ? (
           <RouteLoader minHeight="min-h-[400px]">
@@ -1284,6 +1296,10 @@ export default function App() {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'NOTIFICATION_CLICKED') {
         const data = event.data.data || {};
+        if (typeof data.route === 'string') {
+          navigate(safeNotificationRoute(data.route));
+          return;
+        }
         if (data.type === 'message') {
           if (data.senderUid) {
             handleStartChat(data.senderUid);
@@ -1296,6 +1312,10 @@ export default function App() {
           setView('home');
         } else if (data.type === 'encounter') {
           navigate(pathForExplore('people'));
+        } else if (['friend_request', 'friend_accepted', 'new_profile'].includes(data.type)) {
+          setView('students');
+        } else if (data.type === 'dating_match') {
+          navigate(pathForMatching('lover'));
         }
       }
     };
@@ -1379,6 +1399,11 @@ export default function App() {
               {user && (
                 <>
                   <div className="flex items-center gap-2 sm:gap-3">
+                    <NotificationBell
+                      uid={user.uid}
+                      active={view === 'notifications'}
+                      onOpen={() => handleViewChange('notifications')}
+                    />
                     {/* User Profile Button with Avatar and Name */}
                     <button
                       data-tour="profile"
@@ -1482,6 +1507,13 @@ export default function App() {
                             >
                               <BookOpen className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                               <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Thư viện học liệu</span><span className="block text-xs text-slate-500">Sách, giáo trình và tài liệu theo ngành</span></span>
+                            </button>
+                            <button
+                              onClick={() => { setShowMobileMenu(false); handleViewChange('notifications'); }}
+                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                            >
+                              <Bell className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Thông báo</span><span className="block text-xs text-slate-500">Tin nhắn, cuộc gọi và kết nối mới</span></span>
                             </button>
                             <button
                               onClick={() => { setShowMobileMenu(false); handleViewChange('profile'); }}

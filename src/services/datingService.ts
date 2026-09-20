@@ -4,7 +4,11 @@ import { db, functions } from '../firebase';
 
 export async function updateDatingPreferences(
   uid: string,
-  preferences: { datingEnabled: boolean; hideFaceInDating: boolean },
+  preferences: {
+    datingEnabled?: boolean;
+    hideFaceInDating?: boolean;
+    datingGenderPreference?: 'any' | 'male' | 'female';
+  },
 ) {
   await setDoc(doc(db, 'profiles', uid), {
     ...preferences,

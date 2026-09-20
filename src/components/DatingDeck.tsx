@@ -15,6 +15,8 @@ interface DatingDeckProps {
   profiles: StudentProfile[];
   loading: boolean;
   onFindProfiles: () => void;
+  genderFilter: 'any' | 'male' | 'female';
+  onGenderFilterChange: (gender: 'any' | 'male' | 'female') => void;
   onLoadMore: () => void;
   onStartChat: (uid: string) => void;
 }
@@ -27,6 +29,8 @@ export const DatingDeck: React.FC<DatingDeckProps> = ({
   profiles,
   loading,
   onFindProfiles,
+  genderFilter,
+  onGenderFilterChange,
   onLoadMore,
   onStartChat,
 }) => {
@@ -45,8 +49,11 @@ export const DatingDeck: React.FC<DatingDeckProps> = ({
   }, [currentProfile?.uid, currentProfile?.datingEnabled, currentProfile?.hideFaceInDating]);
 
   const currentCandidate = useMemo(
-    () => profiles.find((profile) => !dismissed.has(profile.uid)) || null,
-    [dismissed, profiles],
+    () => profiles.find((profile) => (
+      !dismissed.has(profile.uid)
+      && (genderFilter === 'any' || profile.gender === genderFilter)
+    )) || null,
+    [dismissed, genderFilter, profiles],
   );
   const isAdult = typeof currentProfile?.age === 'number' && currentProfile.age >= 18;
 
@@ -87,6 +94,17 @@ export const DatingDeck: React.FC<DatingDeckProps> = ({
     } finally {
       setDeciding(false);
     }
+  };
+
+  const changeGenderFilter = (nextGender: 'any' | 'male' | 'female') => {
+    if (nextGender === genderFilter) return;
+    setDismissed(new Set());
+    onGenderFilterChange(nextGender);
+    void updateDatingPreferences(currentUser.uid, {
+      datingGenderPreference: nextGender,
+    }).catch((error) => {
+      console.error('Could not remember dating gender filter:', error);
+    });
   };
 
   if (!currentProfile) {
@@ -132,6 +150,32 @@ export const DatingDeck: React.FC<DatingDeckProps> = ({
           Ảnh của bạn: {hideFace ? 'đang ẩn' : 'đang hiện'}
         </button>
         <button disabled={savingPreferences} onClick={() => void savePreferences(false, hideFace)} className="text-xs font-bold text-rose-600">Tạm ẩn hồ sơ</button>
+      </div>
+
+      <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+        <p className="px-1 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Bạn muốn tìm</p>
+        <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Lọc giới tính hẹn hò">
+          {([
+            ['any', 'Tất cả'],
+            ['male', 'Nam'],
+            ['female', 'Nữ'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={genderFilter === value}
+              onClick={() => changeGenderFilter(value)}
+              className={`min-h-11 rounded-xl text-sm font-bold transition-colors ${
+                genderFilter === value
+                  ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (

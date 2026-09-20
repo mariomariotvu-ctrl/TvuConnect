@@ -1,7 +1,7 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
-const { sendDataNotification } = require('./notificationHelpers');
+const { deliverNotification } = require('./notificationHelpers');
 
 if (!getApps().length) {
   initializeApp();
@@ -90,13 +90,22 @@ exports.sendMessageNotification = onDocumentCreated('messages/{messageId}', asyn
       const sender = senderSnapshot.exists ? senderSnapshot.data() : {};
       const senderName = sender?.fullName || sender?.nickname || 'Sinh viên TVU';
 
-      const result = await sendDataNotification(receiverUid, {
+      const messageBody = preview(message);
+      const result = await deliverNotification(receiverUid, `message_${messageId}`, {
         type: 'message',
-        conversationId,
-        senderUid,
-        senderName,
-        messageId,
-        body: preview(message),
+        title: senderName,
+        body: messageBody,
+        actorUid: senderUid,
+        actorName: senderName,
+        actorPhotoURL: sender?.photoURL || null,
+        entityId: messageId,
+        route: `/messages/${encodeURIComponent(senderUid)}`,
+        pushData: {
+          conversationId,
+          senderUid,
+          senderName,
+          messageId,
+        },
       });
 
       console.log('Message notification sent', {

@@ -38,7 +38,7 @@ export interface UseCachedMatchingResult {
   isShowingFallback: boolean;
   viewedStats: { total: number; inCooldown: number; available: number };
   shownUidsInSession: Set<string>;
-  startMatching: () => Promise<void>;
+  startMatching: (filterOverrides?: Partial<MatchingFilters>) => Promise<void>;
   loadOneMore: () => Promise<void>;
   clearViewedCache: () => void;
   invalidateOnBlock: (blockedUid: string) => void;
@@ -83,7 +83,7 @@ export function useCachedMatching(
   /**
    * Start matching with cache-first strategy
    */
-  const startMatching = useCallback(async () => {
+  const startMatching = useCallback(async (filterOverrides: Partial<MatchingFilters> = {}) => {
     setLoading(true);
     setError(null);
     setProfiles([]);
@@ -96,7 +96,7 @@ export function useCachedMatching(
       // Fetch profiles using matchingService
       const result = await fetchMatchingProfiles(
         currentUserUid,
-        filters,
+        { ...filters, ...filterOverrides },
         blockedSet,
         mode,
         currentProfile
