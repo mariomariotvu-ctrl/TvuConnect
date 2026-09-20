@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
 import { BookOpen, Loader2, Mic, MicOff, PhoneOff, ShieldCheck, Users } from 'lucide-react';
 import { StudyRoom, StudyRoomParticipant, StudySignal } from '../types/socialAudio';
-import { getCallIceServers } from '../services/callService';
+import { getCallIceServersForSession } from '../services/callService';
 import {
   joinStudyRoom,
   leaveStudyRoom,
@@ -15,6 +15,7 @@ import {
 } from '../services/studyRoomService';
 import { getStudyRoomErrorMessage } from '../utils/userFacingErrors';
 import { playAppSound } from '../utils/appSounds';
+import { applyCallTrackHints, getCallMediaConstraints, optimizeCallSenders } from '../utils/callMedia';
 
 interface GroupStudyCallProps {
   room: StudyRoom;
@@ -58,6 +59,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
     let roomUnsubscribe: (() => void) | undefined;
     let signalUnsubscribe: (() => void) | undefined;
     let heartbeat: number | undefined;
+    let activeIceServers: RTCIceServer[] = [];
 
     const flushCandidates = async (peerUid: string, connection: RTCPeerConnection) => {
       const candidates = pendingCandidatesRef.current.get(peerUid) || [];
@@ -71,10 +73,14 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
       const existing = connectionsRef.current.get(peerUid);
       if (existing) return existing;
 
-      const connection = new RTCPeerConnection({ iceServers: getCallIceServers() });
+      const connection = new RTCPeerConnection({
+        iceServers: activeIceServers,
+        iceCandidatePoolSize: 4,
+      });
       localStreamRef.current?.getTracks().forEach((track) => {
         connection.addTrack(track, localStreamRef.current!);
       });
+      void optimizeCallSenders(connection);
       connection.onicecandidate = (event) => {
         if (!event.candidate) return;
         void sendStudySignal(room.id, currentUser.uid, peerUid, 'candidate', {
@@ -103,6 +109,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
       if (connection.signalingState !== 'stable' || connection.localDescription) return;
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
+      await optimizeCallSenders(connection);
       await sendStudySignal(room.id, currentUser.uid, peerUid, 'offer', {
         description: connection.localDescription?.toJSON() || offer,
       });
@@ -129,6 +136,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
           await flushCandidates(signal.fromUid, connection);
           const answer = await connection.createAnswer();
           await connection.setLocalDescription(answer);
+          await optimizeCallSenders(connection);
           await sendStudySignal(room.id, currentUser.uid, signal.fromUid, 'answer', {
             description: connection.localDescription?.toJSON() || answer,
           });
@@ -177,6 +185,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
 
     const initialize = async () => {
       try {
+        activeIceServers = await getCallIceServersForSession();
         await joinStudyRoom(room.id);
         if (disposed) {
           if (lifecycleRef.current === lifecycle) {
@@ -184,7 +193,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
           }
           return;
         }
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const stream = await navigator.mediaDevices.getUserMedia(getCallMediaConstraints(false));
         if (disposed) {
           stream.getTracks().forEach((track) => track.stop());
           if (lifecycleRef.current === lifecycle) {
@@ -193,6 +202,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
           return;
         }
         localStreamRef.current = stream;
+        applyCallTrackHints(stream);
 
         roomUnsubscribe = subscribeToStudyRoom(room.id, (latestRoom) => {
           if (disposed || latestRoom?.status === 'open') return;

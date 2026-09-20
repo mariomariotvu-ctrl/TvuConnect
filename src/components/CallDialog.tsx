@@ -21,7 +21,7 @@ import {
   addCallCandidate,
   answerCall,
   createCall,
-  getCallIceServers,
+  getCallIceServersForSession,
   getIceCandidateType,
   hasTurnRelayServer,
   subscribeToCall,
@@ -271,8 +271,8 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     });
   }, []);
 
-  const createPeerConnection = useCallback((candidateSide: 'caller' | 'callee') => {
-    const iceServers = getCallIceServers();
+  const createPeerConnection = useCallback(async (candidateSide: 'caller' | 'callee') => {
+    const iceServers = await getCallIceServersForSession();
     relayConfiguredRef.current = hasTurnRelayServer(iceServers);
     relayCandidateSeenRef.current = false;
     setConnectionQuality('checking');
@@ -441,7 +441,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
-      const connection = createPeerConnection('caller');
+      const connection = await createPeerConnection('caller');
       await attachLocalMedia(connection, stream);
 
       const offer = await connection.createOffer();
@@ -490,7 +490,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
-      const connection = createPeerConnection('callee');
+      const connection = await createPeerConnection('callee');
       await attachLocalMedia(connection, stream);
 
       callIdRef.current = incomingCall.id;

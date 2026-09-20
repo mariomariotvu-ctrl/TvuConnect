@@ -226,6 +226,78 @@ export function getCallIceServers(): RTCIceServer[] {
   return servers;
 }
 
+interface TurnIceServerResponse {
+  iceServers: RTCIceServer[];
+  expiresAt: number;
+}
+
+let turnIceServerCache: TurnIceServerResponse | null = null;
+let turnIceServerRequest: Promise<RTCIceServer[]> | null = null;
+
+export const getCommunityRelayIceServers = (): RTCIceServer[] => [
+  ...getCallIceServers(),
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp',
+      'turns:openrelay.metered.ca:443?transport=tcp',
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+];
+
+/**
+ * Fetches short-lived relay credentials from the trusted backend. Calls still
+ * fall back to STUN when TURN has not been configured yet.
+ */
+export async function getCallIceServersForSession(): Promise<RTCIceServer[]> {
+  const fallbackServers = getCallIceServers();
+  if (hasTurnRelayServer(fallbackServers)) return fallbackServers;
+
+  if (turnIceServerCache && turnIceServerCache.expiresAt > Date.now() + 60_000) {
+    return turnIceServerCache.iceServers;
+  }
+  if (turnIceServerRequest) return turnIceServerRequest;
+
+  turnIceServerRequest = (async () => {
+    try {
+      const callable = httpsCallable<Record<string, never>, TurnIceServerResponse>(
+        functions,
+        'getTurnIceServers',
+        { timeout: 15_000 },
+      );
+      const response = await callable({});
+      const iceServers = Array.isArray(response.data?.iceServers)
+        ? response.data.iceServers
+        : [];
+      if (!hasTurnRelayServer(iceServers)) return fallbackServers;
+
+      turnIceServerCache = {
+        iceServers,
+        expiresAt: Number(response.data.expiresAt) || Date.now() + 5 * 60_000,
+      };
+      return iceServers;
+    } catch (error) {
+      console.warn('Private TURN relay is unavailable; using the community relay fallback.', error);
+      const iceServers = getCommunityRelayIceServers();
+      // Avoid retrying a missing private TURN function on every call attempt.
+      // This short cache still lets production credentials take over quickly
+      // after the backend is configured.
+      turnIceServerCache = {
+        iceServers,
+        expiresAt: Date.now() + 5 * 60_000,
+      };
+      return iceServers;
+    } finally {
+      turnIceServerRequest = null;
+    }
+  })();
+
+  return turnIceServerRequest;
+}
+
 export function hasTurnRelayServer(servers: RTCIceServer[]): boolean {
   return servers.some((server) => {
     const urls = Array.isArray(server.urls) ? server.urls : [server.urls];

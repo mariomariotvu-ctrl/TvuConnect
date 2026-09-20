@@ -15,6 +15,7 @@ import {
   canPreviewMimeType,
   getCachedGoogleDriveToken,
   GoogleDriveError,
+  isGoogleDriveFolderUrl,
   loadGoogleDriveFile,
   parseGoogleDriveReference,
   pickGoogleDriveFile,
@@ -87,6 +88,7 @@ function getDriveErrorMessage(error: unknown): string {
 
 export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewerModalProps) {
   const driveReference = useMemo(() => parseGoogleDriveReference(url), [url]);
+  const isDriveFolder = useMemo(() => isGoogleDriveFolderUrl(url), [url]);
   const [driveState, setDriveState] = useState<DriveViewerState>({ status: 'checking' });
   const objectUrlRef = useRef<string | null>(null);
 
@@ -334,7 +336,11 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
           <div className="min-w-0 flex-1">
             <h2 id="document-viewer-title" className="truncate text-sm font-semibold text-slate-950 dark:text-white">{title}</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {driveReference ? 'Google Drive · xem an toàn trong TVU Connect' : 'Đang xem trong TVU Connect'}
+              {driveReference
+                ? 'Google Drive · xem an toàn trong TVU Connect'
+                : isDriveFolder
+                  ? 'Liên kết Google Drive cần được sửa'
+                  : 'Đang xem trong TVU Connect'}
             </p>
           </div>
           <button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" aria-label="Đóng trình xem tài liệu">
@@ -342,7 +348,21 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
           </button>
         </header>
 
-        {driveReference ? renderDriveViewer() : (
+        {driveReference ? renderDriveViewer() : isDriveFolder ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+            <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-sm dark:border-amber-900/60 dark:bg-slate-900">
+              <FileWarning className="mx-auto h-9 w-9 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+              <h3 className="mt-3 text-lg font-bold text-slate-950 dark:text-white">Liên kết thư mục không thể xem</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                Tài liệu này đang trỏ đến cả thư mục Google Drive. Người đăng cần sửa tài liệu và chọn một file PDF, Word, Excel hoặc PowerPoint cụ thể.
+              </p>
+              <div className="mt-4 flex items-start gap-2 rounded-xl bg-indigo-50 p-3 text-left text-xs leading-relaxed text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-200">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>TVU Connect không mở trang Drive lỗi và cũng không yêu cầu quyền truy cập toàn bộ thư mục của bạn.</span>
+              </div>
+            </div>
+          </div>
+        ) : (
           <iframe
             src={viewerUrl}
             title={`Tài liệu: ${title}`}

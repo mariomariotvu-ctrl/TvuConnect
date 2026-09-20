@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { Comment, Reaction, ReactionType } from '../types';
 import { 
@@ -324,6 +324,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [currentUserAvatar, setCurrentUserAvatar] = useState(currentUser.photoURL || '');
   const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
   const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
+  const reactionLocksRef = useRef(new Set<string>());
+  const lastReactionAtRef = useRef(new Map<string, number>());
 
   // Listen to current user's profile for avatar updates
   useEffect(() => {
@@ -444,6 +446,19 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   };
 
   const handleReaction = async (commentId: string, type: ReactionType) => {
+    const now = Date.now();
+    const lastReactionAt = lastReactionAtRef.current.get(commentId) ?? 0;
+
+    if (
+      reactionLocksRef.current.has(commentId) ||
+      now - lastReactionAt < 300
+    ) {
+      return;
+    }
+
+    reactionLocksRef.current.add(commentId);
+    lastReactionAtRef.current.set(commentId, now);
+
     try {
       const comment = comments.find(c => c.id === commentId);
       if (!comment) return;
@@ -517,6 +532,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     } catch (error) {
       console.error('Error reacting to comment:', error);
       toast.error('Không thể thả cảm xúc');
+    } finally {
+      reactionLocksRef.current.delete(commentId);
     }
   };
 

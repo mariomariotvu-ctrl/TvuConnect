@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getCallIceServers,
+  getCommunityRelayIceServers,
   getIceCandidateType,
   hasTurnRelayServer,
 } from './callService';
@@ -20,6 +21,17 @@ describe('WebRTC ICE configuration', () => {
   it('nhận biết cấu hình có máy chủ TURN', () => {
     expect(hasTurnRelayServer([{ urls: 'stun:stun.cloudflare.com:3478' }])).toBe(false);
     expect(hasTurnRelayServer([{ urls: ['stun:example.com', 'turns:relay.example.com:443'] }])).toBe(true);
+  });
+
+  it('có TURN qua TCP/TLS 443 khi relay riêng chưa sẵn sàng', () => {
+    const servers = getCommunityRelayIceServers();
+    const urls = servers.flatMap((server) => (
+      Array.isArray(server.urls) ? server.urls : [server.urls]
+    ));
+
+    expect(hasTurnRelayServer(servers)).toBe(true);
+    expect(urls).toContain('turn:openrelay.metered.ca:443?transport=tcp');
+    expect(urls).toContain('turns:openrelay.metered.ca:443?transport=tcp');
   });
 
   it('đọc được loại ICE candidate từ chuỗi SDP candidate', () => {

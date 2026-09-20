@@ -156,12 +156,20 @@ describeWithEmulator('Firestore security rules for social features', () => {
         readAt: null,
         createdAt: new Date('2026-09-19T00:00:00Z'),
       }],
+      ['users/student-a/notifications/legacy-event', {
+        type: 'message',
+        title: 'Tin nhắn cũ',
+        body: 'Thông báo này được tạo trước khi có recipientUid.',
+        readAt: null,
+        createdAt: new Date('2026-09-18T00:00:00Z'),
+      }],
     ]);
     const studentA = environment.authenticatedContext('student-a').firestore();
     const studentB = environment.authenticatedContext('student-b').firestore();
     const notification = doc(studentA, 'users/student-a/notifications/event-1');
 
     await assertSucceeds(getDoc(notification));
+    await assertSucceeds(getDocs(collection(studentA, 'users/student-a/notifications')));
     await assertFails(getDoc(doc(studentB, 'users/student-a/notifications/event-1')));
     await assertSucceeds(updateDoc(notification, { readAt: serverTimestamp() }));
     await assertFails(updateDoc(notification, { title: 'Nội dung giả mạo' }));

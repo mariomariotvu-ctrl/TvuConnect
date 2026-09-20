@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">TVU Connect</title>
+  <defs>
+    <linearGradient id="background" x1="72" y1="56" x2="440" y2="456" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4f46e5"/>
+      <stop offset="0.55" stop-color="#6d28d9"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#111827" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="124" fill="url(#background)"/>
+  <rect x="68" y="68" width="376" height="376" rx="92" fill="#fff" fill-opacity="0.12" stroke="#fff" stroke-opacity="0.32" stroke-width="8" filter="url(#shadow)"/>
+  <path d="M60 174h130v44h-43v126h-44V218H60v-44Z" fill="#fff"/>
+  <path d="M184 174h45l40 112 40-112h45l-63 170h-44l-63-170Z" fill="#fff"/>
+  <path d="M346 174h42v100c0 22 9 33 27 33s27-11 27-33V174h42v102c0 48-25 72-69 72s-69-24-69-72V174Z" fill="#fff"/>
+</svg>

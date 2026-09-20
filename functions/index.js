@@ -15,6 +15,8 @@ const getMapRoute = require('./getMapRoute');
 const announceNewProfile = require('./announceNewProfile');
 const sendCommentNotification = require('./sendCommentNotification');
 const syncCommentCounters = require('./syncCommentCounters');
+const deleteStudentAccount = require('./deleteStudentAccount');
+const getTurnIceServers = require('./getTurnIceServers');
 
 exports.sendMessageNotification = sendMessageNotification.sendMessageNotification;
 exports.sendCallNotification = sendCallNotification.sendCallNotification;
@@ -37,3 +39,5 @@ exports.getMapRoute = getMapRoute.getMapRoute;
 exports.announceNewProfile = announceNewProfile.announceNewProfile;
 exports.sendCommentNotification = sendCommentNotification.sendCommentNotification;
 exports.syncCommentCounters = syncCommentCounters.syncCommentCounters;
+exports.deleteStudentAccount = deleteStudentAccount.deleteStudentAccount;
+exports.getTurnIceServers = getTurnIceServers.getTurnIceServers;

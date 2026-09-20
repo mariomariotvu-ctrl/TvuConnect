@@ -61,12 +61,12 @@ export function validateURL(url: string): URLValidation {
   try {
     // Parse URL to check domain
     const urlObj = new URL(url);
-    const domain = urlObj.hostname;
+    const domain = urlObj.hostname.toLowerCase();
 
     // Check if domain is trusted
-    const isTrusted = TRUSTED_DOMAINS.some(trusted => 
-      domain.includes(trusted)
-    );
+    const isTrusted = TRUSTED_DOMAINS.some((trusted) => (
+      domain === trusted || domain.endsWith(`.${trusted}`)
+    ));
 
     return {
       isValid: true,

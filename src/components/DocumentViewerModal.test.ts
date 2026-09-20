@@ -5,6 +5,7 @@ import { DocumentViewerModal, getEmbeddedDocumentUrl } from './DocumentViewerMod
 import {
   buildGoogleDriveShareUrl,
   canPreviewMimeType,
+  isGoogleDriveFolderUrl,
   parseGoogleDriveReference,
 } from '../utils/googleDriveClient';
 
@@ -44,6 +45,10 @@ describe('getEmbeddedDocumentUrl', () => {
       kind: 'spreadsheet',
     });
     expect(parseGoogleDriveReference('https://example.edu/file.pdf')).toBeNull();
+    expect(parseGoogleDriveReference('https://drive.google.com/drive/folders/folder-123')).toBeNull();
+    expect(isGoogleDriveFolderUrl('https://drive.google.com/drive/folders/folder-123?usp=sharing')).toBe(true);
+    expect(isGoogleDriveFolderUrl('https://drive.google.com/drive/u/1/folders/folder-456')).toBe(true);
+    expect(isGoogleDriveFolderUrl('https://drive.google.com/file/d/file-123/view')).toBe(false);
   });
 
   it('builds the canonical share URL for a Picker selection', () => {
@@ -80,6 +85,21 @@ describe('getEmbeddedDocumentUrl', () => {
     expect(await screen.findByRole('heading', { name: 'Tài liệu đang giới hạn quyền' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Kết nối và chọn file trên Drive' })).toBeInTheDocument();
     expect(screen.queryByTitle('Tài liệu: Tài liệu riêng tư')).not.toBeInTheDocument();
+  });
+
+  it('explains unsupported Drive folders without loading the Google error page', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    render(createElement(DocumentViewerModal, {
+      open: true,
+      title: 'Thư mục giáo trình',
+      url: 'https://drive.google.com/drive/folders/folder-123?usp=sharing',
+      onClose: () => {},
+    }));
+
+    expect(screen.getByRole('heading', { name: 'Liên kết thư mục không thể xem' })).toBeInTheDocument();
+    expect(screen.queryByTitle('Tài liệu: Thư mục giáo trình')).not.toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('renders a public Drive PDF from a local blob URL', async () => {

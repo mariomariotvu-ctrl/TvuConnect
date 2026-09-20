@@ -1,5 +1,6 @@
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+// Keep the background worker aligned with the Firebase SDK used by the app.
+importScripts('https://www.gstatic.com/firebasejs/12.11.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.11.0/firebase-messaging-compat.js');
 
 // Firebase web configuration identifies this public app; authorization remains
 // in Firebase Auth, Firestore Rules, and server-side Cloud Functions.
@@ -49,8 +50,8 @@ const notificationFor = (data = {}) => {
     title,
     options: {
       body,
-      icon: '/logo.png',
-      badge: '/logo.png',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag,
       renotify: true,
       silent: false,

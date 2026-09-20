@@ -1,5 +1,6 @@
 import { DocumentFormData, ValidationError } from '../types/documentLink';
 import { validateURL } from './urlValidation';
+import { isGoogleDriveFolderUrl } from './googleDriveClient';
 
 /**
  * Validate document form data
@@ -36,6 +37,11 @@ export function validateDocumentForm(data: DocumentFormData): ValidationError[] 
       errors.push({ 
         field: 'url', 
         message: 'URL không hợp lệ' 
+      });
+    } else if (isGoogleDriveFolderUrl(data.url)) {
+      errors.push({
+        field: 'url',
+        message: 'Hãy chọn một file cụ thể trong Google Drive, không dùng liên kết thư mục',
       });
     }
   }

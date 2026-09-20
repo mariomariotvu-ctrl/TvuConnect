@@ -52,12 +52,12 @@ service cloud.firestore {
       // event as read; clients cannot forge, edit, delete, or inspect another
       // student's notifications.
       match /notifications/{notificationId} {
-        allow read: if isOwner(userId)
-          && resource.data.recipientUid == userId;
+        // Ownership is already proven by the parent document path. Avoid a
+        // field-dependent read rule so both collection queries and legacy
+        // notifications created before recipientUid was added remain usable.
+        allow read: if isOwner(userId);
         allow create, delete: if false;
         allow update: if isOwner(userId)
-          && resource.data.recipientUid == userId
-          && request.resource.data.recipientUid == resource.data.recipientUid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
           && request.resource.data.readAt is timestamp;
       }

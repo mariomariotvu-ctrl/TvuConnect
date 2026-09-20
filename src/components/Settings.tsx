@@ -182,8 +182,6 @@ export const Settings: React.FC<SettingsProps> = ({ user, onLogout, onShowTour, 
           <div className="space-y-2">
             <a
               href="/privacy-policy.html"
-              target="_blank"
-              rel="noopener noreferrer"
               className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
             >
               <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -193,8 +191,6 @@ export const Settings: React.FC<SettingsProps> = ({ user, onLogout, onShowTour, 
             </a>
             <a
               href="/terms-of-service.html"
-              target="_blank"
-              rel="noopener noreferrer"
               className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
             >
               <Shield className="w-5 h-5 text-violet-600 dark:text-violet-400" />

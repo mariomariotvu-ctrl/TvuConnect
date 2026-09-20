@@ -832,7 +832,12 @@ export default function App() {
       case 'settings':
         return user ? (
           <RouteLoader minHeight="min-h-[400px]">
-            <LazySettings user={user} onLogout={handleLogout} onShowBlockedList={() => setView('profile')} onShowTour={() => {
+            <LazySettings user={user} onLogout={handleLogout} onShowBlockedList={() => {
+              navigate(`${pathForView('profile')}#blocked-users`);
+              window.setTimeout(() => {
+                document.getElementById('blocked-users')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 250);
+            }} onShowTour={() => {
           // Clear the seen flag so tour can run again
           if (user) {
             localStorage.removeItem(`onboarding_seen_${user.uid}`);

@@ -53,8 +53,8 @@ export const formatMessageNotification = (
     title: senderName,
     options: {
       body: truncatedMessage,
-      icon: '/logo.png',
-      badge: '/logo.png',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: conversationId, // Same tag = replace previous notification
       requireInteraction: false,
       silent: false,

@@ -37,6 +37,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
   const permissionErrorShownRef = useRef(false);
   const seenEncounterIdsRef = useRef(new Set<string>());
   const encounterListenerReadyRef = useRef(false);
+  const permissionNoticeKey = `location_permission_notice_${currentUser.uid}`;
 
   useEffect(() => subscribeLocationPreferences(
     currentUser.uid,
@@ -83,6 +84,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
         });
         lastPositionRef.current = { ...next, sentAt: now };
         permissionErrorShownRef.current = false;
+        sessionStorage.removeItem(permissionNoticeKey);
       } catch (error) {
         console.warn('Could not refresh shared location:', error);
       } finally {
@@ -93,11 +95,18 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
     const watchId = navigator.geolocation.watchPosition(
       (position) => { void sendPosition(position); },
       (error) => {
-        if (permissionErrorShownRef.current) return;
+        if (permissionErrorShownRef.current || sessionStorage.getItem(permissionNoticeKey) === 'shown') return;
         permissionErrorShownRef.current = true;
-        toast.error(error.code === error.PERMISSION_DENIED
-          ? 'Quyền vị trí đang bị tắt. TVU Connect đã ngừng cập nhật vị trí của bạn.'
-          : 'Chưa thể cập nhật vị trí. Ứng dụng sẽ tự thử lại khi tín hiệu ổn định.');
+        sessionStorage.setItem(permissionNoticeKey, 'shown');
+        toast.warning(error.code === error.PERMISSION_DENIED
+          ? 'Chia sẻ vị trí đang tạm dừng'
+          : 'Vị trí đang cập nhật chậm', {
+          id: 'live-location-permission',
+          description: error.code === error.PERMISSION_DENIED
+            ? 'Hãy cho phép vị trí trong trình duyệt nếu bạn muốn xuất hiện trên bản đồ.'
+            : 'Ứng dụng sẽ tự thử lại khi tín hiệu ổn định.',
+          duration: 6_000,
+        });
       },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
@@ -125,7 +134,7 @@ export const LiveLocationTracker: React.FC<LiveLocationTrackerProps> = ({ curren
       window.clearInterval(keepAlive);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [preferences.encounterAlertsEnabled, preferences.visibility]);
+  }, [permissionNoticeKey, preferences.encounterAlertsEnabled, preferences.visibility]);
 
   useEffect(() => subscribeStudentEncounters(currentUser.uid, (encounters) => {
     if (!encounterListenerReadyRef.current) {

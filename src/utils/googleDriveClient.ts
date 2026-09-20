@@ -116,6 +116,21 @@ export function parseGoogleDriveReference(rawUrl: string): GoogleDriveReference 
   return null;
 }
 
+/**
+ * Drive folders cannot be rendered as a single document. Detect them before
+ * an iframe reaches Google's generic 403 page and explain what the uploader
+ * needs to change instead.
+ */
+export function isGoogleDriveFolderUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    return url.hostname.toLowerCase() === 'drive.google.com'
+      && /^\/drive\/(?:u\/\d+\/)?folders\/[^/]+/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
 export function buildGoogleDriveShareUrl(file: Pick<PickedGoogleDriveFile, 'id' | 'mimeType'>): string {
   if (file.mimeType === 'application/vnd.google-apps.document') {
     return `https://docs.google.com/document/d/${file.id}/edit`;

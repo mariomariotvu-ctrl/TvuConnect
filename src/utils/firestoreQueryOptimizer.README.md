@@ -486,7 +486,6 @@ const posts = result.data;
 ## Related Documentation
 
 - [Cache Manager README](./firestoreCacheManager.README.md)
-- [Query Optimizer Examples](./firestoreQueryOptimizer.example.ts)
 - [Design Document](../../.kiro/specs/firestore-query-optimization/design.md)
 - [Requirements Document](../../.kiro/specs/firestore-query-optimization/requirements.md)
 

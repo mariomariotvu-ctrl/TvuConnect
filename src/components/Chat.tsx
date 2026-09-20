@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { db, auth, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, handleFirestoreError, OperationType, storage, ref, uploadBytes, getDownloadURL, uploadBytesResumable, limit, getDocs, deleteDoc } from '../firebase';
 import { Message, StudentProfile, Conversation } from '../types';
-import { Send, User, ArrowLeft, Loader2, Phone, Video, Mail, GraduationCap, Info, X, Mic, Square, Play, Pause, Trash2, ShieldOff, Smile, Check, CheckCheck, Clock } from 'lucide-react';
+import { Send, User, ArrowLeft, Loader2, Phone, Video, Mail, GraduationCap, X, Mic, Square, Play, Pause, Trash2, ShieldOff, Smile, Check, CheckCheck, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProfileCard } from './ProfileCard';
 import { ConfirmModal } from './ConfirmModal';
@@ -775,14 +775,16 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
       >
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+          aria-label="Quay lại danh sách tin nhắn"
         >
           <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-200" />
         </button>
-        <div 
-          className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity active:opacity-60"
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-3 text-left transition-opacity hover:opacity-80 active:opacity-60"
           onClick={() => setShowProfile(true)}
-          title="Xem hồ sơ"
+          aria-label={`Xem hồ sơ ${receiverProfile?.fullName || 'người dùng TVU'}`}
         >
           {receiverProfile?.photoURL ? (
             <div className="relative">
@@ -809,7 +811,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
               <User className="w-6 h-6 text-gray-300" />
             </div>
           )}
-          <div>
+          <div className="min-w-0">
             <h3 className="font-bold leading-tight text-base" style={{ color: isDark ? '#ffffff' : '#111827' }}>{receiverProfile?.fullName || 'Người dùng TVU'}</h3>
             {/* Online Status */}
             {(isBlockedByMe || isBlockedByThem) ? (
@@ -830,7 +832,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
               />
             )}
           </div>
-        </div>
+        </button>
 
         <div className="flex gap-1">
           <button
@@ -857,6 +859,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
               disabled={isBlocking}
               className="p-2 hover:bg-blue-50 text-blue-600 rounded-xl transition-colors disabled:opacity-50"
               title="Bỏ chặn"
+              aria-label="Bỏ chặn người dùng"
             >
               <ShieldOff className="w-6 h-6 rotate-180" />
             </button>
@@ -866,17 +869,11 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
               disabled={isBlockedByThem || isBlocking}
               className="p-2 hover:bg-red-50 text-red-600 rounded-xl transition-colors disabled:opacity-50"
               title="Chặn"
+              aria-label="Chặn người dùng"
             >
               <ShieldOff className="w-6 h-6" />
             </button>
           )}
-          <button 
-            onClick={() => setShowProfile(true)}
-            className="p-2 hover:bg-blue-50 text-blue-600 rounded-xl transition-colors"
-            title="Xem hồ sơ"
-          >
-            <Info className="w-6 h-6" />
-          </button>
         </div>
       </div>
 
@@ -901,6 +898,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
                 <button
                   onClick={() => setShowProfile(false)}
                   className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-md hover:bg-white/40 text-white rounded-full transition-all"
+                  aria-label="Đóng hồ sơ"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -1067,6 +1065,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
                   disabled={sending}
                   className="flex-shrink-0 p-2.5 md:p-3 bg-gray-100 text-gray-500 rounded-2xl hover:bg-gray-200 transition-all disabled:opacity-50"
                   title="Ghi âm (tối đa 15s)"
+                  aria-label="Ghi âm tin nhắn, tối đa 15 giây"
                 >
                   <Mic className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
@@ -1100,6 +1099,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
                     disabled={isRecording || sending}
                     className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all disabled:opacity-50 active:scale-95"
                     title="Chọn emoji"
+                    aria-label="Mở bảng chọn biểu tượng cảm xúc"
                   >
                     <Smile className="w-5 h-5" />
                   </button>
@@ -1113,6 +1113,7 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
                           type="button"
                           onClick={() => setShowEmojiPicker(false)}
                           className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                          aria-label="Đóng bảng chọn biểu tượng cảm xúc"
                         >
                           <X className="w-4 h-4" />
                         </button>

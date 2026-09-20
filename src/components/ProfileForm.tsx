@@ -193,6 +193,23 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
     };
   }, [user.uid]);
 
+  useEffect(() => {
+    if (loading || window.location.hash !== '#blocked-users') return;
+
+    let attempts = 0;
+    const scrollWhenReady = () => {
+      const target = document.getElementById('blocked-users');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 20) window.setTimeout(scrollWhenReady, 100);
+    };
+    const timer = window.setTimeout(scrollWhenReady, 0);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
   const handleUnblock = async () => {
     if (!userToUnblock) return;
     setUnblockingId(userToUnblock.uid);
@@ -847,7 +864,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       </button>
 
       {/* Danh sách chặn */}
-      <div className="mt-12 pt-12 border-t border-gray-100">
+      <div id="blocked-users" className="mt-12 scroll-mt-24 pt-12 border-t border-gray-100">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-red-50 rounded-xl">
             <ShieldOff className="w-6 h-6 text-red-600" />

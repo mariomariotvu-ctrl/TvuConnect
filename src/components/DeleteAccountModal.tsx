@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2, AlertTriangle, X, Shield } from 'lucide-react';
-import { auth, db, doc, deleteDoc, collection, query, where, getDocs } from '../firebase';
+import { reauthenticateWithPopup } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
+import { auth, functions, googleProvider } from '../firebase';
 import { toast } from 'sonner';
-import { logger } from '@/utils/logger';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -20,12 +21,14 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [reason, setReason] = useState('');
+  const [reasonDetails, setReasonDetails] = useState('');
 
   const handleClose = () => {
     if (isDeleting) return;
     setStep(1);
     setConfirmText('');
     setReason('');
+    setReasonDetails('');
     onClose();
   };
 
@@ -44,63 +47,14 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
         return;
       }
 
-      // Step 1: Delete user profile
-      await deleteDoc(doc(db, 'profiles', user.uid));
-
-      // Step 2: Delete all messages sent by user
-      const messagesQuery = query(
-        collection(db, 'messages'),
-        where('senderUid', '==', user.uid)
-      );
-      const messagesSnapshot = await getDocs(messagesQuery);
-      const deleteMessagesPromises = messagesSnapshot.docs.map(doc => 
-        deleteDoc(doc.ref)
-      );
-      await Promise.all(deleteMessagesPromises);
-
-      // Step 3: Delete all conversations
-      const conversationsQuery = query(
-        collection(db, 'conversations'),
-        where('participants', 'array-contains', user.uid)
-      );
-      const conversationsSnapshot = await getDocs(conversationsQuery);
-      const deleteConversationsPromises = conversationsSnapshot.docs.map(doc => 
-        deleteDoc(doc.ref)
-      );
-      await Promise.all(deleteConversationsPromises);
-
-      // Step 4: Delete typing indicators
-      const typingQuery = query(
-        collection(db, 'typing'),
-        where('userId', '==', user.uid)
-      );
-      const typingSnapshot = await getDocs(typingQuery);
-      const deleteTypingPromises = typingSnapshot.docs.map(doc => 
-        deleteDoc(doc.ref)
-      );
-      await Promise.all(deleteTypingPromises);
-
-      // Step 5: Log deletion reason (optional)
-      if (reason) {
-        try {
-          await fetch('https://your-logging-endpoint.com/account-deletion', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.uid,
-              email: user.email,
-              reason,
-              timestamp: new Date().toISOString(),
-            }),
-          });
-        } catch (error) {
-          // Silent fail for logging
-          logger.log('Failed to log deletion reason');
-        }
-      }
-
-      // Step 6: Delete Firebase Auth account
-      await user.delete();
+      await reauthenticateWithPopup(user, googleProvider);
+      await user.getIdToken(true);
+      const deleteAccount = httpsCallable<
+        { reason?: string },
+        { deleted: boolean }
+      >(functions, 'deleteStudentAccount', { timeout: 120_000 });
+      const selectedReason = reason === 'Lý do khác' ? reasonDetails : reason;
+      await deleteAccount({ reason: selectedReason.trim() || undefined });
 
       // Clear local storage
       localStorage.clear();
@@ -118,8 +72,10 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
     } catch (error: any) {
       console.error('Error deleting account:', error);
       
-      if (error.code === 'auth/requires-recent-login') {
-        toast.error('Vui lòng đăng xuất và đăng nhập lại trước khi xóa tài khoản', {
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        toast.info('Bạn đã hủy xác minh. Tài khoản chưa bị xóa.');
+      } else if (error.code === 'auth/requires-recent-login' || error.code === 'functions/failed-precondition') {
+        toast.error('Vui lòng xác minh lại tài khoản rồi thử xóa lần nữa.', {
           duration: 5000,
         });
       } else {
@@ -148,6 +104,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
             <button
               onClick={handleClose}
               className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
+              aria-label="Đóng hộp thoại xóa tài khoản"
             >
               <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
@@ -258,8 +215,8 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                 {reason === 'Lý do khác' && (
                   <textarea
                     placeholder="Vui lòng chia sẻ chi tiết hơn..."
-                    value={reason === 'Lý do khác' ? '' : reason}
-                    onChange={(e) => setReason(e.target.value)}
+                    value={reasonDetails}
+                    onChange={(e) => setReasonDetails(e.target.value.slice(0, 240))}
                     className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     rows={3}
                   />
