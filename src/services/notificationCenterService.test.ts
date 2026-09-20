@@ -6,6 +6,7 @@ describe('safeNotificationRoute', () => {
     expect(safeNotificationRoute('/friends')).toBe('/friends');
     expect(safeNotificationRoute('/messages/student%2F01')).toBe('/messages/student%2F01');
     expect(safeNotificationRoute('/connect/lover')).toBe('/connect/lover');
+    expect(safeNotificationRoute('/community')).toBe('/community');
   });
 
   it('rejects external or unsupported routes', () => {

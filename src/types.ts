@@ -65,6 +65,8 @@ export type AppNotificationType =
   | 'call'
   | 'friend_request'
   | 'friend_accepted'
+  | 'comment'
+  | 'reply'
   | 'encounter'
   | 'new_profile'
   | 'dating_match'

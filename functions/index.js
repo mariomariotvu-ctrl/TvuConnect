@@ -13,6 +13,7 @@ const deleteOldPosts = require('./deleteOldPosts');
 const getStudentRoute = require('./getStudentRoute');
 const getMapRoute = require('./getMapRoute');
 const announceNewProfile = require('./announceNewProfile');
+const sendCommentNotification = require('./sendCommentNotification');
 
 exports.sendMessageNotification = sendMessageNotification.sendMessageNotification;
 exports.sendCallNotification = sendCallNotification.sendCallNotification;
@@ -33,3 +34,4 @@ exports.deleteOldPosts = deleteOldPosts.deleteOldPosts;
 exports.getStudentRoute = getStudentRoute.getStudentRoute;
 exports.getMapRoute = getMapRoute.getMapRoute;
 exports.announceNewProfile = announceNewProfile.announceNewProfile;
+exports.sendCommentNotification = sendCommentNotification.sendCommentNotification;

@@ -57,6 +57,7 @@ const ALLOWED_NOTIFICATION_ROUTES = [
   /^\/connect\/lover$/,
   /^\/explore\/people$/,
   /^\/notifications$/,
+  /^\/community$/,
 ];
 
 export function safeNotificationRoute(route?: string | null) {

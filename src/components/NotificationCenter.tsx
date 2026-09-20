@@ -33,6 +33,8 @@ const SOCIAL_TYPES = new Set<AppNotificationType>([
   'encounter',
   'new_profile',
   'dating_match',
+  'comment',
+  'reply',
 ]);
 
 const iconFor = (type: AppNotificationType) => {
@@ -43,6 +45,7 @@ const iconFor = (type: AppNotificationType) => {
   if (type === 'encounter') return MapPin;
   if (type === 'dating_match') return Heart;
   if (type === 'new_profile') return UserPlus;
+  if (type === 'comment' || type === 'reply') return MessageCircle;
   return Bell;
 };
 

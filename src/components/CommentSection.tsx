@@ -60,7 +60,6 @@ const useUserAvatar = (userId: string, fallbackAvatar: string) => {
 
 interface CommentSectionProps {
   postId: string;
-  postOwnerId: string;
   currentUser: User;
   onProfileClick?: (uid: string) => void;
 }
@@ -77,7 +76,7 @@ interface CommentItemProps {
   replyTo: string | null;
   replyContent: string;
   setReplyContent: (content: string) => void;
-  onSubmitReply: (parentCommentId: string, parentUserId: string) => void;
+  onSubmitReply: (parentCommentId: string) => void;
   isSubmitting: boolean;
   expandedReplies: Set<string>;
   toggleReplies: (commentId: string) => void;
@@ -253,7 +252,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    onSubmitReply(comment.id!, comment.userId);
+                    onSubmitReply(comment.id!);
                   }
                 }}
                 placeholder="Viết phản hồi..."
@@ -266,7 +265,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 }}
               />
               <button
-                onClick={() => onSubmitReply(comment.id!, comment.userId)}
+                onClick={() => onSubmitReply(comment.id!)}
                 disabled={!replyContent.trim() || isSubmitting}
                 className="p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -312,7 +311,6 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
 export const CommentSection: React.FC<CommentSectionProps> = ({
   postId,
-  postOwnerId,
   currentUser,
   onProfileClick
 }) => {
@@ -414,21 +412,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         console.warn('Failed to update comment count:', updateError);
       }
 
-      // Create notification for post owner
-      if (postOwnerId !== currentUser.uid) {
-        await addDoc(collection(db, 'notifications'), {
-          userId: postOwnerId,
-          type: 'comment',
-          fromUserId: currentUser.uid,
-          fromUserName: currentUser.displayName || 'Người dùng',
-          fromUserAvatar: currentUser.photoURL || '',
-          postId,
-          content: newComment.trim().substring(0, 100),
-          isRead: false,
-          createdAt: serverTimestamp()
-        });
-      }
-
       setNewComment('');
       toast.success('Đã đăng bình luận!');
     } catch (error) {
@@ -439,7 +422,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     }
   };
 
-  const handleSubmitReply = async (parentCommentId: string, parentUserId: string) => {
+  const handleSubmitReply = async (parentCommentId: string) => {
     if (!replyContent.trim() || isSubmitting) return;
 
     // Content moderation
@@ -473,22 +456,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       await updateDoc(parentRef, {
         replyCount: currentCount + 1
       });
-
-      // Create notification for comment owner
-      if (parentUserId !== currentUser.uid) {
-        await addDoc(collection(db, 'notifications'), {
-          userId: parentUserId,
-          type: 'reply',
-          fromUserId: currentUser.uid,
-          fromUserName: currentUser.displayName || 'Người dùng',
-          fromUserAvatar: currentUser.photoURL || '',
-          postId,
-          commentId: parentCommentId,
-          content: replyContent.trim().substring(0, 100),
-          isRead: false,
-          createdAt: serverTimestamp()
-        });
-      }
 
       setReplyContent('');
       setReplyTo(null);

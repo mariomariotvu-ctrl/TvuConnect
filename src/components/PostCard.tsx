@@ -964,7 +964,6 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, currentUser, onDelet
           <MemoizedCommentSection
             key={`comments-${post.id}`}
             postId={post.id!}
-            postOwnerId={post.userId}
             currentUser={currentUser}
             onProfileClick={onProfileClick}
           />
