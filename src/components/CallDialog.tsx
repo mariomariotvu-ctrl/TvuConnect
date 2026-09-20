@@ -4,12 +4,17 @@ import {
   AlertTriangle,
   Camera,
   CameraOff,
+  Clock3,
   Mic,
   MicOff,
   Phone,
   PhoneOff,
+  ShieldCheck,
+  SwitchCamera,
   Video,
+  Wifi,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { StudentProfile } from '../types';
 import { CallKind, CallSession, CallStatus } from '../types/call';
 import {
@@ -26,6 +31,15 @@ import {
 import { ReportModal } from './ReportModal';
 import { getCallErrorMessage } from '../utils/userFacingErrors';
 import { playAppSound, stopAppSound } from '../utils/appSounds';
+import {
+  applyCallTrackHints,
+  formatCallDuration,
+  getCallMediaConstraints,
+  optimizeCallSenders,
+  readCallQuality,
+  type CallConnectionQuality,
+  type CallFacingMode,
+} from '../utils/callMedia';
 
 type CallDirection = 'incoming' | 'outgoing';
 
@@ -41,13 +55,20 @@ interface CallDialogProps {
 type CallPhase = 'incoming' | 'preparing' | 'ringing' | 'connecting' | 'active' | 'ended' | 'failed';
 
 const phaseText: Record<CallPhase, string> = {
-  incoming: 'đang gọi cho bạn',
-  preparing: 'đang mở thiết bị…',
-  ringing: 'đang đổ chuông…',
-  connecting: 'đang kết nối…',
-  active: 'đang trong cuộc gọi',
-  ended: 'cuộc gọi đã kết thúc',
-  failed: 'không thể kết nối cuộc gọi',
+  incoming: 'Đang gọi cho bạn',
+  preparing: 'Đang mở camera và micro…',
+  ringing: 'Đang đổ chuông…',
+  connecting: 'Đang thiết lập kết nối an toàn…',
+  active: 'Đã kết nối',
+  ended: 'Cuộc gọi đã kết thúc',
+  failed: 'Không thể kết nối cuộc gọi',
+};
+
+const qualityPresentation: Record<CallConnectionQuality, { label: string; className: string }> = {
+  checking: { label: 'Đang đo mạng', className: 'bg-white/10 text-white/80' },
+  good: { label: 'Kết nối tốt', className: 'bg-emerald-500/20 text-emerald-100' },
+  fair: { label: 'Kết nối trung bình', className: 'bg-amber-500/20 text-amber-100' },
+  poor: { label: 'Mạng yếu', className: 'bg-rose-500/20 text-rose-100' },
 };
 
 const terminalStatuses: CallStatus[] = ['declined', 'ended', 'failed'];
@@ -90,6 +111,10 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(kind === 'video');
+  const [facingMode, setFacingMode] = useState<CallFacingMode>('user');
+  const [switchingCamera, setSwitchingCamera] = useState(false);
+  const [connectionQuality, setConnectionQuality] = useState<CallConnectionQuality>('checking');
+  const [callDurationSeconds, setCallDurationSeconds] = useState(0);
   const [showReport, setShowReport] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -111,6 +136,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   const previousPhaseRef = useRef<CallPhase | null>(null);
   const relayConfiguredRef = useRef(false);
   const relayCandidateSeenRef = useRef(false);
+  const activeStartedAtRef = useRef<number | null>(null);
 
   const stopListeners = useCallback(() => {
     callUnsubscribeRef.current?.();
@@ -127,8 +153,10 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     pendingCandidatesRef.current = [];
     pendingLocalCandidatesRef.current = [];
     remoteDescriptionSetRef.current = false;
+    activeStartedAtRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
+    setConnectionQuality('checking');
   }, []);
 
   const clearConnectionTimeout = useCallback(() => {
@@ -247,6 +275,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     const iceServers = getCallIceServers();
     relayConfiguredRef.current = hasTurnRelayServer(iceServers);
     relayCandidateSeenRef.current = false;
+    setConnectionQuality('checking');
     const connection = new RTCPeerConnection({
       iceServers,
       iceCandidatePoolSize: 4,
@@ -384,14 +413,22 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       throw new Error('Trình duyệt này không hỗ trợ gọi trực tiếp. Hãy cập nhật Chrome, Safari hoặc Edge.');
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: kind === 'video' ? { facingMode: 'user' } : false,
-    });
+    const stream = await navigator.mediaDevices.getUserMedia(
+      getCallMediaConstraints(kind === 'video', 'user'),
+    );
+    applyCallTrackHints(stream);
     localStreamRef.current = stream;
     setLocalStream(stream);
     return stream;
   }, [kind]);
+
+  const attachLocalMedia = useCallback(async (
+    connection: RTCPeerConnection,
+    stream: MediaStream,
+  ) => {
+    stream.getTracks().forEach((track) => connection.addTrack(track, stream));
+    await optimizeCallSenders(connection);
+  }, []);
 
   const beginOutgoingCall = useCallback(async () => {
     if (hasStartedOutgoingRef.current) return;
@@ -405,10 +442,11 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         return;
       }
       const connection = createPeerConnection('caller');
-      stream.getTracks().forEach((track) => connection.addTrack(track, stream));
+      await attachLocalMedia(connection, stream);
 
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
+      await optimizeCallSenders(connection);
 
       if (isCleaningUpRef.current) {
         connection.close();
@@ -439,7 +477,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       setError(getCallErrorMessage(callError, kind));
       setPhase('failed');
     }
-  }, [createPeerConnection, currentUser.uid, flushLocalCandidates, getLocalMedia, kind, listenToSignaling, peer?.uid, releaseMedia]);
+  }, [attachLocalMedia, createPeerConnection, currentUser.uid, flushLocalCandidates, getLocalMedia, kind, listenToSignaling, peer?.uid, releaseMedia]);
 
   const acceptIncomingCall = async () => {
     if (!incomingCall?.offer || isAcceptingRef.current) return;
@@ -453,7 +491,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         return;
       }
       const connection = createPeerConnection('callee');
-      stream.getTracks().forEach((track) => connection.addTrack(track, stream));
+      await attachLocalMedia(connection, stream);
 
       callIdRef.current = incomingCall.id;
       setCallId(incomingCall.id);
@@ -465,6 +503,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
 
       const answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
+      await optimizeCallSenders(connection);
       await answerCall(incomingCall.id, connection.localDescription?.toJSON() || answer);
       await flushLocalCandidates(incomingCall.id, 'callee');
       scheduleConnectionTimeout();
@@ -542,6 +581,43 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     };
   }, [direction, phase]);
 
+  useEffect(() => {
+    if (phase !== 'active') return;
+    if (activeStartedAtRef.current === null) activeStartedAtRef.current = Date.now();
+
+    const updateDuration = () => {
+      if (activeStartedAtRef.current === null) return;
+      setCallDurationSeconds(Math.floor((Date.now() - activeStartedAtRef.current) / 1_000));
+    };
+    updateDuration();
+    const interval = window.setInterval(updateDuration, 1_000);
+    return () => window.clearInterval(interval);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'active') return;
+    let cancelled = false;
+
+    const updateQuality = async () => {
+      const connection = peerConnectionRef.current;
+      if (!connection) return;
+      try {
+        const quality = await readCallQuality(connection);
+        if (!cancelled) setConnectionQuality(quality);
+      } catch {
+        // Some older browsers do not expose connection stats. Calling remains
+        // fully functional; only the quality badge stays in checking state.
+      }
+    };
+
+    void updateQuality();
+    const interval = window.setInterval(() => { void updateQuality(); }, 3_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [phase]);
+
   const toggleMute = () => {
     const nextValue = !isMuted;
     localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !nextValue; });
@@ -552,6 +628,50 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     const nextValue = !isCameraOn;
     localStreamRef.current?.getVideoTracks().forEach((track) => { track.enabled = nextValue; });
     setIsCameraOn(nextValue);
+  };
+
+  const switchCamera = async () => {
+    if (kind !== 'video' || switchingCamera || !localStreamRef.current) return;
+    const nextFacingMode: CallFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    let replacementStream: MediaStream | null = null;
+    let replacementApplied = false;
+    setSwitchingCamera(true);
+
+    try {
+      const constraints = getCallMediaConstraints(true, nextFacingMode);
+      replacementStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: constraints.video,
+      });
+      applyCallTrackHints(replacementStream);
+      const replacementTrack = replacementStream.getVideoTracks()[0];
+      const currentStream = localStreamRef.current;
+      const sender = peerConnectionRef.current?.getSenders()
+        .find((candidate) => candidate.track?.kind === 'video');
+      if (!replacementTrack || !currentStream || !sender) {
+        replacementStream.getTracks().forEach((track) => track.stop());
+        throw new Error('Camera replacement is unavailable');
+      }
+
+      await sender.replaceTrack(replacementTrack);
+      replacementApplied = true;
+      currentStream.getVideoTracks().forEach((track) => track.stop());
+      const nextStream = new MediaStream([
+        ...currentStream.getAudioTracks(),
+        replacementTrack,
+      ]);
+      localStreamRef.current = nextStream;
+      setLocalStream(nextStream);
+      setFacingMode(nextFacingMode);
+      setIsCameraOn(true);
+      if (peerConnectionRef.current) await optimizeCallSenders(peerConnectionRef.current);
+    } catch (cameraError) {
+      if (!replacementApplied) replacementStream?.getTracks().forEach((track) => track.stop());
+      console.warn('Could not switch camera:', cameraError);
+      toast.error('Thiết bị này chưa cho phép đổi camera trong cuộc gọi.');
+    } finally {
+      setSwitchingCamera(false);
+    }
   };
 
   const dismiss = () => {
@@ -565,78 +685,194 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   const name = peerName(peer);
   const isIncoming = phase === 'incoming';
   const showVideo = kind === 'video' && !isIncoming;
+  const hasRemoteVideo = showVideo && Boolean(remoteStream);
+  const showLocalPreview = showVideo
+    && Boolean(localStream)
+    && phase !== 'ended'
+    && phase !== 'failed';
+  const quality = qualityPresentation[connectionQuality];
 
   return (
-    <div className="fixed inset-0 z-[200] p-4 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Cuộc gọi">
-      <div className="relative w-full max-w-2xl min-h-[420px] overflow-hidden rounded-[2rem] bg-slate-900 text-white shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 sm:p-4" role="dialog" aria-modal="true" aria-label="Cuộc gọi">
+      <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-950 text-white shadow-2xl sm:h-[min(92dvh,780px)] sm:max-w-5xl sm:rounded-[2rem]">
         {kind === 'audio' && <audio ref={remoteAudioRef} autoPlay playsInline aria-label={`Âm thanh từ ${peerName(peer)}`} />}
-        {showVideo && remoteStream ? (
-          <video ref={remoteVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
+        {hasRemoteVideo ? (
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            disablePictureInPicture
+            className="absolute inset-0 h-full w-full bg-black object-cover"
+          />
         ) : (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#4338ca,_#111827_60%)]" />
+          <>
+            {peer?.photoURL && (
+              <img
+                src={peer.photoURL}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-3xl"
+                referrerPolicy="no-referrer"
+              />
+            )}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,.78),_#0f172a_58%,_#020617)]" />
+          </>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/55 via-transparent to-slate-950/90 pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/75 via-transparent to-slate-950/95" />
 
-        <div className="relative z-10 flex-1 p-6 flex flex-col items-center text-center">
-          {peer && (
-            <button
-              type="button"
-              onClick={() => setShowReport(true)}
-              className="absolute top-5 left-5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold inline-flex items-center gap-1.5"
-            >
-              <AlertTriangle className="w-4 h-4" /> Báo cáo
-            </button>
-          )}
-          {showVideo && localStream && (
-            <video ref={localVideoRef} autoPlay muted playsInline className="absolute top-5 right-5 w-28 sm:w-36 aspect-video object-cover rounded-2xl border-2 border-white/30 bg-slate-800 shadow-xl" />
-          )}
-
-          <div className="mt-8 w-24 h-24 rounded-[2rem] overflow-hidden bg-gradient-to-br from-indigo-500 to-violet-600 shadow-2xl flex items-center justify-center text-2xl font-black">
-            {peer?.photoURL ? (
-              <img src={peer.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            ) : getInitials(name)}
-          </div>
-          <h2 className="mt-5 text-2xl font-black tracking-tight">{name}</h2>
-          <p className="mt-1 text-sm text-slate-200 capitalize">{phaseText[phase]}</p>
-          {kind === 'video' && <p className="mt-1 text-xs text-slate-300">Cuộc gọi video</p>}
-          {error && <p className="mt-4 max-w-sm rounded-xl bg-red-500/20 px-3 py-2 text-sm text-red-100">{error}</p>}
-
-          {isIncoming && (
-            <div className="mt-auto w-full max-w-sm rounded-2xl bg-white/10 border border-white/15 p-4 text-left">
-              <p className="text-sm font-semibold">Bạn có thể từ chối nếu chưa sẵn sàng. Camera/micro chỉ được mở khi bạn nhấn Nhận.</p>
+        <header className="relative z-20 flex items-start justify-between gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 sm:pt-6">
+          <div className="min-w-0 rounded-2xl bg-slate-950/35 px-3 py-2 backdrop-blur-md sm:px-4">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              </span>
+              <div className="min-w-0 text-left">
+                <h2 className="truncate text-sm font-black sm:text-base">{name}</h2>
+                <p className="truncate text-[11px] text-white/70 sm:text-xs">
+                  {phase === 'active' ? formatCallDuration(callDurationSeconds) : phaseText[phase]}
+                </p>
+              </div>
             </div>
-          )}
-          {callId && phase === 'ringing' && <p className="mt-auto text-xs text-slate-400">Đang chờ {name} nhận cuộc gọi…</p>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {phase === 'active' && (
+              <span className={`hidden min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold backdrop-blur-md sm:inline-flex ${quality.className}`}>
+                <Wifi className="h-3.5 w-3.5" />{quality.label}
+              </span>
+            )}
+            {peer && (
+              <button
+                type="button"
+                onClick={() => setShowReport(true)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/35 text-white/80 backdrop-blur-md transition hover:bg-white/20 hover:text-white"
+                aria-label="Báo cáo người dùng"
+                title="Báo cáo"
+              >
+                <AlertTriangle className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </header>
+
+        {showLocalPreview && (
+          <div className="absolute right-4 top-20 z-20 overflow-hidden rounded-2xl border border-white/25 bg-slate-900 shadow-2xl sm:right-6 sm:top-24">
+            {isCameraOn ? (
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                disablePictureInPicture
+                className={`h-36 w-24 object-cover sm:h-32 sm:w-48 ${facingMode === 'user' ? '-scale-x-100' : ''}`}
+              />
+            ) : (
+              <div className="flex h-36 w-24 flex-col items-center justify-center gap-2 bg-slate-800 text-white/65 sm:h-32 sm:w-48">
+                <CameraOff className="h-5 w-5" />
+                <span className="text-[10px] font-bold">Camera đã tắt</span>
+              </div>
+            )}
+            <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold">Bạn</span>
+          </div>
+        )}
+
+        {!hasRemoteVideo && (
+          <main className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 pb-36 pt-24 text-center">
+            <div className={`relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2.25rem] bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-black shadow-2xl sm:h-32 sm:w-32 ${['incoming', 'ringing', 'connecting'].includes(phase) ? 'ring-8 ring-white/5' : ''}`}>
+              {peer?.photoURL ? (
+                <img src={peer.photoURL} alt={name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              ) : getInitials(name)}
+              {['incoming', 'ringing', 'connecting'].includes(phase) && (
+                <span className="absolute inset-0 animate-pulse rounded-[2.25rem] ring-2 ring-white/25" />
+              )}
+            </div>
+            <h3 className="mt-6 max-w-full truncate text-2xl font-black tracking-tight sm:text-3xl">{name}</h3>
+            <p className="mt-2 text-sm font-medium text-white/75">{phaseText[phase]}</p>
+            {kind === 'video' && <p className="mt-2 text-xs text-white/55">Video HD thích ứng theo tốc độ mạng</p>}
+            {kind === 'audio' && <p className="mt-2 text-xs text-white/55">Khử tiếng vọng và giảm nhiễu nền</p>}
+          </main>
+        )}
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-28 z-20 flex justify-center px-4 sm:bottom-32">
+          <div className="pointer-events-auto w-full max-w-md space-y-2">
+            {phase === 'active' && (
+              <div className={`mx-auto flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold backdrop-blur-md sm:hidden ${quality.className}`}>
+                <Wifi className="h-3.5 w-3.5" />{quality.label}
+              </div>
+            )}
+            {error && <p className="rounded-2xl border border-rose-300/20 bg-rose-500/20 px-4 py-3 text-center text-sm text-rose-50 backdrop-blur-md">{error}</p>}
+            {isIncoming && (
+              <p className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-center text-xs leading-relaxed text-white/75 backdrop-blur-md">
+                Camera và micro chỉ mở sau khi bạn nhấn nhận cuộc gọi.
+              </p>
+            )}
+            {callId && phase === 'ringing' && (
+              <p className="text-center text-xs text-white/60">Đang chờ {name} nhận cuộc gọi…</p>
+            )}
+          </div>
         </div>
 
-        <div className="relative z-10 p-5 flex items-center justify-center gap-4 bg-slate-950/55">
+        <footer className="absolute inset-x-0 bottom-0 z-30 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+          <div className="mx-auto flex min-h-20 w-fit max-w-full items-center justify-center gap-3 rounded-[1.75rem] border border-white/10 bg-slate-950/65 px-4 py-3 shadow-2xl backdrop-blur-xl sm:gap-5 sm:px-6">
           {isIncoming ? (
             <>
-              <button onClick={() => void finishCall('declined').finally(onClose)} className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-500 flex items-center justify-center shadow-lg" aria-label="Từ chối cuộc gọi">
-                <PhoneOff className="w-6 h-6" />
-              </button>
-              <button onClick={() => void acceptIncomingCall()} className="min-w-36 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 font-black inline-flex items-center justify-center gap-2 shadow-lg" aria-label="Nhận cuộc gọi">
-                {kind === 'video' ? <Video className="w-5 h-5" /> : <Phone className="w-5 h-5" />} Nhận
-              </button>
+              <div className="flex flex-col items-center gap-1">
+                <button onClick={() => void finishCall('declined').finally(onClose)} className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 shadow-lg transition hover:bg-rose-500" aria-label="Từ chối cuộc gọi">
+                  <PhoneOff className="h-6 w-6" />
+                </button>
+                <span className="text-[10px] font-bold text-white/65">Từ chối</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <button onClick={() => void acceptIncomingCall()} className="flex h-14 min-w-32 items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 font-black shadow-lg transition hover:bg-emerald-400" aria-label="Nhận cuộc gọi">
+                  {kind === 'video' ? <Video className="h-5 w-5" /> : <Phone className="h-5 w-5" />} Nhận
+                </button>
+                <span className="text-[10px] font-bold text-white/65">Kết nối an toàn</span>
+              </div>
             </>
           ) : phase === 'ended' || phase === 'failed' ? (
-            <button onClick={onClose} className="min-w-40 h-12 rounded-full bg-white text-slate-900 font-black">Đóng</button>
+            <button onClick={onClose} className="h-12 min-w-40 rounded-full bg-white px-6 font-black text-slate-900 transition hover:bg-slate-100">Đóng</button>
           ) : (
             <>
-              <button onClick={toggleMute} className={`w-12 h-12 rounded-full flex items-center justify-center ${isMuted ? 'bg-rose-500' : 'bg-white/15 hover:bg-white/25'}`} aria-label={isMuted ? 'Bật micro' : 'Tắt micro'}>
-                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </button>
-              {kind === 'video' && (
-                <button onClick={toggleCamera} className={`w-12 h-12 rounded-full flex items-center justify-center ${!isCameraOn ? 'bg-rose-500' : 'bg-white/15 hover:bg-white/25'}`} aria-label={isCameraOn ? 'Tắt camera' : 'Bật camera'}>
-                  {isCameraOn ? <Camera className="w-5 h-5" /> : <CameraOff className="w-5 h-5" />}
+              <div className="flex flex-col items-center gap-1">
+                <button onClick={toggleMute} className={`flex h-12 w-12 items-center justify-center rounded-full transition ${isMuted ? 'bg-white text-slate-950' : 'bg-white/12 hover:bg-white/20'}`} aria-label={isMuted ? 'Bật micro' : 'Tắt micro'}>
+                  {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </button>
+                <span className="text-[10px] font-bold text-white/65">{isMuted ? 'Bật mic' : 'Micro'}</span>
+              </div>
+              {kind === 'video' && (
+                <>
+                  <div className="flex flex-col items-center gap-1">
+                    <button onClick={toggleCamera} className={`flex h-12 w-12 items-center justify-center rounded-full transition ${!isCameraOn ? 'bg-white text-slate-950' : 'bg-white/12 hover:bg-white/20'}`} aria-label={isCameraOn ? 'Tắt camera' : 'Bật camera'}>
+                      {isCameraOn ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
+                    </button>
+                    <span className="text-[10px] font-bold text-white/65">Camera</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      onClick={() => void switchCamera()}
+                      disabled={!isCameraOn || switchingCamera}
+                      className="flex h-12 w-12 items-center justify-center rounded-full bg-white/12 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Đổi camera"
+                    >
+                      <SwitchCamera className={`h-5 w-5 ${switchingCamera ? 'animate-pulse' : ''}`} />
+                    </button>
+                    <span className="text-[10px] font-bold text-white/65">Đổi camera</span>
+                  </div>
+                </>
               )}
-              <button onClick={dismiss} className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-500 flex items-center justify-center shadow-lg" aria-label="Kết thúc cuộc gọi">
-                <PhoneOff className="w-6 h-6" />
-              </button>
+              <div className="flex flex-col items-center gap-1">
+                <button onClick={dismiss} className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 shadow-lg transition hover:bg-rose-500" aria-label="Kết thúc cuộc gọi">
+                  <PhoneOff className="h-6 w-6" />
+                </button>
+                <span className="text-[10px] font-bold text-white/65">Kết thúc</span>
+              </div>
             </>
           )}
-        </div>
+          </div>
+          <div className="mx-auto mt-2 flex w-fit items-center gap-1.5 text-[10px] font-medium text-white/45">
+            <Clock3 className="h-3 w-3" /> Âm thanh rõ · Hình ảnh tự thích ứng · Không giới hạn thời gian
+          </div>
+        </footer>
       </div>
       {peer && (
         <ReportModal
