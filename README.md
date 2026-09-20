@@ -157,7 +157,7 @@ npm run migrate:rental-geohashes -- --apply
 
 ## Gọi thoại và video
 
-Cuộc gọi dùng WebRTC với nhiều STUN công khai trên cổng 80, 3478 và 19302. STUN chỉ giúp tìm đường trực tiếp; Wi‑Fi có AP isolation, NAT đối xứng hoặc chặn UDP vẫn bắt buộc cần TURN qua TCP/TLS cổng 443. Khi relay riêng chưa sẵn sàng, ứng dụng dùng Open Relay như một lớp tương thích có giới hạn; production nên dùng credential ngắn hạn do backend cấp.
+Cuộc gọi dùng WebRTC với nhiều STUN công khai trên cổng 80, 3478 và 19302. STUN chỉ giúp tìm đường trực tiếp; Wi‑Fi có AP isolation, NAT đối xứng hoặc chặn UDP vẫn bắt buộc cần TURN qua TCP/TLS cổng 443. Production dùng credential TURN ngắn hạn do backend cấp.
 
 `VITE_TURN_URL` nhận một hoặc nhiều URL phân cách bằng dấu phẩy. `VITE_TURN_*` chỉ dành cho thử nghiệm vì biến `VITE_*` hiển thị trong web bundle. Với production, dùng credential TURN ngắn hạn do server cấp; không đưa mật khẩu TURN cố định vào frontend.
 
@@ -169,7 +169,7 @@ firebase functions:secrets:set TURN_KEY_API_TOKEN --project tvu-connect-1dc97
 firebase deploy --only functions:getTurnIceServers --project tvu-connect-1dc97
 ```
 
-Không đưa hai secret trên vào Git, `.env` hoặc biến Vercel. Khi function riêng chưa được cấu hình, app tự dùng Open Relay trong thời gian ngắn để cuộc gọi vẫn có đường qua Wi-Fi hạn chế; lớp này chỉ là phương án tương thích và có hạn mức công cộng.
+Không đưa hai secret trên vào Git, `.env` hoặc biến Vercel. Khi function riêng chưa được cấu hình, app chỉ có thể thử kết nối trực tiếp qua STUN và sẽ giải thích rõ nếu mạng Wi-Fi bắt buộc phải có TURN.
 
 ### Gọi nhanh và phòng học nhóm
 

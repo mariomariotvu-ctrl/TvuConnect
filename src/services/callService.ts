@@ -234,20 +234,6 @@ interface TurnIceServerResponse {
 let turnIceServerCache: TurnIceServerResponse | null = null;
 let turnIceServerRequest: Promise<RTCIceServer[]> | null = null;
 
-export const getCommunityRelayIceServers = (): RTCIceServer[] => [
-  ...getCallIceServers(),
-  {
-    urls: [
-      'turn:openrelay.metered.ca:80',
-      'turn:openrelay.metered.ca:443',
-      'turn:openrelay.metered.ca:443?transport=tcp',
-      'turns:openrelay.metered.ca:443?transport=tcp',
-    ],
-    username: 'openrelayproject',
-    credential: 'openrelayproject',
-  },
-];
-
 /**
  * Fetches short-lived relay credentials from the trusted backend. Calls still
  * fall back to STUN when TURN has not been configured yet.
@@ -280,16 +266,15 @@ export async function getCallIceServersForSession(): Promise<RTCIceServer[]> {
       };
       return iceServers;
     } catch (error) {
-      console.warn('Private TURN relay is unavailable; using the community relay fallback.', error);
-      const iceServers = getCommunityRelayIceServers();
-      // Avoid retrying a missing private TURN function on every call attempt.
-      // This short cache still lets production credentials take over quickly
-      // after the backend is configured.
+      console.warn('Private TURN relay is unavailable; continuing with direct ICE routes.', error);
+      // Do not claim a relay is configured when no credential was returned.
+      // Caching the direct fallback avoids retrying a missing function on every
+      // call while still allowing newly deployed credentials to take over.
       turnIceServerCache = {
-        iceServers,
+        iceServers: fallbackServers,
         expiresAt: Date.now() + 5 * 60_000,
       };
-      return iceServers;
+      return fallbackServers;
     } finally {
       turnIceServerRequest = null;
     }
