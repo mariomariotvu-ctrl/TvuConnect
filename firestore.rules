@@ -11,11 +11,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
     
-    // isParticipant: dùng để check xem user có trong danh sách participants không
-    function isParticipant(participants) {
-      return isAuthenticated() && request.auth.uid in participants;
-    }
-    
     // Block records use the deterministic ID "blockerUid_blockedUid", so this
     // check is atomic and cannot be bypassed by a client-side UI error.
     function isNotBlocked(senderUid, receiverUid) {
