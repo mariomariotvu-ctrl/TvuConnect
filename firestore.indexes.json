@@ -461,6 +461,10 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "channel",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "purpose",
           "order": "ASCENDING"
         },

@@ -14,12 +14,13 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import {
   CallCandidateSide,
+  CallContext,
   CallKind,
   CallSession,
   CallStatus,
 } from '../types/call';
 
-export interface CreateCallInput {
+export interface CreateCallInput extends CallContext {
   callerUid: string;
   calleeUid: string;
   kind: CallKind;
@@ -35,6 +36,9 @@ const toCallSession = (id: string, data: Record<string, unknown>): CallSession =
   calleeUid: data.calleeUid as string,
   participantUids: (data.participantUids || []) as string[],
   kind: data.kind as CallKind,
+  privacyMode: data.privacyMode as CallSession['privacyMode'],
+  source: data.source as CallSession['source'],
+  sourceSessionId: data.sourceSessionId as string | undefined,
   status: data.status as CallStatus,
   offer: data.offer as RTCSessionDescriptionInit | undefined,
   answer: data.answer as RTCSessionDescriptionInit | undefined,
@@ -51,13 +55,23 @@ export async function createCall(input: CreateCallInput): Promise<string> {
   }
 
   const callable = httpsCallable<
-    { calleeUid: string; kind: CallKind; offer: RTCSessionDescriptionInit },
+    {
+      calleeUid: string;
+      kind: CallKind;
+      offer: RTCSessionDescriptionInit;
+      privacyMode?: CallContext['privacyMode'];
+      source?: CallContext['source'];
+      sourceSessionId?: string;
+    },
     { callId: string }
   >(functions, 'createDirectCall', { timeout: 20_000 });
   const response = await callable({
     calleeUid: input.calleeUid,
     kind: input.kind,
     offer: input.offer,
+    privacyMode: input.privacyMode,
+    source: input.source,
+    sourceSessionId: input.sourceSessionId,
   });
   return response.data.callId;
 }

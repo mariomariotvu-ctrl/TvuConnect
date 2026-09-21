@@ -8,6 +8,14 @@ if (!getApps().length) {
 
 const WAITING_TTL_MS = 5 * 60 * 1000;
 const ALLOWED_PURPOSES = new Set(['casual', 'study']);
+const ALLOWED_CHANNELS = new Set(['voice', 'text']);
+
+function normalizeMatchRequest(data) {
+  return {
+    purpose: ALLOWED_PURPOSES.has(data?.purpose) ? data.purpose : 'casual',
+    channel: ALLOWED_CHANNELS.has(data?.channel) ? data.channel : 'voice',
+  };
+}
 
 exports.matchVoicePartner = onCall(async (request) => {
   const uid = request.auth?.uid;
@@ -15,9 +23,7 @@ exports.matchVoicePartner = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập để ghép cuộc trò chuyện.');
   }
 
-  const purpose = ALLOWED_PURPOSES.has(request.data?.purpose)
-    ? request.data.purpose
-    : 'casual';
+  const { purpose, channel } = normalizeMatchRequest(request.data);
   const firestore = getFirestore();
   const queueRef = firestore.collection('voiceMatchQueue').doc(uid);
   const now = Timestamp.now();
@@ -31,6 +37,8 @@ exports.matchVoicePartner = onCall(async (request) => {
       currentData?.status === 'matched'
       && currentData?.peerUid
       && currentData?.sessionId
+      && currentData?.purpose === purpose
+      && (currentData?.channel || 'voice') === channel
       && currentMatchedAt > cutoff.toMillis()
     ) {
       return {
@@ -38,6 +46,7 @@ exports.matchVoicePartner = onCall(async (request) => {
         peerUid: currentData.peerUid,
         sessionId: currentData.sessionId,
         initiatorUid: currentData.initiatorUid,
+        channel: currentData.channel || 'voice',
       };
     }
 
@@ -45,12 +54,14 @@ exports.matchVoicePartner = onCall(async (request) => {
     if (
       currentData?.status === 'waiting'
       && currentData?.purpose === purpose
+      && (currentData?.channel || 'voice') === channel
       && currentJoinedAt > cutoff.toMillis()
     ) {
       return { status: 'waiting' };
     }
 
     const candidatesQuery = firestore.collection('voiceMatchQueue')
+      .where('channel', '==', channel)
       .where('purpose', '==', purpose)
       .where('status', '==', 'waiting')
       .where('joinedAt', '>', cutoff)
@@ -76,6 +87,7 @@ exports.matchVoicePartner = onCall(async (request) => {
       transaction.set(queueRef, {
         userUid: uid,
         purpose,
+        channel,
         status: 'waiting',
         joinedAt: now,
         expiresAt: Timestamp.fromMillis(now.toMillis() + WAITING_TTL_MS),
@@ -95,6 +107,7 @@ exports.matchVoicePartner = onCall(async (request) => {
     transaction.set(queueRef, {
       userUid: uid,
       purpose,
+      channel,
       peerUid,
       joinedAt: now,
       expiresAt: Timestamp.fromMillis(now.toMillis() + WAITING_TTL_MS),
@@ -107,9 +120,11 @@ exports.matchVoicePartner = onCall(async (request) => {
     transaction.set(sessionRef, {
       participantUids: [uid, peerUid],
       purpose,
+      channel,
       initiatorUid: uid,
       status: 'matched',
       createdAt: now,
+      expiresAt: Timestamp.fromMillis(now.toMillis() + WAITING_TTL_MS),
     });
 
     return {
@@ -117,6 +132,9 @@ exports.matchVoicePartner = onCall(async (request) => {
       peerUid,
       sessionId: sessionRef.id,
       initiatorUid: uid,
+      channel,
     };
   });
 });
+
+exports.normalizeMatchRequest = normalizeMatchRequest;

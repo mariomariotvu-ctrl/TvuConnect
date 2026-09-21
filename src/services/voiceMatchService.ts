@@ -1,22 +1,29 @@
 import { deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
-import { VoiceMatchPurpose, VoiceQueueState } from '../types/socialAudio';
+import { VoiceMatchChannel, VoiceMatchPurpose, VoiceQueueState } from '../types/socialAudio';
 
 interface MatchVoiceResponse {
   status: 'waiting' | 'matched';
   peerUid?: string;
   sessionId?: string;
   initiatorUid?: string;
+  channel?: VoiceMatchChannel;
 }
 
-export async function joinVoiceMatchQueue(purpose: VoiceMatchPurpose): Promise<MatchVoiceResponse> {
-  const callable = httpsCallable<{ purpose: VoiceMatchPurpose }, MatchVoiceResponse>(
+export async function joinVoiceMatchQueue(
+  purpose: VoiceMatchPurpose,
+  channel: VoiceMatchChannel = 'voice',
+): Promise<MatchVoiceResponse> {
+  const callable = httpsCallable<
+    { purpose: VoiceMatchPurpose; channel: VoiceMatchChannel },
+    MatchVoiceResponse
+  >(
     functions,
     'matchVoicePartner',
     { timeout: 20_000 },
   );
-  const response = await callable({ purpose });
+  const response = await callable({ purpose, channel });
   return response.data;
 }
 

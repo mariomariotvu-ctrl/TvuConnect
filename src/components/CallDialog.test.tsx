@@ -10,6 +10,9 @@ vi.mock('../services/callService', () => ({
   answerCall: vi.fn(),
   createCall: vi.fn(),
   getCallIceServers: vi.fn(() => []),
+  getCallIceServersForSession: vi.fn(() => Promise.resolve([])),
+  getIceCandidateType: vi.fn(() => null),
+  hasTurnRelayServer: vi.fn(() => false),
   subscribeToCall: vi.fn(() => () => undefined),
   subscribeToCallCandidates: vi.fn(() => () => undefined),
   updateCallStatus: vi.fn(),
@@ -64,5 +67,24 @@ describe('CallDialog media playback', () => {
     );
 
     expect(screen.queryByLabelText('Âm thanh từ Bạn học TVU')).not.toBeInTheDocument();
+  });
+
+  it('ẩn tên thật trong cuộc gọi ghép nhanh ẩn danh', () => {
+    render(
+      <CallDialog
+        currentUser={currentUser}
+        peer={{ ...peer, photoURL: 'https://example.com/private-face.jpg' }}
+        direction="incoming"
+        kind="audio"
+        incomingCall={{ ...incomingCall, privacyMode: 'anonymous', source: 'quick_voice' }}
+        context={{ privacyMode: 'anonymous', source: 'quick_voice', sourceSessionId: 'session-1' }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText('Bạn trò chuyện ẩn danh')).toHaveLength(2);
+    expect(screen.getByLabelText('Âm thanh từ Bạn trò chuyện ẩn danh')).toBeInTheDocument();
+    expect(screen.queryByText('Bạn học TVU')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 });

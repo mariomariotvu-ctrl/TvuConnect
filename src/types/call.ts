@@ -1,4 +1,12 @@
 export type CallKind = 'audio' | 'video';
+export type CallPrivacyMode = 'standard' | 'anonymous';
+export type CallSource = 'direct' | 'quick_voice' | 'dating';
+
+export interface CallContext {
+  privacyMode?: CallPrivacyMode;
+  source?: CallSource;
+  sourceSessionId?: string;
+}
 
 export type CallStatus =
   | 'ringing'
@@ -19,6 +27,9 @@ export interface CallSession {
   calleeUid: string;
   participantUids: string[];
   kind: CallKind;
+  privacyMode?: CallPrivacyMode;
+  source?: CallSource;
+  sourceSessionId?: string;
   status: CallStatus;
   offer?: RTCSessionDescriptionInit;
   answer?: RTCSessionDescriptionInit;

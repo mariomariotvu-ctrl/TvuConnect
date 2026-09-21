@@ -1,8 +1,10 @@
 export type VoiceMatchPurpose = 'casual' | 'study';
+export type VoiceMatchChannel = 'voice' | 'text';
 
 export interface VoiceQueueState {
   userUid: string;
   purpose: VoiceMatchPurpose;
+  channel: VoiceMatchChannel;
   status: 'waiting' | 'matched';
   peerUid?: string;
   sessionId?: string;

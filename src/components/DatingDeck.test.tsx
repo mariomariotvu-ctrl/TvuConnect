@@ -47,6 +47,7 @@ const renderDeck = (
     onGenderFilterChange={onGenderFilterChange}
     onLoadMore={vi.fn()}
     onStartChat={vi.fn()}
+    onStartCall={vi.fn()}
   />,
 );
 

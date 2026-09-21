@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   lockStillActive,
+  normalizeCallContext,
   normalizeOffer,
 } = require('./manageDirectCall');
 
@@ -26,4 +27,25 @@ test('busy lock requires both a live expiry and an active call', () => {
   assert.equal(lockStillActive(activeLock, snapshot({ status: 'ringing' }), now), true);
   assert.equal(lockStillActive(activeLock, snapshot({ status: 'ended' }), now), false);
   assert.equal(lockStillActive(expiredLock, snapshot({ status: 'active' }), now), false);
+});
+
+test('quick voice calls always use anonymous presentation and require a session', () => {
+  assert.deepEqual(normalizeCallContext({
+    source: 'quick_voice',
+    sourceSessionId: 'session-1',
+    privacyMode: 'standard',
+  }), {
+    source: 'quick_voice',
+    sourceSessionId: 'session-1',
+    privacyMode: 'anonymous',
+  });
+  assert.throws(() => normalizeCallContext({ source: 'quick_voice' }));
+});
+
+test('unknown call sources fall back to a standard direct call', () => {
+  assert.deepEqual(normalizeCallContext({ source: 'forged' }), {
+    source: 'direct',
+    sourceSessionId: '',
+    privacyMode: 'standard',
+  });
 });

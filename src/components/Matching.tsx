@@ -24,12 +24,13 @@ import { MatchedProfilesSection } from './matching/MatchedProfilesSection';
 import { QuickVoiceMatch } from './QuickVoiceMatch';
 import { StudyRoomHub } from './StudyRoomHub';
 import { DatingDeck } from './DatingDeck';
+import { CallContext } from '../types/call';
 
 interface MatchingProps {
   currentUser: User;
   onMatchFound: (profile: StudentProfile) => void;
   onStartChat: (uid: string) => void;
-  onStartCall: (profile: StudentProfile, kind: 'audio') => void;
+  onStartCall: (profile: StudentProfile, kind: 'audio', context?: CallContext) => void;
   mode: 'lover' | 'study' | 'quick' | 'hobby';
 }
 
@@ -175,7 +176,7 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, o
   }, [remainingMatches, hasShownLowMatchWarning, currentUser.uid, mode]);
 
   if (mode === 'quick') {
-    return <QuickVoiceMatch currentUser={currentUser} onStartCall={onStartCall} />;
+    return <QuickVoiceMatch currentUser={currentUser} onStartCall={onStartCall} onStartChat={onStartChat} />;
   }
 
   if (mode === 'lover') {
@@ -198,6 +199,7 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, o
           }}
           onLoadMore={() => { void loadOneMore(); }}
           onStartChat={onStartChat}
+          onStartCall={(profile) => onStartCall(profile, 'audio', { source: 'dating' })}
         />
       </div>
     );

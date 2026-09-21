@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StudentProfile } from '../types';
-import { CallKind, CallSession, CallStatus } from '../types/call';
+import { CallContext, CallKind, CallSession, CallStatus } from '../types/call';
 import {
   addCallCandidate,
   answerCall,
@@ -49,6 +49,7 @@ interface CallDialogProps {
   direction: CallDirection;
   kind: CallKind;
   incomingCall?: CallSession | null;
+  context?: CallContext;
   onClose: () => void;
 }
 
@@ -102,6 +103,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   direction,
   kind,
   incomingCall,
+  context,
   onClose,
 }) => {
   const [phase, setPhase] = useState<CallPhase>(direction === 'incoming' ? 'incoming' : 'preparing');
@@ -458,6 +460,9 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         calleeUid: peer?.uid || '',
         kind,
         offer: connection.localDescription?.toJSON() || offer,
+        privacyMode: context?.privacyMode,
+        source: context?.source,
+        sourceSessionId: context?.sourceSessionId,
       });
 
       callIdRef.current = activeCallId;
@@ -477,7 +482,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
       setError(getCallErrorMessage(callError, kind));
       setPhase('failed');
     }
-  }, [attachLocalMedia, createPeerConnection, currentUser.uid, flushLocalCandidates, getLocalMedia, kind, listenToSignaling, peer?.uid, releaseMedia]);
+  }, [attachLocalMedia, context?.privacyMode, context?.source, context?.sourceSessionId, createPeerConnection, currentUser.uid, flushLocalCandidates, getLocalMedia, kind, listenToSignaling, peer?.uid, releaseMedia]);
 
   const acceptIncomingCall = async () => {
     if (!incomingCall?.offer || isAcceptingRef.current) return;
@@ -682,7 +687,8 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     void finishCall().finally(onClose);
   };
 
-  const name = peerName(peer);
+  const isAnonymous = context?.privacyMode === 'anonymous' || incomingCall?.privacyMode === 'anonymous';
+  const name = isAnonymous ? 'Bạn trò chuyện ẩn danh' : peerName(peer);
   const isIncoming = phase === 'incoming';
   const showVideo = kind === 'video' && !isIncoming;
   const hasRemoteVideo = showVideo && Boolean(remoteStream);
@@ -695,7 +701,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 sm:p-4" role="dialog" aria-modal="true" aria-label="Cuộc gọi">
       <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-950 text-white shadow-2xl sm:h-[min(92dvh,780px)] sm:max-w-5xl sm:rounded-[2rem]">
-        {kind === 'audio' && <audio ref={remoteAudioRef} autoPlay playsInline aria-label={`Âm thanh từ ${peerName(peer)}`} />}
+        {kind === 'audio' && <audio ref={remoteAudioRef} autoPlay playsInline aria-label={`Âm thanh từ ${name}`} />}
         {hasRemoteVideo ? (
           <video
             ref={remoteVideoRef}
@@ -706,7 +712,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
           />
         ) : (
           <>
-            {peer?.photoURL && (
+            {!isAnonymous && peer?.photoURL && (
               <img
                 src={peer.photoURL}
                 alt=""
@@ -779,7 +785,7 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         {!hasRemoteVideo && (
           <main className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 pb-36 pt-24 text-center">
             <div className={`relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2.25rem] bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-black shadow-2xl sm:h-32 sm:w-32 ${['incoming', 'ringing', 'connecting'].includes(phase) ? 'ring-8 ring-white/5' : ''}`}>
-              {peer?.photoURL ? (
+              {!isAnonymous && peer?.photoURL ? (
                 <img src={peer.photoURL} alt={name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
               ) : getInitials(name)}
               {['incoming', 'ringing', 'connecting'].includes(phase) && (

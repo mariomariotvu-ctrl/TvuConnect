@@ -27,7 +27,7 @@ import { setupForegroundListener, getFCMToken } from './utils/fcm';
 import { showNotification, formatMessageNotification } from './utils/notifications';
 import { onlineStatusManager } from './utils/onlineStatusManager';
 import { subscribeToIncomingCalls } from './services/callService';
-import { CallKind, CallSession } from './types/call';
+import { CallContext, CallKind, CallSession } from './types/call';
 import { initializeAppSounds, playAppSound } from './utils/appSounds';
 import { safeNotificationRoute } from './services/notificationCenterService';
 
@@ -67,6 +67,7 @@ interface ActiveCall {
   kind: CallKind;
   peer: StudentProfile | null;
   incomingCall?: CallSession;
+  context?: CallContext;
 }
 
 export default function App() {
@@ -592,6 +593,11 @@ export default function App() {
           direction: 'incoming',
           kind: incomingCall.kind,
           incomingCall,
+          context: {
+            privacyMode: incomingCall.privacyMode,
+            source: incomingCall.source,
+            sourceSessionId: incomingCall.sourceSessionId,
+          },
           peer: callerProfile.exists()
             ? { ...callerProfile.data(), uid: incomingCall.callerUid } as StudentProfile
             : null,
@@ -746,13 +752,13 @@ export default function App() {
     });
   }, [navigate]);
 
-  const handleStartCall = useCallback((profile: StudentProfile, kind: CallKind) => {
+  const handleStartCall = useCallback((profile: StudentProfile, kind: CallKind, context?: CallContext) => {
     if (activeCallRef.current) {
       toast.info('Bạn đang có một cuộc gọi khác. Hãy kết thúc cuộc gọi đó trước nhé.');
       return;
     }
 
-    const callState: ActiveCall = { direction: 'outgoing', kind, peer: profile };
+    const callState: ActiveCall = { direction: 'outgoing', kind, peer: profile, context };
     activeCallRef.current = callState;
     setActiveCall(callState);
   }, []);
@@ -789,7 +795,7 @@ export default function App() {
               currentUser={user}
               onMatchFound={handleMatchFound}
               onStartChat={handleStartChat}
-              onStartCall={(profile) => handleStartCall(profile, 'audio')}
+              onStartCall={(profile, kind, context) => handleStartCall(profile, kind, context)}
               mode={matchingMode || 'quick'}
             />
           </RouteLoader>
@@ -1666,6 +1672,7 @@ export default function App() {
           direction={activeCall.direction}
           kind={activeCall.kind}
           incomingCall={activeCall.incomingCall}
+          context={activeCall.context}
           onClose={handleCloseCall}
         />
       )}

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { User } from 'firebase/auth';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, Eye, EyeOff, GraduationCap, Heart, Loader2, Lock, MessageCircle, ShieldCheck, Sparkles, User as UserIcon, X } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, GraduationCap, Heart, Loader2, Lock, MessageCircle, Phone, ShieldCheck, Sparkles, User as UserIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { StudentProfile } from '../types';
 import { recordDatingDecision, updateDatingPreferences } from '../services/datingService';
@@ -19,6 +19,7 @@ interface DatingDeckProps {
   onGenderFilterChange: (gender: 'any' | 'male' | 'female') => void;
   onLoadMore: () => void;
   onStartChat: (uid: string) => void;
+  onStartCall: (profile: StudentProfile) => void;
 }
 
 const initials = (name: string) => name.trim().split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase();
@@ -33,6 +34,7 @@ export const DatingDeck: React.FC<DatingDeckProps> = ({
   onGenderFilterChange,
   onLoadMore,
   onStartChat,
+  onStartCall,
 }) => {
   const [enabled, setEnabled] = useState(currentProfile?.datingEnabled === true);
   const [hideFace, setHideFace] = useState(currentProfile?.hideFaceInDating !== false);
@@ -246,7 +248,10 @@ export const DatingDeck: React.FC<DatingDeckProps> = ({
             <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-rose-500 to-violet-600 text-white flex items-center justify-center"><Heart className="w-10 h-10 fill-current" /></div>
             <h2 className="mt-4 text-2xl font-black text-slate-900 dark:text-white">Hai bạn cùng thích nhau!</h2>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Bắt đầu bằng một lời chào lịch sự với {matchedProfile.fullName}.</p>
-            <button onClick={() => onStartChat(matchedProfile.uid)} className="mt-5 w-full min-h-12 rounded-xl bg-gradient-to-r from-rose-500 to-violet-600 text-white font-black inline-flex items-center justify-center gap-2"><MessageCircle className="w-5 h-5" /> Nhắn tin</button>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button onClick={() => { const profile = matchedProfile; setMatchedProfile(null); onStartCall(profile); }} className="min-h-12 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-black inline-flex items-center justify-center gap-2 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"><Phone className="w-5 h-5" /> Gọi thoại</button>
+              <button onClick={() => onStartChat(matchedProfile.uid)} className="min-h-12 rounded-xl bg-gradient-to-r from-rose-500 to-violet-600 text-white font-black inline-flex items-center justify-center gap-2"><MessageCircle className="w-5 h-5" /> Nhắn tin</button>
+            </div>
             <button onClick={() => setMatchedProfile(null)} className="mt-3 text-sm font-bold text-slate-500">Tiếp tục xem</button>
           </div>
         </div>
