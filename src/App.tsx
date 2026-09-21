@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef, useTransition, useCallback, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { auth, onAuthStateChanged, User, db, collection, query, where, onSnapshot, orderBy, limit, getDoc, doc, updateDoc, serverTimestamp, signOut, handleFirestoreError, OperationType, getDocs } from './firebase';
-import { ThemeToggle } from './components/ThemeToggle';
 import { TermsModal } from './components/TermsModal';
 import { NotificationPermission } from './components/NotificationPermission';
 import { FeedbackModal } from './components/FeedbackModal';
 import { useFeedbackPrompt } from './hooks/useFeedbackPrompt';
 import { useTheme } from './contexts/ThemeContext';
 import { StudentProfile, View, Message } from './types';
-import { Bell, Sparkles, User as UserIcon, Home, Heart, Search, Users, Zap, BookOpen, Smile, Settings as SettingsIcon, Utensils, LogOut, FileText } from 'lucide-react';
+import { User as UserIcon, Heart, Search, Users, Zap, BookOpen, Smile } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Logo } from './components/Logo';
 import { LandingPage } from './components/LandingPage';
 import { AppNavigation } from './components/AppNavigation';
+import { MobileMoreMenu } from './components/MobileMoreMenu';
 import { NotificationBell } from './components/NotificationBell';
 import { toast } from 'sonner';
 import { quotaManager } from './utils/quotaManager';
@@ -1471,116 +1471,6 @@ export default function App() {
                       <span className="relative z-10">Đăng xuất</span>
                     </button>
 
-                    {/* Mobile Dropdown Menu Container */}
-                    <div
-                      id="mobile-menu-container"
-                      className={`xl:hidden fixed inset-x-3 bottom-[calc(4.6rem+var(--sab))] max-h-[calc(100dvh-6rem)] overflow-y-auto border rounded-2xl shadow-xl p-4 transition-all duration-150 z-[70] origin-bottom ${showMobileMenu ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-[0.98] translate-y-2 pointer-events-none'}`}
-                      style={{
-                        backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.97)' : 'rgba(255, 255, 255, 0.97)',
-                        borderColor: theme === 'dark' ? 'rgb(55, 65, 81)' : 'rgb(243, 244, 246)',
-                      }}
-                    >
-                      <div className="flex flex-col gap-4">
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">Tiện ích sinh viên</p>
-                          <div className="grid grid-cols-1 gap-2">
-                            <button
-                              onClick={() => { setShowMobileMenu(false); handleOpenExploreTab('rental'); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-800/40"
-                            >
-                              <Home className="w-5 h-5 text-orange-600 dark:text-orange-300" />
-                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Tìm trọ</span><span className="block text-xs text-slate-500">Phòng, ở ghép và liên hệ nhanh</span></span>
-                            </button>
-                            <button
-                              onClick={() => { setShowMobileMenu(false); handleOpenExploreTab('food'); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-800/40"
-                            >
-                              <Utensils className="w-5 h-5 text-rose-600 dark:text-rose-300" />
-                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Ăn gì quanh đây?</span><span className="block text-xs text-slate-500">Quán ăn gần vị trí hiện tại</span></span>
-                            </button>
-                            <button
-                              onClick={() => { setShowMobileMenu(false); handleOpenExploreTab('ai'); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-800/40"
-                            >
-                              <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-300" />
-                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Trợ lý học tập AI</span><span className="block text-xs text-slate-500">Học tập và hướng dẫn sử dụng app</span></span>
-                            </button>
-                            <button
-                              onClick={() => { setShowMobileMenu(false); handleViewChange('posts'); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                            >
-                              <FileText className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Cộng đồng</span><span className="block text-xs text-slate-500">Bài viết và hoạt động sinh viên</span></span>
-                            </button>
-                            <button
-                              onClick={() => { setShowMobileMenu(false); handleViewChange('documents'); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                            >
-                              <BookOpen className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Thư viện học liệu</span><span className="block text-xs text-slate-500">Sách, giáo trình và tài liệu theo ngành</span></span>
-                            </button>
-                            <button
-                              onClick={() => { setShowMobileMenu(false); handleViewChange('notifications'); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                            >
-                              <Bell className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Thông báo</span><span className="block text-xs text-slate-500">Tin nhắn, cuộc gọi và kết nối mới</span></span>
-                            </button>
-                            <button
-                              onClick={() => { setShowMobileMenu(false); handleViewChange('profile'); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                            >
-                              <UserIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-                              <span><span className="block font-bold text-sm text-slate-800 dark:text-white">Hồ sơ cá nhân</span><span className="block text-xs text-slate-500">Thông tin, quyền riêng tư và vị trí</span></span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Appearance */}
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">Giao diện</p>
-                          <div className="flex items-center justify-between px-4 py-3 rounded-2xl"
-                            style={{ backgroundColor: theme === 'dark' ? 'rgba(31,41,55,0.8)' : '#f9fafb', border: '1px solid', borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}
-                          >
-                            <span className="font-semibold text-sm" style={{ color: theme === 'dark' ? '#e5e7eb' : '#111827' }}>
-                              {theme === 'dark' ? 'Giao diện tối' : 'Giao diện sáng'}
-                            </span>
-                            <ThemeToggle />
-                          </div>
-                        </div>
-
-                        {/* Account */}
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">Tài khoản</p>
-                          <button
-                            onClick={() => {
-                              setShowMobileMenu(false);
-                              setView('settings');
-                            }}
-                            className="w-full flex items-center justify-center gap-3 py-3.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors font-bold text-sm border border-indigo-100 dark:border-indigo-800/30"
-                          >
-                            <SettingsIcon className="w-5 h-5" />
-                            Cài đặt tài khoản
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowMobileMenu(false);
-                              handleLogout();
-                            }}
-                            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl font-bold text-sm transition-colors"
-                            style={{
-                              backgroundColor: theme === 'dark' ? 'rgba(127,29,29,0.3)' : '#fee2e2',
-                              color: theme === 'dark' ? '#fca5a5' : '#dc2626',
-                              border: '1px solid',
-                              borderColor: theme === 'dark' ? '#7f1d1d' : '#fecaca',
-                            }}
-                          >
-                            <LogOut className="h-5 w-5" />
-                            Đăng xuất
-                          </button>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </>
               )}
@@ -1618,16 +1508,25 @@ export default function App() {
       </main>
 
       {user && (
-        <AppNavigation
-          view={view}
-          mobile
-          moreOpen={showMobileMenu}
-          onNavigate={(nextView) => {
-            setShowMobileMenu(false);
-            handleViewChange(nextView);
-          }}
-          onMore={() => setShowMobileMenu((open) => !open)}
-        />
+        <>
+          <MobileMoreMenu
+            open={showMobileMenu}
+            onClose={() => setShowMobileMenu(false)}
+            onNavigate={handleViewChange}
+            onOpenExplore={handleOpenExploreTab}
+            onLogout={handleLogout}
+          />
+          <AppNavigation
+            view={view}
+            mobile
+            moreOpen={showMobileMenu}
+            onNavigate={(nextView) => {
+              setShowMobileMenu(false);
+              handleViewChange(nextView);
+            }}
+            onMore={() => setShowMobileMenu((open) => !open)}
+          />
+        </>
       )}
 
       {/* Footer */}
