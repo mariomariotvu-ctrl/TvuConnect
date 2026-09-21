@@ -7,11 +7,13 @@ if (!getApps().length) {
   initializeApp();
 }
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.8-flash';
 const MAX_MESSAGE_LENGTH = 1_500;
 const MAX_HISTORY_ITEMS = 8;
 const MAX_HISTORY_TEXT_LENGTH = 1_000;
 const MAX_REQUESTS_PER_MINUTE = 8;
+const MAX_PROVIDER_ATTEMPTS = 3;
+const RETRYABLE_PROVIDER_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 const SYSTEM_INSTRUCTION = [
@@ -38,6 +40,51 @@ const normalizeHistory = (value) => {
     })
     .filter(Boolean);
 };
+
+const buildGeminiRequest = (key, message, history) => ({
+  url: `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+  options: {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': key,
+    },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+      contents: [...normalizeHistory(history), { role: 'user', parts: [{ text: message }] }],
+      generationConfig: {
+        maxOutputTokens: 1_000,
+      },
+    }),
+  },
+});
+
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function fetchGeminiWithRetry(url, options, dependencies = {}) {
+  const fetchImpl = dependencies.fetchImpl || fetch;
+  const sleep = dependencies.sleep || wait;
+  const maxAttempts = dependencies.maxAttempts || MAX_PROVIDER_ATTEMPTS;
+  let lastResponse;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      lastResponse = await fetchImpl(url, options);
+    } catch (error) {
+      if (attempt === maxAttempts - 1) throw error;
+      await sleep(500 * (2 ** attempt));
+      continue;
+    }
+
+    if (!RETRYABLE_PROVIDER_STATUSES.has(lastResponse.status) || attempt === maxAttempts - 1) {
+      return lastResponse;
+    }
+
+    await sleep(500 * (2 ** attempt));
+  }
+
+  return lastResponse;
+}
 
 async function consumeRateLimit(uid) {
   const firestore = getFirestore();
@@ -91,22 +138,8 @@ exports.askStudentAssistant = onCall(
 
     await consumeRateLimit(request.auth.uid);
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          contents: [...normalizeHistory(request.data?.history), { role: 'user', parts: [{ text: message }] }],
-          generationConfig: {
-            temperature: 0.3,
-            topP: 0.8,
-            maxOutputTokens: 700,
-          },
-        }),
-      },
-    );
+    const geminiRequest = buildGeminiRequest(key, message, request.data?.history);
+    const response = await fetchGeminiWithRetry(geminiRequest.url, geminiRequest.options);
 
     if (!response.ok) {
       const providerError = await response.text();
@@ -137,3 +170,7 @@ exports.askStudentAssistant = onCall(
     return { answer };
   },
 );
+
+exports.buildGeminiRequest = buildGeminiRequest;
+exports.fetchGeminiWithRetry = fetchGeminiWithRetry;
+exports.MODEL = MODEL;
