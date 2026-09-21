@@ -21,6 +21,7 @@ import { ProfileCompletionBanner } from './components/ProfileCompletionBanner';
 import { CallDialog } from './components/CallDialog';
 import { LiveLocationTracker } from './components/LiveLocationTracker';
 import { InstallPrompt } from './components/InstallPrompt';
+import { CinematicSplash } from './components/CinematicSplash';
 import { QuotaExceededBanner } from './components/QuotaExceededBanner';
 import { validateProfile, RESTRICTED_FEATURES, PUBLIC_FEATURES } from './utils/profileValidation';
 import { setupForegroundListener, getFCMToken } from './utils/fcm';
@@ -81,6 +82,7 @@ export default function App() {
   const exploreTab = route.exploreTab ?? 'list';
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [matchedProfile, setMatchedProfile] = useState<StudentProfile | null>(null);
   const [chatReceiverUid, setChatReceiverUid] = useState<string | null>(route.chatUid ?? null);
@@ -109,6 +111,11 @@ export default function App() {
   }, [navigate]);
 
   useEffect(() => initializeAppSounds(), []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setMinimumSplashElapsed(true), 2_200);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     if (route.chatUid) setChatReceiverUid(route.chatUid);
@@ -1339,19 +1346,7 @@ export default function App() {
     };
   }, [handleStartChat, navigate, setView]);
 
-  if (loading) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-[var(--app-bg)]">
-        <div className="flex flex-col items-center gap-6 px-6" role="status" aria-live="polite">
-          <Logo size="lg" />
-          <div className="h-1 w-32 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-indigo-600 dark:bg-indigo-400" />
-          </div>
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Đang chuẩn bị không gian của bạn…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading || !minimumSplashElapsed) return <CinematicSplash />;
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">

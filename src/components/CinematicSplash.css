@@ -1,0 +1,219 @@
+.tvu-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  min-height: 100dvh;
+  overflow: hidden;
+  color: white;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(99, 102, 241, 0.26), transparent 34%),
+    linear-gradient(155deg, #050817 0%, #0b1027 48%, #12072a 100%);
+  isolation: isolate;
+}
+
+.tvu-splash__sky,
+.tvu-splash__sky::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tvu-splash__sky::before {
+  content: '';
+  background-image: radial-gradient(rgba(255, 255, 255, 0.65) 0.7px, transparent 0.8px);
+  background-size: 34px 34px;
+  opacity: 0.16;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.tvu-splash__orb {
+  position: absolute;
+  width: 44vw;
+  height: 44vw;
+  max-width: 560px;
+  max-height: 560px;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.2;
+  animation: tvu-orbit 5s ease-in-out infinite alternate;
+}
+
+.tvu-splash__orb--one { left: -12%; top: -18%; background: #2563eb; }
+.tvu-splash__orb--two { right: -14%; bottom: -24%; background: #a855f7; animation-delay: -2s; }
+
+.tvu-splash__scene {
+  position: relative;
+  width: 190px;
+  height: 210px;
+  display: grid;
+  place-items: end center;
+  perspective: 900px;
+}
+
+.tvu-splash__mark {
+  position: absolute;
+  bottom: 54px;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 30px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #8b5cf6 0%, #4f46e5 52%, #2563eb 100%);
+  box-shadow:
+    inset 12px 12px 22px rgba(255, 255, 255, 0.18),
+    inset -12px -14px 24px rgba(15, 23, 42, 0.38),
+    0 30px 62px rgba(79, 70, 229, 0.48);
+  transform-style: preserve-3d;
+  animation: tvu-cinematic-drop 1.55s cubic-bezier(.2, .82, .24, 1) both;
+}
+
+.tvu-splash__mark::before,
+.tvu-splash__mark::after {
+  content: '';
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.tvu-splash__mark::before {
+  inset: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transform: translateZ(16px);
+}
+
+.tvu-splash__mark::after {
+  inset: 0;
+  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.42) 43%, transparent 62%);
+  transform: translateZ(18px);
+  animation: tvu-shine 1.8s 0.75s ease both;
+}
+
+.tvu-splash__mark span {
+  transform: translateZ(24px);
+  font-size: 31px;
+  font-weight: 950;
+  letter-spacing: -0.07em;
+  text-shadow: 0 5px 12px rgba(15, 23, 42, 0.38);
+}
+
+.tvu-splash__shadow {
+  position: absolute;
+  bottom: 39px;
+  width: 118px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(2, 6, 23, 0.75);
+  filter: blur(9px);
+  animation: tvu-shadow-land 1.55s ease both;
+}
+
+.tvu-splash__impact {
+  position: absolute;
+  bottom: 38px;
+  width: 72px;
+  height: 28px;
+  border: 2px solid rgba(129, 140, 248, 0.7);
+  border-radius: 50%;
+  opacity: 0;
+  animation: tvu-impact 0.8s 0.92s ease-out both;
+}
+
+.tvu-splash__copy {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  margin-top: -20px;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: tvu-copy-in 0.65s 1.05s ease-out forwards;
+}
+
+.tvu-splash__copy strong {
+  font-size: clamp(1.65rem, 6vw, 2.25rem);
+  font-weight: 950;
+  letter-spacing: -0.05em;
+}
+
+.tvu-splash__copy span {
+  max-width: 300px;
+  padding-inline: 20px;
+  color: #c7d2fe;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.tvu-splash__loading {
+  width: 138px;
+  height: 3px;
+  margin-top: 30px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 0;
+  animation: tvu-copy-in 0.5s 1.3s ease forwards;
+}
+
+.tvu-splash__loading i {
+  display: block;
+  width: 44%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #a78bfa, #f0abfc);
+  animation: tvu-loading 1.1s 1.25s ease-in-out infinite;
+}
+
+.tvu-splash__spark {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c4b5fd;
+  box-shadow: 0 0 16px #8b5cf6;
+  opacity: 0;
+  animation: tvu-spark 0.8s 0.98s ease-out both;
+}
+
+.tvu-splash__spark--one { left: calc(50% - 78px); top: calc(50% + 26px); --spark-x: -48px; --spark-y: -38px; }
+.tvu-splash__spark--two { left: calc(50% + 72px); top: calc(50% + 18px); --spark-x: 52px; --spark-y: -44px; animation-delay: 1.04s; }
+.tvu-splash__spark--three { left: 50%; top: calc(50% + 42px); --spark-x: 8px; --spark-y: 44px; animation-delay: 1.08s; }
+
+@keyframes tvu-cinematic-drop {
+  0% { transform: translate3d(0, -78vh, -150px) rotateX(-58deg) rotateY(28deg) rotateZ(-18deg) scale(.72); filter: blur(2px); }
+  62% { transform: translate3d(0, 9px, 0) rotateX(8deg) rotateY(-5deg) rotateZ(2deg) scale(1.04); filter: blur(0); }
+  74% { transform: translate3d(0, -25px, 0) rotateX(-4deg) rotateZ(-1deg) scale(.99); }
+  88% { transform: translate3d(0, 4px, 0) rotateX(2deg) scale(1.01); }
+  100% { transform: translate3d(0, 0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1); }
+}
+
+@keyframes tvu-shadow-land {
+  0%, 35% { transform: scale(.2); opacity: .05; }
+  62% { transform: scale(1.18); opacity: .82; }
+  78% { transform: scale(.86); opacity: .62; }
+  100% { transform: scale(1); opacity: .7; }
+}
+
+@keyframes tvu-impact { 0% { transform: scale(.35); opacity: 0; } 18% { opacity: 1; } 100% { transform: scale(3.5); opacity: 0; } }
+@keyframes tvu-copy-in { to { opacity: 1; transform: translateY(0); } }
+@keyframes tvu-loading { 0% { transform: translateX(-110%); } 55%, 100% { transform: translateX(250%); } }
+@keyframes tvu-shine { from { transform: translateZ(18px) translateX(-120%); } to { transform: translateZ(18px) translateX(120%); } }
+@keyframes tvu-orbit { to { transform: translate3d(4vw, 3vh, 0) scale(1.12); } }
+@keyframes tvu-spark { 0% { transform: translate(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(var(--spark-x), var(--spark-y)); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tvu-splash__mark,
+  .tvu-splash__copy,
+  .tvu-splash__loading {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+  }
+  .tvu-splash__impact,
+  .tvu-splash__spark,
+  .tvu-splash__orb { display: none; }
+}

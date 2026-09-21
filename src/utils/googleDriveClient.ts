@@ -5,6 +5,7 @@ const GOOGLE_SHORTCUT_MIME_TYPE = 'application/vnd.google-apps.shortcut';
 const MAX_INLINE_FILE_SIZE = 100 * 1024 * 1024;
 const LIBRARY_CACHE_MS = 2 * 60 * 1_000;
 const PARENT_QUERY_BATCH_SIZE = 24;
+const LIBRARY_QUERY_CONCURRENCY = 8;
 const MAX_LIBRARY_FILES = 5_000;
 
 /** Public, canonical TVU Connect library selected by the project owner. */
@@ -434,6 +435,10 @@ async function walkGoogleDriveLibrary(): Promise<GoogleDriveLibraryFile[]> {
   }
 
   const folderPaths = new Map<string, string[]>([[TVU_LIBRARY_FOLDER_ID, []]]);
+  // Google can reject an OR query that mixes folders owned/shared by
+  // different people even though every folder is public by itself. Keep each
+  // top-level subject (and every folder shortcut) in its own query group.
+  const folderBatchKeys = new Map<string, string>([[TVU_LIBRARY_FOLDER_ID, TVU_LIBRARY_FOLDER_ID]]);
   const folders: GoogleDriveLibraryFolder[] = [];
   const visitedFolders = new Set<string>();
   const seenEntries = new Set<string>();
@@ -445,16 +450,33 @@ async function walkGoogleDriveLibrary(): Promise<GoogleDriveLibraryFile[]> {
     pendingFolders = [];
     currentLevel.forEach((id) => visitedFolders.add(id));
 
-    for (const parentBatch of chunksOf(currentLevel, PARENT_QUERY_BATCH_SIZE)) {
-      const entries = await listDriveChildren(parentBatch);
-      for (const entry of entries) {
+    const groupedParents = new Map<string, string[]>();
+    for (const parentId of currentLevel) {
+      const key = folderBatchKeys.get(parentId) || parentId;
+      groupedParents.set(key, [...(groupedParents.get(key) || []), parentId]);
+    }
+    const parentBatches = [...groupedParents.values()]
+      .flatMap((parentIds) => chunksOf(parentIds, PARENT_QUERY_BATCH_SIZE));
+
+    for (const concurrentBatches of chunksOf(parentBatches, LIBRARY_QUERY_CONCURRENCY)) {
+      const results = await Promise.all(concurrentBatches.map(async (parentBatch) => ({
+        parentBatch,
+        entries: await listDriveChildren(parentBatch),
+      })));
+
+      for (const { parentBatch, entries } of results) for (const entry of entries) {
         if (!entry.id || seenEntries.has(entry.id)) continue;
         seenEntries.add(entry.id);
         const parentId = entry.parents?.find((id) => folderPaths.has(id)) || parentBatch[0];
         const parentPath = folderPaths.get(parentId) || [];
+        const parentBatchKey = folderBatchKeys.get(parentId) || parentId;
 
         if (entry.mimeType === GOOGLE_FOLDER_MIME_TYPE) {
           folderPaths.set(entry.id, [...parentPath, entry.name]);
+          folderBatchKeys.set(
+            entry.id,
+            parentId === TVU_LIBRARY_FOLDER_ID ? entry.id : parentBatchKey,
+          );
           folders.push({ id: entry.id, name: entry.name, folderPath: parentPath });
           pendingFolders.push(entry.id);
           continue;
@@ -464,6 +486,7 @@ async function walkGoogleDriveLibrary(): Promise<GoogleDriveLibraryFile[]> {
           const targetMimeType = entry.shortcutDetails?.targetMimeType;
           if (targetId && targetMimeType === GOOGLE_FOLDER_MIME_TYPE) {
             folderPaths.set(targetId, [...parentPath, entry.name]);
+            folderBatchKeys.set(targetId, targetId);
             folders.push({ id: targetId, name: entry.name, folderPath: parentPath });
             pendingFolders.push(targetId);
             continue;

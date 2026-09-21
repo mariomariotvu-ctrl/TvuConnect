@@ -8,6 +8,7 @@ const setView = vi.fn();
 const invalidateSize = vi.fn();
 
 vi.mock('react-leaflet', () => ({
+  AttributionControl: () => <div data-testid="map-attribution" />,
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="embedded-map">{children}</div>,
   Marker: () => <div data-testid="location-marker" />,
   TileLayer: () => <div data-testid="map-tiles" />,

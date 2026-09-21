@@ -82,20 +82,23 @@ describe('loadGoogleDriveFile', () => {
 
   it('keeps readable subjects when one shared child folder is private', async () => {
     vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
-        { id: 'public-folder', name: 'Công nghệ thông tin', mimeType: 'application/vnd.google-apps.folder', parents: [TVU_LIBRARY_FOLDER_ID] },
-        { id: 'private-folder', name: 'Tài liệu nội bộ', mimeType: 'application/vnd.google-apps.folder', parents: [TVU_LIBRARY_FOLDER_ID] },
-      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (request) => {
+      const query = new URL(String(request)).searchParams.get('q') || '';
+      if (query.includes(`'${TVU_LIBRARY_FOLDER_ID}' in parents`)) {
+        return new Response(JSON.stringify({ files: [
+          { id: 'public-folder', name: 'Công nghệ thông tin', mimeType: 'application/vnd.google-apps.folder', parents: [TVU_LIBRARY_FOLDER_ID] },
+          { id: 'private-folder', name: 'Tài liệu nội bộ', mimeType: 'application/vnd.google-apps.folder', parents: [TVU_LIBRARY_FOLDER_ID] },
+        ] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (query.includes("'public-folder' in parents")) {
+        return new Response(JSON.stringify({ files: [
+          { id: 'public-pdf', name: 'Lập trình.pdf', mimeType: 'application/pdf', parents: ['public-folder'] },
+        ] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({
         error: { message: 'The user does not have sufficient permissions for this file.' },
-      }), { status: 403, headers: { 'Content-Type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
-        { id: 'public-pdf', name: 'Lập trình.pdf', mimeType: 'application/pdf', parents: ['public-folder'] },
-      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        error: { message: 'The user does not have sufficient permissions for this file.' },
-      }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
+      }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    });
 
     const files = await listGoogleDriveLibraryFiles(true);
 
@@ -104,6 +107,13 @@ describe('loadGoogleDriveFile', () => {
       id: 'public-pdf',
       folderPath: ['Công nghệ thông tin'],
     });
+    const nestedQueries = fetchMock.mock.calls.slice(1).map(([request]) => (
+      new URL(String(request)).searchParams.get('q') || ''
+    ));
+    expect(nestedQueries.every((query) => !(
+      query.includes("'public-folder' in parents")
+      && query.includes("'private-folder' in parents")
+    ))).toBe(true);
   });
 
   it('follows Drive shortcuts that point to shared folders', async () => {

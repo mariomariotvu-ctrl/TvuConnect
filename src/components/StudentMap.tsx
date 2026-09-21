@@ -158,11 +158,12 @@ const formatLastShared = (timestamp: number) => {
 
 const StudentMapViewport: React.FC<{
   center: [number, number];
+  focus?: [number, number] | null;
   routePath?: StudentRoute['path'];
   followUser: boolean;
   onFollowChange: (following: boolean) => void;
   recenterToken: number;
-}> = ({ center, routePath, followUser, onFollowChange, recenterToken }) => {
+}> = ({ center, focus, routePath, followUser, onFollowChange, recenterToken }) => {
   const map = useMap();
 
   useMapEvents({ dragstart: () => onFollowChange(false) });
@@ -177,9 +178,24 @@ const StudentMapViewport: React.FC<{
         paddingBottomRight: [24, 60],
         maxZoom: 17,
       });
-      return;
     }
   }, [map, routePath]);
+
+  useEffect(() => {
+    if (routePath && routePath.length > 1) return;
+    if (focus) {
+      if (focus[0] === center[0] && focus[1] === center[1]) {
+        map.flyTo(focus, Math.max(map.getZoom(), 16), { duration: 0.35 });
+      } else {
+        map.fitBounds(latLngBounds([center, focus]), {
+          paddingTopLeft: map.getSize().x < 640 ? [24, 150] : [310, 30],
+          paddingBottomRight: [24, 60],
+          maxZoom: 17,
+          animate: true,
+        });
+      }
+    }
+  }, [center[0], center[1], focus?.[0], focus?.[1], map, routePath?.length]);
 
   useEffect(() => {
     if (!followUser) return;
@@ -481,7 +497,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     setRouteLoading(false);
     setStudentRoute(null);
     setRouteError(null);
-    setFollowUser(true);
+    // Keep the selected student in view. Route fitting takes over as soon as
+    // the route arrives; GPS must not immediately drag the map back to us.
+    setFollowUser(false);
     if (location.isFriend && !location.isOwn) void loadStudentRoute(location, routeMode);
   };
 
@@ -632,6 +650,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                 <AttributionControl position="bottomright" prefix={false} />
                 <StudentMapViewport
                   center={center}
+                  focus={selectedLocation
+                    ? [selectedLocation.latitude, selectedLocation.longitude]
+                    : null}
                   routePath={studentRoute?.path}
                   followUser={followUser}
                   onFollowChange={setFollowUser}
