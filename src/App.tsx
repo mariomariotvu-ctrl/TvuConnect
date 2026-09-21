@@ -47,6 +47,7 @@ import {
   LazyOnboardingTour
 } from './routes/lazyRoutes';
 import { RouteLoader } from './components/RouteLoader';
+import { AIFloatingButton } from './components/AIFloatingButton';
 import { getCachedData, setCachedData } from './utils/cacheManager';
 import { logger } from '@/utils/logger';
 import { performanceMonitor } from './utils/performance';
@@ -1576,6 +1577,7 @@ export default function App() {
         />
       )}
       <InstallPrompt />
+      {user && <AIFloatingButton />}
     </div>
   );
 }
