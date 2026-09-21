@@ -83,8 +83,31 @@ describe('getEmbeddedDocumentUrl', () => {
     }));
 
     expect(await screen.findByRole('heading', { name: 'Tài liệu đang giới hạn quyền' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Kết nối và chọn file trên Drive' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Thử bản xem trực tuyến' })).toBeInTheDocument();
     expect(screen.queryByTitle('Tài liệu: Tài liệu riêng tư')).not.toBeInTheDocument();
+  });
+
+  it('uses the Drive preview for large files instead of downloading them into memory', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      id: 'large-pdf',
+      name: 'Giáo trình lớn.pdf',
+      mimeType: 'application/pdf',
+      size: String(150 * 1024 * 1024),
+      capabilities: { canDownload: true },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    render(createElement(DocumentViewerModal, {
+      open: true,
+      title: 'Giáo trình lớn',
+      url: 'https://drive.google.com/file/d/large-pdf/view',
+      onClose: () => {},
+    }));
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Tài liệu: Giáo trình lớn'))
+        .toHaveAttribute('src', 'https://drive.google.com/file/d/large-pdf/preview');
+    });
   });
 
   it('explains unsupported Drive folders without loading the Google error page', () => {

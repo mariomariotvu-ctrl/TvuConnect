@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { BookOpen, Cloud, Loader2, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { BookOpen, ChevronRight, Cloud, Folder, Home, Loader2, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { toast } from 'sonner';
 import { CreateDocumentModal } from './CreateDocumentModal';
@@ -26,16 +26,28 @@ const CATEGORY_FILTERS = [
   { value: 'Bài tập', label: 'Bài tập' },
 ] as const;
 
+const pathStartsWith = (path: string[] = [], prefix: string[]) => (
+  prefix.every((part, index) => path[index] === part)
+);
+
+const pathEquals = (path: string[] = [], expected: string[]) => (
+  path.length === expected.length && pathStartsWith(path, expected)
+);
+
 export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepositoryProps) {
   const [filters, setFilters] = useState<FilterState>({ major_id: null, subject: null, category: null });
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDocument, setEditingDocument] = useState<DocumentLink | null>(null);
+  const [selectedFolderPath, setSelectedFolderPath] = useState<string[]>([]);
+  const [displayLimit, setDisplayLimit] = useState(40);
   const deleteCancelledRef = useRef(false);
 
   const {
     documents,
+    driveFolders,
+    driveSyncing,
     loading,
     error,
     hasMore,
@@ -45,6 +57,40 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
     removeDocumentOptimistic,
     restoreDocument,
   } = useDocuments(filters, searchKeyword);
+
+  const normalizedSearch = searchKeyword.trim();
+  const browsingFolderTree = !normalizedSearch && !filters.category && !filters.major_id && !filters.subject;
+
+  const immediateFolders = useMemo(() => {
+    if (!browsingFolderTree) return [];
+    const folders = new Map<string, { name: string; path: string[]; count: number }>();
+    for (const folder of driveFolders) {
+      if (!pathEquals(folder.folderPath, selectedFolderPath)) continue;
+      const nextPath = [...folder.folderPath, folder.name];
+      const key = nextPath.join('\u0000');
+      const count = documents.filter((document) => (
+        document.source === 'google_drive' && pathStartsWith(document.folderPath, nextPath)
+      )).length;
+      folders.set(key, { name: folder.name, path: nextPath, count });
+    }
+    return [...folders.values()].sort((left, right) => left.name.localeCompare(right.name, 'vi'));
+  }, [browsingFolderTree, documents, driveFolders, selectedFolderPath]);
+
+  const documentsInView = useMemo(() => {
+    if (!browsingFolderTree) return documents;
+    return documents.filter((document) => {
+      if (document.source !== 'google_drive') return selectedFolderPath.length === 0;
+      return pathEquals(document.folderPath, selectedFolderPath);
+    });
+  }, [browsingFolderTree, documents, selectedFolderPath]);
+
+  useEffect(() => {
+    setDisplayLimit(40);
+  }, [filters, normalizedSearch, selectedFolderPath]);
+
+  useEffect(() => {
+    if (!browsingFolderTree) setSelectedFolderPath([]);
+  }, [browsingFolderTree]);
 
   const handleFilterChange = (filterType: string, value: string | null) => {
     setFilters((current) => ({ ...current, [filterType]: value }));
@@ -143,8 +189,10 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
       </section>
 
       <div className="mb-4 flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
-        <Cloud className="mt-0.5 h-5 w-5 shrink-0" />
-        <p><strong>Đang dùng thư mục Drive chính của TVU Connect.</strong> File mới được đưa vào thư mục sẽ tự xuất hiện; web kiểm tra lại khi mở trang và định kỳ khi trang đang hoạt động.</p>
+        {driveSyncing
+          ? <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
+          : <Cloud className="mt-0.5 h-5 w-5 shrink-0" />}
+        <p><strong>Đang dùng thư mục “tặng all TVU”.</strong> {driveSyncing ? 'Danh sách môn học đã dùng được; tài liệu bên trong đang tiếp tục đồng bộ nền.' : 'File mới trong các thư mục môn học sẽ tự xuất hiện.'} Nhánh riêng tư không làm gián đoạn phần thư viện còn lại.</p>
       </div>
 
       <div className="mb-4">
@@ -188,17 +236,80 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
         </div>
       )}
 
-      <DocumentGrid
-        documents={documents}
-        loading={loading}
-        currentUser={currentUser}
-        onEdit={(selectedDocument) => {
-          setEditingDocument(selectedDocument);
-          setShowEditModal(true);
-        }}
-        onDelete={handleDeleteDocument}
-        onProfileClick={onProfileClick}
-      />
+      {browsingFolderTree && (
+        <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/70" aria-label="Thư mục học liệu">
+          <nav className="mb-3 flex min-h-10 items-center gap-1 overflow-x-auto whitespace-nowrap text-sm scrollbar-none" aria-label="Đường dẫn thư mục">
+            <button
+              type="button"
+              onClick={() => setSelectedFolderPath([])}
+              className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg px-2 font-semibold text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+            >
+              <Home className="h-4 w-4" aria-hidden="true" />
+              Tất cả môn học
+            </button>
+            {selectedFolderPath.map((part, index) => (
+              <span key={`${part}-${index}`} className="inline-flex shrink-0 items-center gap-1">
+                <ChevronRight className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolderPath(selectedFolderPath.slice(0, index + 1))}
+                  className="min-h-9 rounded-lg px-2 font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  {part}
+                </button>
+              </span>
+            ))}
+          </nav>
+
+          {immediateFolders.length > 0 && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {immediateFolders.map((folder) => (
+                <button
+                  key={folder.path.join('/')}
+                  type="button"
+                  onClick={() => setSelectedFolderPath(folder.path)}
+                  className="group flex min-h-16 items-center gap-3 rounded-xl border border-slate-200 p-3 text-left hover:border-indigo-300 hover:bg-indigo-50/60 dark:border-slate-700 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/30"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
+                    <Folder className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 text-sm font-bold text-slate-900 dark:text-white">{folder.name}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{folder.count > 0 ? `${folder.count} tài liệu` : driveSyncing ? 'Đang đồng bộ…' : 'Chưa có file công khai'}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-indigo-600" aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {(!browsingFolderTree || immediateFolders.length === 0 || documentsInView.length > 0 || loading) && (
+        <DocumentGrid
+          documents={documentsInView.slice(0, displayLimit)}
+          loading={loading}
+          currentUser={currentUser}
+          onEdit={(selectedDocument) => {
+            setEditingDocument(selectedDocument);
+            setShowEditModal(true);
+          }}
+          onDelete={handleDeleteDocument}
+          onProfileClick={onProfileClick}
+        />
+      )}
+
+      {!loading && documentsInView.length > displayLimit && (
+        <div className="mt-5 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setDisplayLimit((current) => current + 40)}
+            className="inline-flex min-h-11 min-w-44 items-center justify-center rounded-xl border border-indigo-200 bg-white px-5 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:bg-slate-900 dark:text-indigo-300"
+          >
+            Xem thêm {Math.min(40, documentsInView.length - displayLimit)} tài liệu
+          </button>
+        </div>
+      )}
 
       {!loading && hasMore && (
         <div className="mt-5 flex justify-center">

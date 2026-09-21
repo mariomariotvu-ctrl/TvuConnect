@@ -29,7 +29,7 @@ const cleanTitle = (name: string) => name.replace(/\.[a-z0-9]{1,8}$/i, '').trim(
 
 export function driveFileToDocumentLink(file: GoogleDriveLibraryFile): DocumentLink {
   const modified = new Date(file.modifiedTime || file.createdTime || Date.now());
-  const folderPath = file.folderPath.filter((part) => !/^0\./.test(part.trim()));
+  const folderPath = [...file.folderPath];
   const subject = folderPath.at(-1) || 'Học liệu chung';
 
   return {

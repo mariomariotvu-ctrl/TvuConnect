@@ -71,6 +71,8 @@ export interface URLSecurityResult {
  */
 export interface UseDocumentsResult {
   documents: DocumentLink[];
+  driveFolders: Array<{ id: string; name: string; folderPath: string[] }>;
+  driveSyncing: boolean;
   loading: boolean;
   error: Error | null;
   hasMore: boolean;

@@ -79,4 +79,57 @@ describe('loadGoogleDriveFile', () => {
     const firstQuery = new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('q');
     expect(firstQuery).toContain(`'${TVU_LIBRARY_FOLDER_ID}' in parents`);
   });
+
+  it('keeps readable subjects when one shared child folder is private', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
+        { id: 'public-folder', name: 'Công nghệ thông tin', mimeType: 'application/vnd.google-apps.folder', parents: [TVU_LIBRARY_FOLDER_ID] },
+        { id: 'private-folder', name: 'Tài liệu nội bộ', mimeType: 'application/vnd.google-apps.folder', parents: [TVU_LIBRARY_FOLDER_ID] },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { message: 'The user does not have sufficient permissions for this file.' },
+      }), { status: 403, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
+        { id: 'public-pdf', name: 'Lập trình.pdf', mimeType: 'application/pdf', parents: ['public-folder'] },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { message: 'The user does not have sufficient permissions for this file.' },
+      }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
+
+    const files = await listGoogleDriveLibraryFiles(true);
+
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatchObject({
+      id: 'public-pdf',
+      folderPath: ['Công nghệ thông tin'],
+    });
+  });
+
+  it('follows Drive shortcuts that point to shared folders', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
+        {
+          id: 'shortcut-1',
+          name: 'Giáo trình dùng chung',
+          mimeType: 'application/vnd.google-apps.shortcut',
+          parents: [TVU_LIBRARY_FOLDER_ID],
+          shortcutDetails: {
+            targetId: 'shared-folder',
+            targetMimeType: 'application/vnd.google-apps.folder',
+          },
+        },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
+        { id: 'shared-pdf', name: 'Đại số.pdf', mimeType: 'application/pdf', parents: ['shared-folder'] },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const files = await listGoogleDriveLibraryFiles(true);
+
+    expect(files[0]).toMatchObject({
+      id: 'shared-pdf',
+      folderPath: ['Giáo trình dùng chung'],
+    });
+  });
 });

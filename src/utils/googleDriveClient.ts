@@ -1,6 +1,7 @@
 const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GOOGLE_NATIVE_PREFIX = 'application/vnd.google-apps.';
 const GOOGLE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
+const GOOGLE_SHORTCUT_MIME_TYPE = 'application/vnd.google-apps.shortcut';
 const MAX_INLINE_FILE_SIZE = 100 * 1024 * 1024;
 const LIBRARY_CACHE_MS = 2 * 60 * 1_000;
 const PARENT_QUERY_BATCH_SIZE = 24;
@@ -75,11 +76,27 @@ export interface GoogleDriveLibraryFile {
   folderPath: string[];
 }
 
+export interface GoogleDriveLibraryFolder {
+  id: string;
+  name: string;
+  folderPath: string[];
+}
+
+export interface GoogleDriveLibrarySnapshot {
+  files: GoogleDriveLibraryFile[];
+  folders: GoogleDriveLibraryFolder[];
+  complete: boolean;
+}
+
 interface DriveFolderEntry extends DriveFileMetadata {
   parents?: string[];
   createdTime?: string;
   modifiedTime?: string;
   description?: string;
+  shortcutDetails?: {
+    targetId?: string;
+    targetMimeType?: string;
+  };
 }
 
 interface GoogleTokenResponse {
@@ -96,6 +113,13 @@ interface CachedDriveToken {
 
 let cachedDriveToken: CachedDriveToken | null = null;
 let cachedLibraryFiles: { files: GoogleDriveLibraryFile[]; expiresAt: number } | null = null;
+let cachedLibraryFolders: GoogleDriveLibraryFolder[] = [];
+let activeLibraryRequest: Promise<GoogleDriveLibraryFile[]> | null = null;
+const libraryProgressListeners = new Set<(snapshot: GoogleDriveLibrarySnapshot) => void>();
+
+function emitLibraryProgress(snapshot: GoogleDriveLibrarySnapshot) {
+  for (const listener of libraryProgressListeners) listener(snapshot);
+}
 
 function getDriveConfig() {
   const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY?.trim() || '';
@@ -368,13 +392,30 @@ async function listDriveChildren(parentIds: string[]): Promise<DriveFolderEntry[
   do {
     const search = new URLSearchParams({
       q: `(${parentQuery}) and trashed=false`,
-      fields: 'nextPageToken,files(id,name,mimeType,parents,createdTime,modifiedTime,description,size,capabilities(canDownload))',
+      fields: 'nextPageToken,files(id,name,mimeType,parents,createdTime,modifiedTime,description,size,capabilities(canDownload),shortcutDetails(targetId,targetMimeType))',
       pageSize: '1000',
       orderBy: 'folder,name_natural',
       spaces: 'drive',
     });
     if (pageToken) search.set('pageToken', pageToken);
-    const response = await driveFetch(`https://www.googleapis.com/drive/v3/files?${search.toString()}`);
+    let response: Response;
+    try {
+      response = await driveFetch(`https://www.googleapis.com/drive/v3/files?${search.toString()}`);
+    } catch (error) {
+      // A public folder can contain a shared/private child owned by somebody
+      // else. Google rejects the whole OR query when only one parent is
+      // inaccessible, so isolate that branch instead of hiding the library.
+      if (error instanceof GoogleDriveError && error.code === 'permission') {
+        if (parentIds.length === 1) return [];
+        const midpoint = Math.ceil(parentIds.length / 2);
+        const [left, right] = await Promise.all([
+          listDriveChildren(parentIds.slice(0, midpoint)),
+          listDriveChildren(parentIds.slice(midpoint)),
+        ]);
+        return [...left, ...right];
+      }
+      throw error;
+    }
     const payload = await response.json() as { files?: DriveFolderEntry[]; nextPageToken?: string };
     entries.push(...(payload.files || []));
     pageToken = payload.nextPageToken || '';
@@ -387,15 +428,13 @@ async function listDriveChildren(parentIds: string[]): Promise<DriveFolderEntry[
  * Read every public file below the canonical Drive folder. Folder traversal is
  * batched by parent IDs so a large course tree does not create one request per folder.
  */
-export async function listGoogleDriveLibraryFiles(force = false): Promise<GoogleDriveLibraryFile[]> {
-  if (!force && cachedLibraryFiles?.expiresAt && cachedLibraryFiles.expiresAt > Date.now()) {
-    return cachedLibraryFiles.files;
-  }
+async function walkGoogleDriveLibrary(): Promise<GoogleDriveLibraryFile[]> {
   if (!getDriveConfig().apiKey) {
     throw new GoogleDriveError('configuration', 'Thiếu Google Drive API key để tải thư viện chung.');
   }
 
   const folderPaths = new Map<string, string[]>([[TVU_LIBRARY_FOLDER_ID, []]]);
+  const folders: GoogleDriveLibraryFolder[] = [];
   const visitedFolders = new Set<string>();
   const seenEntries = new Set<string>();
   const files: GoogleDriveLibraryFile[] = [];
@@ -416,7 +455,29 @@ export async function listGoogleDriveLibraryFiles(force = false): Promise<Google
 
         if (entry.mimeType === GOOGLE_FOLDER_MIME_TYPE) {
           folderPaths.set(entry.id, [...parentPath, entry.name]);
+          folders.push({ id: entry.id, name: entry.name, folderPath: parentPath });
           pendingFolders.push(entry.id);
+          continue;
+        }
+        if (entry.mimeType === GOOGLE_SHORTCUT_MIME_TYPE) {
+          const targetId = entry.shortcutDetails?.targetId;
+          const targetMimeType = entry.shortcutDetails?.targetMimeType;
+          if (targetId && targetMimeType === GOOGLE_FOLDER_MIME_TYPE) {
+            folderPaths.set(targetId, [...parentPath, entry.name]);
+            folders.push({ id: targetId, name: entry.name, folderPath: parentPath });
+            pendingFolders.push(targetId);
+            continue;
+          }
+          if (!targetId || !targetMimeType) continue;
+          files.push({
+            id: targetId,
+            name: entry.name,
+            mimeType: targetMimeType,
+            createdTime: entry.createdTime,
+            modifiedTime: entry.modifiedTime,
+            description: entry.description,
+            folderPath: parentPath,
+          });
           continue;
         }
         if (entry.name === '.DS_Store' || entry.name.startsWith('~$')) continue;
@@ -432,6 +493,10 @@ export async function listGoogleDriveLibraryFiles(force = false): Promise<Google
         if (files.length >= MAX_LIBRARY_FILES) break;
       }
     }
+
+    // Paint the first folder level immediately. The complete 2,000+ file
+    // index continues in the background without keeping the page on skeletons.
+    emitLibraryProgress({ files: [...files], folders: [...folders], complete: false });
   }
 
   const sorted = files.sort((left, right) => (
@@ -439,7 +504,36 @@ export async function listGoogleDriveLibraryFiles(force = false): Promise<Google
     || left.name.localeCompare(right.name, 'vi')
   ));
   cachedLibraryFiles = { files: sorted, expiresAt: Date.now() + LIBRARY_CACHE_MS };
+  cachedLibraryFolders = folders;
+  emitLibraryProgress({ files: sorted, folders: [...folders], complete: true });
   return sorted;
+}
+
+/**
+ * Stream the public Drive tree level by level. Calls made by React StrictMode
+ * share one in-flight traversal, preventing duplicate 400+ folder scans.
+ */
+export async function listGoogleDriveLibraryFiles(
+  force = false,
+  onProgress?: (snapshot: GoogleDriveLibrarySnapshot) => void,
+): Promise<GoogleDriveLibraryFile[]> {
+  if (onProgress) libraryProgressListeners.add(onProgress);
+
+  try {
+    if (!force && cachedLibraryFiles?.expiresAt && cachedLibraryFiles.expiresAt > Date.now()) {
+      onProgress?.({ files: cachedLibraryFiles.files, folders: [...cachedLibraryFolders], complete: true });
+      return cachedLibraryFiles.files;
+    }
+
+    if (!activeLibraryRequest) {
+      activeLibraryRequest = walkGoogleDriveLibrary().finally(() => {
+        activeLibraryRequest = null;
+      });
+    }
+    return await activeLibraryRequest;
+  } finally {
+    if (onProgress) libraryProgressListeners.delete(onProgress);
+  }
 }
 
 export async function loadGoogleDriveFile(

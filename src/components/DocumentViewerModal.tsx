@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Cloud,
   Download,
   FileText,
   FileWarning,
@@ -13,12 +12,10 @@ import {
 } from 'lucide-react';
 import {
   canPreviewMimeType,
-  getCachedGoogleDriveToken,
   GoogleDriveError,
   isGoogleDriveFolderUrl,
   loadGoogleDriveFile,
   parseGoogleDriveReference,
-  pickGoogleDriveFile,
 } from '../utils/googleDriveClient';
 
 interface DocumentViewerModalProps {
@@ -38,6 +35,7 @@ interface ReadyDriveState {
 type DriveViewerState =
   | { status: 'checking' | 'connecting'; message?: string }
   | { status: 'permission' | 'error'; message: string }
+  | { status: 'embedded'; url: string }
   | ReadyDriveState;
 
 const OFFICE_FILE = /\.(docx?|xlsx?|pptx?)(?:$|[?#])/i;
@@ -78,7 +76,7 @@ function getDriveErrorMessage(error: unknown): string {
     case 'too-large':
       return error.message;
     case 'permission':
-      return 'File đang giới hạn quyền. Hãy kết nối Google Drive và chọn đúng file để xác nhận quyền xem.';
+      return 'File chưa được chia sẻ công khai. Chủ file cần bật “Bất kỳ ai có liên kết đều có thể xem”.';
     case 'network':
       return 'Không thể kết nối Google Drive. Kiểm tra mạng rồi thử lại.';
     default:
@@ -89,6 +87,7 @@ function getDriveErrorMessage(error: unknown): string {
 export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewerModalProps) {
   const driveReference = useMemo(() => parseGoogleDriveReference(url), [url]);
   const isDriveFolder = useMemo(() => isGoogleDriveFolderUrl(url), [url]);
+  const embeddedUrl = useMemo(() => getEmbeddedDocumentUrl(url), [url]);
   const [driveState, setDriveState] = useState<DriveViewerState>({ status: 'checking' });
   const objectUrlRef = useRef<string | null>(null);
 
@@ -111,12 +110,6 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
     });
   }, [revokeObjectUrl]);
 
-  const loadDriveReference = useCallback(async (accessToken?: string) => {
-    if (!driveReference) return;
-    const content = await loadGoogleDriveFile(driveReference.fileId, accessToken);
-    showDriveContent(content);
-  }, [driveReference, showDriveContent]);
-
   useEffect(() => {
     if (!open || !driveReference) return;
 
@@ -124,31 +117,20 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
     setDriveState({ status: 'checking' });
 
     const load = async () => {
-      const cachedToken = getCachedGoogleDriveToken();
       try {
-        const content = await loadGoogleDriveFile(driveReference.fileId, cachedToken || undefined);
+        const content = await loadGoogleDriveFile(driveReference.fileId);
         if (!cancelled) showDriveContent(content);
-      } catch (authenticatedError) {
+      } catch (error) {
         if (cancelled) return;
 
-        if (cachedToken && authenticatedError instanceof GoogleDriveError && authenticatedError.code === 'permission') {
-          try {
-            const publicContent = await loadGoogleDriveFile(driveReference.fileId);
-            if (!cancelled) showDriveContent(publicContent);
-            return;
-          } catch (publicError) {
-            if (cancelled) return;
-            setDriveState({
-              status: publicError instanceof GoogleDriveError && publicError.code === 'permission' ? 'permission' : 'error',
-              message: getDriveErrorMessage(publicError),
-            });
-            return;
-          }
+        if (error instanceof GoogleDriveError && (error.code === 'too-large' || error.code === 'not-downloadable')) {
+          setDriveState({ status: 'embedded', url: embeddedUrl });
+          return;
         }
 
         setDriveState({
-          status: authenticatedError instanceof GoogleDriveError && authenticatedError.code === 'permission' ? 'permission' : 'error',
-          message: getDriveErrorMessage(authenticatedError),
+          status: error instanceof GoogleDriveError && error.code === 'permission' ? 'permission' : 'error',
+          message: getDriveErrorMessage(error),
         });
       }
     };
@@ -158,7 +140,7 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
       cancelled = true;
       revokeObjectUrl();
     };
-  }, [driveReference, open, revokeObjectUrl, showDriveContent]);
+  }, [driveReference, embeddedUrl, open, revokeObjectUrl, showDriveContent]);
 
   useEffect(() => {
     if (!open) return;
@@ -176,42 +158,6 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
     };
   }, [onClose, open]);
 
-  const handleConnectDrive = async () => {
-    if (!driveReference) return;
-    setDriveState({ status: 'connecting', message: 'Đang mở Google Drive…' });
-
-    try {
-      const selected = await pickGoogleDriveFile();
-      if (!selected) {
-        setDriveState({
-          status: 'permission',
-          message: 'Bạn chưa chọn file. TVU Connect chưa nhận thêm quyền truy cập nào.',
-        });
-        return;
-      }
-
-      if (selected.id !== driveReference.fileId) {
-        setDriveState({
-          status: 'permission',
-          message: `Bạn vừa chọn “${selected.name}”, không phải tài liệu đang mở. Hãy chọn đúng file trong Google Drive.`,
-        });
-        return;
-      }
-
-      setDriveState({ status: 'connecting', message: 'Đang tải file vào TVU Connect…' });
-      await loadDriveReference(selected.accessToken);
-    } catch (error) {
-      if (error instanceof GoogleDriveError && error.code === 'cancelled') {
-        setDriveState({
-          status: 'permission',
-          message: 'Kết nối đã được hủy. File trên Google Drive vẫn giữ nguyên quyền riêng tư.',
-        });
-        return;
-      }
-      setDriveState({ status: 'error', message: getDriveErrorMessage(error) });
-    }
-  };
-
   if (!open) return null;
 
   const renderDriveViewer = () => {
@@ -228,6 +174,17 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
       );
     }
 
+    if (driveState.status === 'embedded') {
+      return (
+        <iframe
+          src={driveState.url}
+          title={`Tài liệu: ${title}`}
+          className="min-h-0 flex-1 border-0 bg-white dark:bg-slate-900"
+          allow="autoplay"
+        />
+      );
+    }
+
     if (driveState.status === 'permission') {
       return (
         <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
@@ -239,15 +196,15 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
             <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{driveState.message}</p>
             <button
               type="button"
-              onClick={() => void handleConnectDrive()}
+              onClick={() => setDriveState({ status: 'embedded', url: embeddedUrl })}
               className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
             >
-              <Cloud className="h-4 w-4" aria-hidden="true" />
-              Kết nối và chọn file trên Drive
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Thử bản xem trực tuyến
             </button>
             <div className="mt-4 flex items-start gap-2 rounded-xl bg-emerald-50 p-3 text-left text-xs leading-relaxed text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>TVU Connect chỉ xin quyền với file bạn tự chọn, giữ token trong phiên hiện tại và không quét toàn bộ Drive.</span>
+              <span>TVU Connect không yêu cầu đăng nhập Google. Quyền xem vẫn do chủ file kiểm soát.</span>
             </div>
           </div>
         </div>
@@ -263,11 +220,11 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
             <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{driveState.message}</p>
             <button
               type="button"
-              onClick={() => void handleConnectDrive()}
+              onClick={() => setDriveState({ status: 'embedded', url: embeddedUrl })}
               className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              Thử kết nối lại
+              Thử bản xem trực tuyến
             </button>
           </div>
         </div>
@@ -326,8 +283,6 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
     );
   };
 
-  const viewerUrl = getEmbeddedDocumentUrl(url);
-
   return createPortal(
     <div className="fixed inset-0 z-[120] flex bg-slate-950/70 p-0 md:p-4" role="dialog" aria-modal="true" aria-labelledby="document-viewer-title">
       <section className="m-auto flex h-full w-full max-w-7xl flex-col overflow-hidden bg-white md:h-[94dvh] md:rounded-2xl dark:bg-slate-950">
@@ -364,7 +319,7 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
           </div>
         ) : (
           <iframe
-            src={viewerUrl}
+            src={embeddedUrl}
             title={`Tài liệu: ${title}`}
             className="min-h-0 flex-1 border-0 bg-slate-100 dark:bg-slate-900"
             referrerPolicy="no-referrer"

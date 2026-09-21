@@ -3,6 +3,7 @@ import { DocumentData, getDocs, QueryDocumentSnapshot } from 'firebase/firestore
 import { FilterState, DocumentLink, UseDocumentsResult } from '../types/documentLink';
 import { buildFirestoreQuery, filterByKeyword } from '../utils/documentFilters';
 import { listGoogleDriveLibraryFiles } from '../utils/googleDriveClient';
+import type { GoogleDriveLibraryFolder } from '../utils/googleDriveClient';
 import {
   driveFileToDocumentLink,
   isExternalGoogleDriveDocument,
@@ -23,8 +24,10 @@ export function useDocuments(
 ): UseDocumentsResult {
   const [documents, setDocuments] = useState<DocumentLink[]>([]);
   const [driveDocuments, setDriveDocuments] = useState<DocumentLink[]>([]);
+  const [driveFolders, setDriveFolders] = useState<GoogleDriveLibraryFolder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [driveLoading, setDriveLoading] = useState<boolean>(true);
+  const [driveSyncing, setDriveSyncing] = useState<boolean>(false);
   const [firestoreError, setFirestoreError] = useState<Error | null>(null);
   const [driveError, setDriveError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(false);
@@ -100,8 +103,14 @@ export function useDocuments(
   }, [filters, hasMore, lastDocument, loadingMore, pageSize]);
 
   const fetchDriveDocuments = useCallback(async (force = false) => {
+    setDriveSyncing(true);
     try {
-      const files = await listGoogleDriveLibraryFiles(force);
+      const files = await listGoogleDriveLibraryFiles(force, (snapshot) => {
+        setDriveDocuments(snapshot.files.map(driveFileToDocumentLink));
+        setDriveFolders(snapshot.folders);
+        if (snapshot.files.length || snapshot.folders.length || snapshot.complete) setDriveLoading(false);
+        setDriveSyncing(!snapshot.complete);
+      });
       setDriveDocuments(files.map(driveFileToDocumentLink));
       setDriveError(null);
     } catch (err) {
@@ -109,6 +118,7 @@ export function useDocuments(
       console.error('Error fetching TVU Drive library:', err);
     } finally {
       setDriveLoading(false);
+      setDriveSyncing(false);
     }
   }, []);
 
@@ -168,6 +178,8 @@ export function useDocuments(
 
   return {
     documents: filteredDocuments,
+    driveFolders,
+    driveSyncing,
     loading: loading || driveLoading,
     error: driveError || firestoreError,
     hasMore,
