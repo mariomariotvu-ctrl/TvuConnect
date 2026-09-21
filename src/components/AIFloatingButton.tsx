@@ -192,7 +192,11 @@ const PulseRing: React.FC<{ delay: number }> = ({ delay }) => (
 );
 
 // ── Main Floating Button ────────────────────────────────────────────────────
-export const AIFloatingButton: React.FC = () => {
+interface AIFloatingButtonProps {
+  avoidChatComposer?: boolean;
+}
+
+export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatComposer = false }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -239,13 +243,16 @@ export const AIFloatingButton: React.FC = () => {
       <div
         className="fixed z-[9998]"
         style={{
-          bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))',
+          bottom: avoidChatComposer
+            ? 'calc(160px + env(safe-area-inset-bottom, 0px))'
+            : 'calc(76px + env(safe-area-inset-bottom, 0px))',
           right: '8px',
         }}
+        data-chat-composer-safe={avoidChatComposer ? 'true' : undefined}
       >
         {/* Tooltip bubble */}
         <AnimatePresence>
-          {showTooltip && !isOpen && (
+          {showTooltip && !isOpen && !avoidChatComposer && (
             <motion.div
               initial={{ opacity: 0, x: 10, scale: 0.9 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}

@@ -1572,7 +1572,7 @@ export default function App() {
         />
       )}
       <InstallPrompt />
-      {user && <AIFloatingButton />}
+      {user && <AIFloatingButton avoidChatComposer={view === 'chat'} />}
     </div>
   );
 }
