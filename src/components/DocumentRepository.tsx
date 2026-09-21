@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { BookOpen, Loader2, Plus, ShieldCheck } from 'lucide-react';
+import { BookOpen, Cloud, Loader2, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { toast } from 'sonner';
 import { CreateDocumentModal } from './CreateDocumentModal';
@@ -129,15 +129,23 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCreateModal(true)}
-          className="hidden min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 sm:inline-flex dark:bg-indigo-500 dark:hover:bg-indigo-400"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Đóng góp tài liệu
-        </button>
+        <div className="hidden shrink-0 items-center gap-2 sm:flex">
+          <button type="button" onClick={refresh} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><RefreshCw className="h-4 w-4" />Đồng bộ</button>
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Đóng góp tài liệu
+          </button>
+        </div>
       </section>
+
+      <div className="mb-4 flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+        <Cloud className="mt-0.5 h-5 w-5 shrink-0" />
+        <p><strong>Đang dùng thư mục Drive chính của TVU Connect.</strong> File mới được đưa vào thư mục sẽ tự xuất hiện; web kiểm tra lại khi mở trang và định kỳ khi trang đang hoạt động.</p>
+      </div>
 
       <div className="mb-4">
         <SearchBar value={searchKeyword} onChange={setSearchKeyword} placeholder="Tìm theo tiêu đề, ngành học hoặc môn học" />

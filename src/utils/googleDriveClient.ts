@@ -1,6 +1,13 @@
 const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GOOGLE_NATIVE_PREFIX = 'application/vnd.google-apps.';
+const GOOGLE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 const MAX_INLINE_FILE_SIZE = 100 * 1024 * 1024;
+const LIBRARY_CACHE_MS = 2 * 60 * 1_000;
+const PARENT_QUERY_BATCH_SIZE = 24;
+const MAX_LIBRARY_FILES = 5_000;
+
+/** Public, canonical TVU Connect library selected by the project owner. */
+export const TVU_LIBRARY_FOLDER_ID = '1tVg-LCvByThY6B7zAuQc4kujxv4Fz0-D';
 
 const GOOGLE_EXPORT_TYPES: Record<string, string> = {
   'application/vnd.google-apps.document': 'application/pdf',
@@ -58,6 +65,23 @@ interface DriveFileMetadata {
   };
 }
 
+export interface GoogleDriveLibraryFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  createdTime?: string;
+  modifiedTime?: string;
+  description?: string;
+  folderPath: string[];
+}
+
+interface DriveFolderEntry extends DriveFileMetadata {
+  parents?: string[];
+  createdTime?: string;
+  modifiedTime?: string;
+  description?: string;
+}
+
 interface GoogleTokenResponse {
   access_token?: string;
   expires_in?: number;
@@ -71,6 +95,7 @@ interface CachedDriveToken {
 }
 
 let cachedDriveToken: CachedDriveToken | null = null;
+let cachedLibraryFiles: { files: GoogleDriveLibraryFile[]; expiresAt: number } | null = null;
 
 function getDriveConfig() {
   const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY?.trim() || '';
@@ -327,6 +352,94 @@ async function driveFetch(path: string, accessToken?: string): Promise<Response>
     throw new GoogleDriveError('permission', message || 'File đang giới hạn quyền truy cập.');
   }
   throw new GoogleDriveError('network', message || 'Không thể tải file từ Google Drive.');
+}
+
+const chunksOf = <T,>(items: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  return chunks;
+};
+
+async function listDriveChildren(parentIds: string[]): Promise<DriveFolderEntry[]> {
+  const entries: DriveFolderEntry[] = [];
+  let pageToken = '';
+  const parentQuery = parentIds.map((id) => `'${id.replace(/'/g, "\\'")}' in parents`).join(' or ');
+
+  do {
+    const search = new URLSearchParams({
+      q: `(${parentQuery}) and trashed=false`,
+      fields: 'nextPageToken,files(id,name,mimeType,parents,createdTime,modifiedTime,description,size,capabilities(canDownload))',
+      pageSize: '1000',
+      orderBy: 'folder,name_natural',
+      spaces: 'drive',
+    });
+    if (pageToken) search.set('pageToken', pageToken);
+    const response = await driveFetch(`https://www.googleapis.com/drive/v3/files?${search.toString()}`);
+    const payload = await response.json() as { files?: DriveFolderEntry[]; nextPageToken?: string };
+    entries.push(...(payload.files || []));
+    pageToken = payload.nextPageToken || '';
+  } while (pageToken && entries.length < MAX_LIBRARY_FILES);
+
+  return entries;
+}
+
+/**
+ * Read every public file below the canonical Drive folder. Folder traversal is
+ * batched by parent IDs so a large course tree does not create one request per folder.
+ */
+export async function listGoogleDriveLibraryFiles(force = false): Promise<GoogleDriveLibraryFile[]> {
+  if (!force && cachedLibraryFiles?.expiresAt && cachedLibraryFiles.expiresAt > Date.now()) {
+    return cachedLibraryFiles.files;
+  }
+  if (!getDriveConfig().apiKey) {
+    throw new GoogleDriveError('configuration', 'Thiếu Google Drive API key để tải thư viện chung.');
+  }
+
+  const folderPaths = new Map<string, string[]>([[TVU_LIBRARY_FOLDER_ID, []]]);
+  const visitedFolders = new Set<string>();
+  const seenEntries = new Set<string>();
+  const files: GoogleDriveLibraryFile[] = [];
+  let pendingFolders = [TVU_LIBRARY_FOLDER_ID];
+
+  while (pendingFolders.length && files.length < MAX_LIBRARY_FILES) {
+    const currentLevel = [...new Set(pendingFolders)].filter((id) => !visitedFolders.has(id));
+    pendingFolders = [];
+    currentLevel.forEach((id) => visitedFolders.add(id));
+
+    for (const parentBatch of chunksOf(currentLevel, PARENT_QUERY_BATCH_SIZE)) {
+      const entries = await listDriveChildren(parentBatch);
+      for (const entry of entries) {
+        if (!entry.id || seenEntries.has(entry.id)) continue;
+        seenEntries.add(entry.id);
+        const parentId = entry.parents?.find((id) => folderPaths.has(id)) || parentBatch[0];
+        const parentPath = folderPaths.get(parentId) || [];
+
+        if (entry.mimeType === GOOGLE_FOLDER_MIME_TYPE) {
+          folderPaths.set(entry.id, [...parentPath, entry.name]);
+          pendingFolders.push(entry.id);
+          continue;
+        }
+        if (entry.name === '.DS_Store' || entry.name.startsWith('~$')) continue;
+        files.push({
+          id: entry.id,
+          name: entry.name,
+          mimeType: entry.mimeType,
+          createdTime: entry.createdTime,
+          modifiedTime: entry.modifiedTime,
+          description: entry.description,
+          folderPath: parentPath,
+        });
+        if (files.length >= MAX_LIBRARY_FILES) break;
+      }
+    }
+  }
+
+  const sorted = files.sort((left, right) => (
+    (right.modifiedTime || '').localeCompare(left.modifiedTime || '')
+    || left.name.localeCompare(right.name, 'vi')
+  ));
+  cachedLibraryFiles = { files: sorted, expiresAt: Date.now() + LIBRARY_CACHE_MS };
+  return sorted;
 }
 
 export async function loadGoogleDriveFile(

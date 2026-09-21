@@ -9,6 +9,8 @@ export interface PreciseGeolocation extends Coordinates {
 
 const MAX_ACCEPTED_ACCURACY_METERS = 250;
 const MAX_SAMPLE_AGE_MS = 30_000;
+const ROUTE_ORIGIN_MAX_AGE_MS = 15_000;
+const ROUTE_ORIGIN_MAX_ACCURACY_METERS = 150;
 
 export function geolocationErrorMessage(error: GeolocationPositionError) {
   if (error.code === error.PERMISSION_DENIED) {
@@ -60,6 +62,10 @@ export function shouldAcceptGeolocationSample(
   if (!isUsableGeolocationSample(next, now)) return false;
   if (!previous || !isUsableGeolocationSample(previous, now)) return true;
   if (next.observedAt < previous.observedAt) return false;
+  if (next.observedAt === previous.observedAt
+    && next.lat === previous.lat
+    && next.lng === previous.lng
+    && next.accuracy === previous.accuracy) return false;
 
   const elapsedSeconds = Math.max(1, (next.observedAt - previous.observedAt) / 1_000);
   const distanceMeters = calculateDistanceMeters(previous, next);
@@ -70,6 +76,43 @@ export function shouldAcceptGeolocationSample(
   const previousIsRecent = now - previous.observedAt < 15_000;
   const muchLessAccurate = next.accuracy > Math.max(80, previous.accuracy * 3);
   return !(previousIsRecent && muchLessAccurate && distanceMeters <= next.accuracy);
+}
+
+/** Reuse a recent on-device fix instead of making every route request wait for GPS again. */
+export function isRecentRouteOrigin(sample: PreciseGeolocation | null, now = Date.now()): sample is PreciseGeolocation {
+  return Boolean(sample
+    && isUsableGeolocationSample(sample, now)
+    && now >= sample.observedAt
+    && now - sample.observedAt <= ROUTE_ORIGIN_MAX_AGE_MS
+    && sample.accuracy <= ROUTE_ORIGIN_MAX_ACCURACY_METERS);
+}
+
+/** Show a recent cached fix quickly, then keep refining it with high-accuracy GPS. */
+export function watchResponsiveGeolocation(
+  onPosition: (position: GeolocationPosition) => void,
+  onError?: (error: GeolocationPositionError) => void,
+): () => void {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return () => undefined;
+  let active = true;
+  const receive = (position: GeolocationPosition) => {
+    if (active) onPosition(position);
+  };
+  navigator.geolocation.getCurrentPosition(receive, () => undefined, {
+    enableHighAccuracy: false,
+    maximumAge: 20_000,
+    timeout: 2_500,
+  });
+  const watchId = navigator.geolocation.watchPosition(receive, (error) => {
+    if (active) onError?.(error);
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 5_000,
+    timeout: 12_000,
+  });
+  return () => {
+    active = false;
+    navigator.geolocation.clearWatch(watchId);
+  };
 }
 
 export function requestFreshGeolocation(timeoutMs = 10_000): Promise<PreciseGeolocation> {
@@ -99,7 +142,7 @@ export function requestFreshGeolocation(timeoutMs = 10_000): Promise<PreciseGeol
         if (!best || sample.accuracy < best.accuracy || sample.observedAt > best.observedAt + 2_000) {
           best = sample;
         }
-        if (sample.accuracy <= 30) finish(sample);
+        if (sample.accuracy <= 75) finish(sample);
       },
       (error) => finish(best || undefined, error),
       {

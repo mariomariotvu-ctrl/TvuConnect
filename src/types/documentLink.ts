@@ -15,6 +15,9 @@ export interface DocumentLink {
   createdAt: Timestamp;          // Server timestamp
   createdBy: string;             // User UID
   updatedAt?: Timestamp;         // Optional update timestamp
+  source?: 'firestore' | 'google_drive';
+  mimeType?: string;
+  folderPath?: string[];
 }
 
 /**

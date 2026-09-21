@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react';
-import { Eye, Edit2, Trash2, GraduationCap, BookOpen, Pill, Stethoscope, Heart, Code, TrendingUp, Briefcase, BookText, Scale, Languages, BarChart3, Calculator } from 'lucide-react';
+import { Eye, Edit2, Trash2, GraduationCap, BookOpen, Pill, Stethoscope, Heart, Code, TrendingUp, Briefcase, BookText, Scale, Languages, BarChart3, Calculator, Cloud } from 'lucide-react';
 import { DocumentLink } from '../types/documentLink';
 import { User } from 'firebase/auth';
 import { UploaderInfo } from './UploaderInfo';
@@ -124,6 +124,7 @@ const formatText = (text: string): string => {
 
 function DocumentCardComponent({ document, currentUser, onEdit, onDelete, onProfileClick }: DocumentCardProps) {
   const isOwner = document.createdBy === currentUser.uid;
+  const isDriveLibrary = document.source === 'google_drive';
   const formattedMajor = formatText(document.major_id);
   const formattedSubject = document.subject ? formatText(document.subject) : '';
   
@@ -191,12 +192,11 @@ function DocumentCardComponent({ document, currentUser, onEdit, onDelete, onProf
           
           {/* Uploader Info */}
           {/* -ml-[22px]: compensate for User icon (w-4=16px) + gap-1.5 (6px) so text left edge aligns with description */}
-          <div className="mb-2 -ml-[22px]">
-            <UploaderInfo 
-              uploaderId={document.createdBy} 
-              onProfileClick={onProfileClick}
-            />
-          </div>
+          {isDriveLibrary ? (
+            <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><Cloud className="h-4 w-4" />Thư viện Drive TVU Connect · tự đồng bộ</div>
+          ) : (
+            <div className="mb-2 -ml-[22px]"><UploaderInfo uploaderId={document.createdBy} onProfileClick={onProfileClick} /></div>
+          )}
           {/* Tags with Icons */}
           <div className="flex flex-wrap gap-2 mb-2">
             {/* Major Tag with Dynamic Icon */}
@@ -309,12 +309,11 @@ function DocumentCardComponent({ document, currentUser, onEdit, onDelete, onProf
 
             {/* Uploader Info */}
             {/* -ml-[22px]: compensate for User icon (w-4=16px) + gap-1.5 (6px) so text left edge aligns with description */}
-            <div className="mb-2 -ml-[22px]">
-              <UploaderInfo 
-                uploaderId={document.createdBy} 
-                onProfileClick={onProfileClick}
-              />
-            </div>
+            {isDriveLibrary ? (
+              <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><Cloud className="h-4 w-4" />Thư viện Drive TVU Connect · tự đồng bộ</div>
+            ) : (
+              <div className="mb-2 -ml-[22px]"><UploaderInfo uploaderId={document.createdBy} onProfileClick={onProfileClick} /></div>
+            )}
             
             {/* Tags with Icons */}
             <div className="flex flex-wrap gap-1.5">

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Loader2 } from 'lucide-react';
+import { Bot, Send, Loader2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { sendMessageToAI, ChatMessage } from '../utils/geminiAI';
 import { findCachedResponse, shouldUseCache } from '../utils/aiCache';
@@ -19,6 +19,36 @@ const QUICK_REPLIES = [
   { text: 'Lập kế hoạch ôn thi trong 7 ngày' },
 ];
 
+type SpeechRecognitionAlternativeLike = { transcript: string };
+type SpeechRecognitionResultLike = { isFinal: boolean; [index: number]: SpeechRecognitionAlternativeLike };
+type SpeechRecognitionEventLike = { resultIndex: number; results: { length: number; [index: number]: SpeechRecognitionResultLike } };
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start: () => void;
+  abort: () => void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+};
+
+type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
+
+const getSpeechRecognition = (): SpeechRecognitionConstructorLike | null => {
+  const browserWindow = window as typeof window & {
+    SpeechRecognition?: SpeechRecognitionConstructorLike;
+    webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
+  };
+  return browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition || null;
+};
+
+const CUTE_VOICE = {
+  rate: 1.02,
+  pitch: 1.2,
+};
+
 // Rate limiting: Progressive - Linh hoạt hơn
 const MAX_MESSAGES_PER_MINUTE = 10; // Tăng lên 10 cho normal users
 const HEAVY_USER_THRESHOLD = 20; // Sau 20 tin trong 5 phút
@@ -31,13 +61,47 @@ export const AIAssistant: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messageTimestamps, setMessageTimestamps] = useState<number[]>([]);
+  const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('tvu_buddy_voice') === 'on');
+  const [isListening, setIsListening] = useState(false);
+  const [recognizedDraft, setRecognizedDraft] = useState('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceEnabledRef = useRef(voiceEnabled);
+  const voiceSubmittedRef = useRef(false);
+
+  const speakResponse = (content: string) => {
+    if (!voiceEnabledRef.current || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(content.replace(/[*#`•]/g, ' ').replace(/\s+/g, ' ').trim());
+    const voices = window.speechSynthesis.getVoices();
+    utterance.voice = voices.find((voice) => voice.lang.toLowerCase().startsWith('vi'))
+      || voices.find((voice) => voice.lang.toLowerCase().startsWith('en'))
+      || null;
+    utterance.lang = utterance.voice?.lang || 'vi-VN';
+    utterance.rate = CUTE_VOICE.rate;
+    utterance.pitch = CUTE_VOICE.pitch;
+    utterance.volume = 0.9;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const toggleVoice = () => {
+    const next = !voiceEnabled;
+    voiceEnabledRef.current = next;
+    setVoiceEnabled(next);
+    localStorage.setItem('tvu_buddy_voice', next ? 'on' : 'off');
+    if (!next && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (next) toast.success('Đã bật giọng Miu nhẹ nhàng cho TVU Buddy.');
+  };
 
   useEffect(() => {
     containerRef.current?.scrollTo({ top: 0 });
+    return () => {
+      recognitionRef.current?.abort();
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
   }, []);
 
   // Auto scroll to bottom ONLY when AI responds (not when user sends)
@@ -106,6 +170,7 @@ export const AIAssistant: React.FC = () => {
 
         setMessages(prev => [...prev, userMessage, assistantMessage]);
         setInputText('');
+        speakResponse(cachedResponse);
         
         return;
       }
@@ -165,6 +230,7 @@ export const AIAssistant: React.FC = () => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      speakResponse(aiResponse);
     } catch (error: any) {
       console.error('Error in handleSendMessage:', error);
       
@@ -193,6 +259,69 @@ export const AIAssistant: React.FC = () => {
     handleSendMessage(reply.text);
   };
 
+  const stopListening = () => {
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    setIsListening(false);
+  };
+
+  const startListening = () => {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) {
+      toast.error('Trình duyệt này chưa hỗ trợ nhập giọng nói. Hãy dùng Chrome hoặc Edge mới nhất.');
+      return;
+    }
+
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'vi-VN';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognitionRef.current = recognition;
+    voiceSubmittedRef.current = false;
+    setRecognizedDraft('');
+    setIsListening(true);
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      let finalTranscript = '';
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const text = event.results[index][0]?.transcript || '';
+        transcript += text;
+        if (event.results[index].isFinal) finalTranscript += text;
+      }
+      const cleanTranscript = transcript.trim();
+      setRecognizedDraft(cleanTranscript);
+      setInputText(cleanTranscript);
+      if (finalTranscript.trim() && !voiceSubmittedRef.current) {
+        voiceSubmittedRef.current = true;
+        voiceEnabledRef.current = true;
+        setVoiceEnabled(true);
+        localStorage.setItem('tvu_buddy_voice', 'on');
+        void handleSendMessage(finalTranscript.trim());
+      }
+    };
+    recognition.onerror = (event) => {
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        toast.error(event.error === 'not-allowed'
+          ? 'Hãy cho phép micro để nói chuyện với TVU Buddy.'
+          : 'Chưa nghe rõ. Bạn thử nói lại nhé.');
+      }
+      setIsListening(false);
+    };
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+      setRecognizedDraft('');
+    };
+    recognition.start();
+  };
+
   return (
     <div 
       className="flex flex-col overflow-hidden"
@@ -209,7 +338,11 @@ export const AIAssistant: React.FC = () => {
           <h3 className="font-bold text-base truncate leading-tight text-slate-950 dark:text-white">TVU Buddy</h3>
           <p className="text-xs mt-0.5 text-slate-500 dark:text-slate-400">Trợ lý học tập và hướng dẫn sử dụng</p>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+        <button type="button" onClick={toggleVoice} className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ${voiceEnabled ? 'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`} title={voiceEnabled ? 'Tắt giọng Miu' : 'Bật giọng Miu nhẹ nhàng'}>
+          {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          <span className="hidden sm:inline">Giọng Miu</span>
+        </button>
+        <span className="hidden items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 sm:inline-flex">
           <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
           Sẵn sàng
         </span>
@@ -391,12 +524,15 @@ export const AIAssistant: React.FC = () => {
               }}
               className="flex gap-2"
             >
+              <button type="button" onClick={startListening} disabled={isLoading} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border ${isListening ? 'border-pink-400 bg-pink-50 text-pink-600 animate-pulse dark:bg-pink-950/40' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`} aria-label={isListening ? 'Dừng nghe' : 'Nói với TVU Buddy'} title={isListening ? 'Đang nghe, bấm để dừng' : 'Nói với TVU Buddy'}>
+                {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+              </button>
               <input
                 ref={inputRef}
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Nhắn tin với TVU Buddy"
+                placeholder={isListening ? (recognizedDraft || 'Đang nghe bạn nói…') : 'Nhắn hoặc bấm micro để nói'}
                 disabled={isLoading}
                 className="flex-1 px-4 py-2.5 rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 text-sm font-medium transition-all placeholder:font-medium"
                 style={{

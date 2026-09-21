@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GoogleDriveError, loadGoogleDriveFile } from './googleDriveClient';
+import { GoogleDriveError, listGoogleDriveLibraryFiles, loadGoogleDriveFile, TVU_LIBRARY_FOLDER_ID } from './googleDriveClient';
 
 describe('loadGoogleDriveFile', () => {
   afterEach(() => {
@@ -59,5 +59,24 @@ describe('loadGoogleDriveFile', () => {
     await expect(loadGoogleDriveFile('private-file')).rejects.toMatchObject({
       code: 'permission',
     } satisfies Partial<GoogleDriveError>);
+  });
+
+  it('recursively lists files from the canonical shared folder', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
+        { id: 'folder-1', name: 'Công nghệ thông tin', mimeType: 'application/vnd.google-apps.folder', parents: [TVU_LIBRARY_FOLDER_ID] },
+        { id: 'root-pdf', name: 'Đại cương.pdf', mimeType: 'application/pdf', parents: [TVU_LIBRARY_FOLDER_ID], modifiedTime: '2026-09-20T00:00:00Z' },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [
+        { id: 'nested-pdf', name: 'Lập trình.pdf', mimeType: 'application/pdf', parents: ['folder-1'], modifiedTime: '2026-09-21T00:00:00Z' },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const files = await listGoogleDriveLibraryFiles(true);
+
+    expect(files.map((file) => file.id)).toEqual(['nested-pdf', 'root-pdf']);
+    expect(files[0].folderPath).toEqual(['Công nghệ thông tin']);
+    const firstQuery = new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('q');
+    expect(firstQuery).toContain(`'${TVU_LIBRARY_FOLDER_ID}' in parents`);
   });
 });

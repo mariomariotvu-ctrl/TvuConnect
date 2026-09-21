@@ -24,8 +24,7 @@ import {
   formatDistance,
   sortByDistance
 } from '../utils/locationUtils';
-import { requestBrowserLocation } from '../utils/proximity';
-import { geolocationSample, shouldAcceptGeolocationSample, type PreciseGeolocation } from '../utils/geolocation';
+import { geolocationSample, isRecentRouteOrigin, requestFreshGeolocation, shouldAcceptGeolocationSample, watchResponsiveGeolocation, type PreciseGeolocation } from '../utils/geolocation';
 import { getMapRoute, type MapRoute, type StudentRouteMode } from '../services/liveLocationService';
 import { formatRouteDuration } from '../utils/studentLocationPresentation';
 import { FirestoreQueryOptimizer } from '../utils/firestoreQueryOptimizer';
@@ -102,9 +101,12 @@ const MapViewportController: React.FC<{
 
   useEffect(() => {
     if (routePath && routePath.length > 1) {
-      map.fitBounds(latLngBounds(routePath.map((item) => [item.latitude, item.longitude])), {
-        paddingTopLeft: [32, 100],
-        paddingBottomRight: [32, 170],
+      const bounds = latLngBounds(routePath.map((item) => [item.latitude, item.longitude]));
+      if (currentPosition) bounds.extend([currentPosition.lat, currentPosition.lng]);
+      const narrow = map.getSize().x < 640;
+      map.fitBounds(bounds, {
+        paddingTopLeft: narrow ? [24, 170] : [410, 32],
+        paddingBottomRight: [24, 80],
         maxZoom: 17,
         animate: true,
       });
@@ -121,14 +123,30 @@ const MapViewportController: React.FC<{
   }, [focusPosition, map, routePath]);
 
   useEffect(() => {
-    if (!currentPosition || !followUser || routePath?.length) return;
+    if (!currentPosition || !followUser) return;
+    if (routePath?.length) {
+      // Keep the moving user inside the visible route, without re-fitting on every GPS fix.
+      const comfortableBounds = map.getBounds().pad(-0.22);
+      if (!comfortableBounds.contains([currentPosition.lat, currentPosition.lng])) {
+        map.panTo([currentPosition.lat, currentPosition.lng], { animate: true, duration: 0.3 });
+      }
+      return;
+    }
     const nextZoom = Math.max(map.getZoom(), 16);
-    map.flyTo([currentPosition.lat, currentPosition.lng], nextZoom, { duration: 0.45 });
+    if (map.getZoom() < 16) map.setView([currentPosition.lat, currentPosition.lng], nextZoom, { animate: false });
+    else map.panTo([currentPosition.lat, currentPosition.lng], { animate: true, duration: 0.3 });
   }, [currentPosition?.lat, currentPosition?.lng, followUser, map, routePath?.length]);
 
   useEffect(() => {
     if (!recenterToken || !currentPosition) return;
-    map.flyTo([currentPosition.lat, currentPosition.lng], Math.max(map.getZoom(), 16), { duration: 0.45 });
+    if (routePath && routePath.length > 1) {
+      map.fitBounds(latLngBounds([
+        ...routePath.map((item) => [item.latitude, item.longitude] as [number, number]),
+        [currentPosition.lat, currentPosition.lng],
+      ]), { padding: [40, 60], maxZoom: 17 });
+    } else {
+      map.flyTo([currentPosition.lat, currentPosition.lng], Math.max(map.getZoom(), 16), { duration: 0.45 });
+    }
   }, [map, recenterToken]);
 
   return null;
@@ -245,6 +263,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
   const [routeError, setRouteError] = useState<string | null>(null);
   const [recenterToken, setRecenterToken] = useState(0);
   const lastMapPositionRef = useRef<PreciseGeolocation | null>(null);
+  const routeRequestRef = useRef(0);
   const locationErrorShownRef = useRef(false);
   const autoLocationAttemptedRef = useRef(false);
   
@@ -297,8 +316,11 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
   const requestCurrentLocation = useCallback(async () => {
     setLocating(true);
     try {
-      const coordinates = await requestBrowserLocation();
+      const sample = await requestFreshGeolocation();
+      lastMapPositionRef.current = sample;
+      const coordinates = { lat: sample.lat, lng: sample.lng };
       setUserLocation(coordinates);
+      setUserAccuracy(sample.accuracy);
       setMapFocus(coordinates);
       setFollowUser(true);
       toast.success('Đã cập nhật vị trí hiện tại. Vị trí chỉ được giữ trong phiên này.');
@@ -319,7 +341,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
 
   useEffect(() => {
     if (activeTab !== 'map' || !navigator.geolocation) return;
-    const watchId = navigator.geolocation.watchPosition(
+    return watchResponsiveGeolocation(
       (position) => {
         const sample = geolocationSample(position);
         if (!shouldAcceptGeolocationSample(lastMapPositionRef.current, sample)) return;
@@ -328,7 +350,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
         setUserLocation({ lat: sample.lat, lng: sample.lng });
         setUserAccuracy(sample.accuracy);
         if (isFirstPosition) {
-          setMapFocus({ lat: sample.lat, lng: sample.lng });
+          setMapFocus((currentFocus) => currentFocus || { lat: sample.lat, lng: sample.lng });
           setFollowUser(true);
         }
         locationErrorShownRef.current = false;
@@ -340,15 +362,8 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
           ? 'Hãy bật quyền Vị trí chính xác để bản đồ đi theo bạn.'
           : 'GPS chưa ổn định. Bản đồ sẽ tự cập nhật khi có tín hiệu tốt hơn.');
       },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
-    return () => navigator.geolocation.clearWatch(watchId);
   }, [activeTab]);
-
-  const handlePlaceSelect = useCallback((place: Place & { distance?: number }) => {
-    setSelectedPlace(place);
-    setPanelOpen(true);
-  }, []);
 
   const scrollMainContentToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -378,34 +393,50 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
   const loadPlaceRoute = useCallback(async (
     place: Place & { distance?: number },
     mode: StudentRouteMode,
+    quiet = false,
   ) => {
+    const requestId = ++routeRequestRef.current;
     setRouteLoading(true);
     setRouteError(null);
+    if (!quiet) setPlaceRoute(null);
+    setRouteDestination(place);
+    if (!quiet) {
+      setMapFocus({ lat: place.location.lat, lng: place.location.lng });
+      setFollowUser(true);
+      setPanelOpen(false);
+      handleTabChange('map');
+    }
     try {
-      const current = await requestBrowserLocation();
-      setUserLocation(current);
-      setUserAccuracy(lastMapPositionRef.current?.accuracy || null);
+      const cached = lastMapPositionRef.current;
+      const current = isRecentRouteOrigin(cached)
+        ? cached
+        : await requestFreshGeolocation();
+      if (requestId !== routeRequestRef.current) return;
+      setUserLocation({ lat: current.lat, lng: current.lng });
+      setUserAccuracy(current.accuracy);
       const route = await getMapRoute(
         { latitude: current.lat, longitude: current.lng },
         { latitude: place.location.lat, longitude: place.location.lng },
         mode,
       );
-      setRouteDestination(place);
+      if (requestId !== routeRequestRef.current) return;
       setPlaceRoute(route);
-      setMapFocus({ lat: place.location.lat, lng: place.location.lng });
-      setFollowUser(false);
-      setPanelOpen(false);
-      handleTabChange('map');
     } catch (routeRequestError) {
+      if (requestId !== routeRequestRef.current) return;
       const message = routeRequestError instanceof Error
         ? routeRequestError.message
         : 'Chưa thể tạo tuyến đường lúc này.';
       setRouteError(message);
       toast.error('Chưa thể tạo tuyến đường. Hãy kiểm tra quyền vị trí rồi thử lại.');
     } finally {
-      setRouteLoading(false);
+      if (requestId === routeRequestRef.current) setRouteLoading(false);
     }
   }, [handleTabChange]);
+
+  const handlePlaceSelect = useCallback((place: Place & { distance?: number }) => {
+    setSelectedPlace(place);
+    void loadPlaceRoute(place, routeMode);
+  }, [loadPlaceRoute, routeMode]);
 
   useEffect(() => {
     if (!placeRoute || !routeDestination || !userLocation || routeLoading) return;
@@ -416,7 +447,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
       lng: firstPoint.longitude,
     }) * 1_000;
     if (movedFromRouteStart < 80 || Date.now() - placeRoute.generatedAt < 75_000) return;
-    void loadPlaceRoute(routeDestination, placeRoute.mode);
+    void loadPlaceRoute(routeDestination, placeRoute.mode, true);
   }, [loadPlaceRoute, placeRoute, routeDestination, routeLoading, userLocation]);
 
   useEffect(() => {
@@ -978,19 +1009,21 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                 </div>
               </div>}
 
-              {placeRoute && routeDestination && (
+              {routeDestination && (
                 <div className="absolute left-3 right-3 top-3 z-[900] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:left-4 sm:right-auto sm:w-[390px]">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">Tuyến đường ngắn nhất</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">{routeLoading ? 'Đang tìm đường…' : 'Chỉ đường'}</p>
                       <h3 className="truncate text-sm font-black text-slate-900 dark:text-white">Đến {routeDestination.name}</h3>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {formatDistance(placeRoute.distanceMeters / 1_000)} · {formatRouteDuration(placeRoute.durationSeconds)}
+                        {placeRoute ? `${formatDistance(placeRoute.distanceMeters / 1_000)} · ${formatRouteDuration(placeRoute.durationSeconds)}` : routeLoading ? 'Đang lấy vị trí và tính tuyến…' : 'Chưa có tuyến đường'}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
+                        routeRequestRef.current += 1;
+                        setRouteLoading(false);
                         setPlaceRoute(null);
                         setRouteDestination(null);
                         setRouteError(null);
@@ -1017,6 +1050,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                       </button>
                     ))}
                   </div>
+                  <button type="button" onClick={() => { setSelectedPlace(routeDestination); setPanelOpen(true); }} className="mt-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">Xem thông tin địa điểm</button>
                   {routeError && <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">{routeError}</p>}
                 </div>
               )}
@@ -1177,10 +1211,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                           icon={icon}
                           visitors={visitors}
                           placeEvents={placeEvents}
-                          onMarkerClick={(place) => {
-                            setSelectedPlace(place);
-                            setPanelOpen(true);
-                          }}
+                          onMarkerClick={handlePlaceSelect}
                           onCheckInClick={(place) => {
                             setSelectedPlace(place);
                             setShowCheckInModal(true);
@@ -1224,7 +1255,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                   }}
                   disabled={locating}
                   className={`flex h-12 w-12 items-center justify-center rounded-full border bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900 ${followUser ? 'text-blue-600 ring-4 ring-blue-500/15' : 'text-slate-600 dark:text-slate-300'}`}
-                  title="Về vị trí của tôi"
+                  title={placeRoute ? 'Xem toàn tuyến' : 'Về vị trí của tôi'}
                 >
                   {locating ? <Loader2 className="h-5 w-5 animate-spin" /> : <LocateFixed className="h-5 w-5" />}
                 </button>
