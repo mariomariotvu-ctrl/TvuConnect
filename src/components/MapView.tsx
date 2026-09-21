@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, useRef } from 'react';
 import { User } from 'firebase/auth';
-import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { AttributionControl, Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { divIcon, Icon, latLngBounds, LatLngBounds, point } from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Place, CheckIn, PlaceEvent, StudentProfile } from '../types';
@@ -72,6 +72,8 @@ export type ExploreTab = 'map' | 'people' | 'list' | 'food' | 'ai' | 'rental';
 
 // TVU Campus coordinates
 const TVU_CENTER: [number, number] = [9.9345, 106.3461];
+const ROUTE_REFRESH_MS = 20_000;
+const ROUTE_REFRESH_DISTANCE_METERS = 25;
 
 const BoundsTracker: React.FC<{ onBoundsChange: (bounds: LatLngBounds) => void }> = ({ onBoundsChange }) => {
   const map = useMapEvents({
@@ -446,8 +448,15 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
       lat: firstPoint.latitude,
       lng: firstPoint.longitude,
     }) * 1_000;
-    if (movedFromRouteStart < 80 || Date.now() - placeRoute.generatedAt < 75_000) return;
-    void loadPlaceRoute(routeDestination, placeRoute.mode, true);
+    if (movedFromRouteStart < ROUTE_REFRESH_DISTANCE_METERS) return;
+
+    const delay = Math.max(0, ROUTE_REFRESH_MS - (Date.now() - placeRoute.generatedAt));
+    const timeout = window.setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        void loadPlaceRoute(routeDestination, placeRoute.mode, true);
+      }
+    }, delay);
+    return () => window.clearTimeout(timeout);
   }, [loadPlaceRoute, placeRoute, routeDestination, routeLoading, userLocation]);
 
   useEffect(() => {
@@ -1136,8 +1145,10 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
                     fadeAnimation={!isMobile} // Disable fade animation on mobile
                     markerZoomAnimation={!isMobile} // Disable marker zoom animation on mobile
                     worldCopyJump
+                    attributionControl={false}
                     whenReady={() => setIsMapReady(true)}
                   >
+                  <AttributionControl position="bottomright" prefix={false} />
                   <BoundsTracker onBoundsChange={setMapBounds} />
                   <MapViewportController
                     currentPosition={userLocation}

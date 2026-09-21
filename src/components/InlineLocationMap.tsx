@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { Icon } from 'leaflet';
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { AttributionControl, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { MapPin } from 'lucide-react';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
@@ -84,8 +84,9 @@ export const InlineLocationMap: React.FC<InlineLocationMapProps> = ({
           zoom={zoom}
           className="h-full w-full"
           scrollWheelZoom={false}
-          attributionControl
+          attributionControl={false}
         >
+          <AttributionControl position="bottomright" prefix={false} />
           <CenterAndResize position={position} zoom={zoom} />
           <TileLayer
             attribution={MAP_TILE_ATTRIBUTION}

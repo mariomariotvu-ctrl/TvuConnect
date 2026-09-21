@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { User } from 'firebase/auth';
 import { divIcon, latLngBounds } from 'leaflet';
 import {
+  AttributionControl,
   Circle,
   MapContainer,
   Marker,
@@ -73,9 +74,10 @@ interface StudentMapProps {
 }
 
 const DEFAULT_MAP_CENTER: [number, number] = [9.9345, 106.3461];
-const LOCATION_REFRESH_MS = 30_000;
-const FOCUSED_LOCATION_REFRESH_MS = 6_000;
-const ROUTE_REFRESH_MS = 2 * 60_000;
+const LOCATION_REFRESH_MS = 15_000;
+const FOCUSED_LOCATION_REFRESH_MS = 4_000;
+const ROUTE_REFRESH_MS = 20_000;
+const ROUTE_REFRESH_DISTANCE_METERS = 25;
 
 const ROUTE_MODES: Array<{
   value: StudentRouteMode;
@@ -498,7 +500,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       })
       : 0;
     const targetMoved = selectedLocation.updatedAt > studentRoute.targetUpdatedAt;
-    if (!targetMoved && movedFromRouteStart < 80) return;
+    if (!targetMoved && movedFromRouteStart < ROUTE_REFRESH_DISTANCE_METERS) return;
 
     const delay = Math.max(0, ROUTE_REFRESH_MS - (Date.now() - studentRoute.generatedAt));
     const timeout = window.setTimeout(() => {
@@ -626,7 +628,8 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                   )}
                 </div>
               )}
-              <MapContainer center={center} zoom={15} minZoom={2} worldCopyJump className="h-full w-full" scrollWheelZoom touchZoom doubleClickZoom>
+              <MapContainer center={center} zoom={15} minZoom={2} worldCopyJump className="h-full w-full" scrollWheelZoom touchZoom doubleClickZoom attributionControl={false}>
+                <AttributionControl position="bottomright" prefix={false} />
                 <StudentMapViewport
                   center={center}
                   routePath={studentRoute?.path}

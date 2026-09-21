@@ -11,6 +11,8 @@ const MAX_ACCEPTED_ACCURACY_METERS = 250;
 const MAX_SAMPLE_AGE_MS = 30_000;
 const ROUTE_ORIGIN_MAX_AGE_MS = 15_000;
 const ROUTE_ORIGIN_MAX_ACCURACY_METERS = 150;
+const FAST_ROUTE_FIX_ACCURACY_METERS = 120;
+const FAST_ROUTE_FIX_WAIT_MS = 3_500;
 
 export function geolocationErrorMessage(error: GeolocationPositionError) {
   if (error.code === error.PERMISSION_DENIED) {
@@ -106,8 +108,8 @@ export function watchResponsiveGeolocation(
     if (active) onError?.(error);
   }, {
     enableHighAccuracy: true,
-    maximumAge: 5_000,
-    timeout: 12_000,
+    maximumAge: 1_500,
+    timeout: 8_000,
   });
   return () => {
     active = false;
@@ -130,11 +132,15 @@ export function requestFreshGeolocation(timeoutMs = 10_000): Promise<PreciseGeol
       settled = true;
       navigator.geolocation.clearWatch(watchId);
       window.clearTimeout(timer);
+      window.clearTimeout(fastFixTimer);
       if (sample) resolve(sample);
       else reject(new Error(error ? geolocationErrorMessage(error) : 'Chưa lấy được vị trí đủ chính xác. Hãy thử lại.'));
     };
 
     const timer = window.setTimeout(() => finish(best || undefined), timeoutMs);
+    const fastFixTimer = window.setTimeout(() => {
+      if (best && best.accuracy <= ROUTE_ORIGIN_MAX_ACCURACY_METERS) finish(best);
+    }, Math.min(FAST_ROUTE_FIX_WAIT_MS, timeoutMs));
     watchId = navigator.geolocation.watchPosition(
       (position) => {
         const sample = geolocationSample(position);
@@ -142,7 +148,7 @@ export function requestFreshGeolocation(timeoutMs = 10_000): Promise<PreciseGeol
         if (!best || sample.accuracy < best.accuracy || sample.observedAt > best.observedAt + 2_000) {
           best = sample;
         }
-        if (sample.accuracy <= 75) finish(sample);
+        if (sample.accuracy <= FAST_ROUTE_FIX_ACCURACY_METERS) finish(sample);
       },
       (error) => finish(best || undefined, error),
       {
