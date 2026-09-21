@@ -80,6 +80,20 @@ describe('loadGoogleDriveFile', () => {
     expect(firstQuery).toContain(`'${TVU_LIBRARY_FOLDER_ID}' in parents`);
   });
 
+  it('uses the existing Firebase browser key when a host has no dedicated Drive key', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', '');
+    vi.stubEnv('VITE_FIREBASE_API_KEY', 'firebase-browser-key');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(
+      JSON.stringify({ files: [] }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ));
+
+    await listGoogleDriveLibraryFiles(true);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0][0])).toContain('key=firebase-browser-key');
+  });
+
   it('keeps readable subjects when one shared child folder is private', async () => {
     vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (request) => {

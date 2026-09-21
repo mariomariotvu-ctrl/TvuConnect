@@ -123,7 +123,12 @@ function emitLibraryProgress(snapshot: GoogleDriveLibrarySnapshot) {
 }
 
 function getDriveConfig() {
-  const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY?.trim() || '';
+  // The Firebase browser key belongs to the same Google Cloud project and has
+  // Drive API access enabled. Reuse it when a host (for example a third-party
+  // Vercel project) does not provide the optional dedicated Drive key.
+  const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY?.trim()
+    || import.meta.env.VITE_FIREBASE_API_KEY?.trim()
+    || '';
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || '';
   const configuredAppId = import.meta.env.VITE_GOOGLE_DRIVE_APP_ID?.trim() || '';
   const inferredAppId = clientId.match(/^(\d+)-/)?.[1] || '';
