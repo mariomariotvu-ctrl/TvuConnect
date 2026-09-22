@@ -31,6 +31,7 @@ import {
   UserRound,
   Users,
   Music,
+  X,
 } from 'lucide-react';
 import { db, collection, query, where, onSnapshot, limit } from '../firebase';
 import { CreateStationModal } from './CreateStationModal';
@@ -300,6 +301,12 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   // --- Music Station States ---
   const [musicStations, setMusicStations] = useState<MusicStation[]>([]);
   const [isCreateStationModalOpen, setIsCreateStationModalOpen] = useState(false);
+  const [selectedStation, setSelectedStation] = useState<MusicStation | null>(null);
+  const [useMobileStationSheet, setUseMobileStationSheet] = useState(() => (
+    typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 639px)').matches
+  ));
 
   const loadingLocationsRef = useRef(false);
   const loadingFocusedLocationRef = useRef(false);
@@ -339,6 +346,20 @@ export const StudentMap: React.FC<StudentMapProps> = ({
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(max-width: 639px)');
+    const updateMode = () => setUseMobileStationSheet(media.matches);
+    updateMode();
+    media.addEventListener?.('change', updateMode);
+    return () => media.removeEventListener?.('change', updateMode);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedStation) return;
+    if (!musicStations.some((station) => station.id === selectedStation.id)) setSelectedStation(null);
+  }, [musicStations, selectedStation]);
 
   const loadLocations = useCallback(async () => {
     if (!sharingActive) {
@@ -834,23 +855,49 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                       alt={`Trạm cảm xúc của ${station.userName}`}
                       title={`Trạm cảm xúc của ${station.userName}`}
                       eventHandlers={{
-                        click: (event) => event.target.openPopup(),
+                        click: (event) => {
+                          if (useMobileStationSheet) setSelectedStation(station);
+                          else event.target.openPopup();
+                        },
                       }}
                     >
-                      <Popup
-                        minWidth={250}
-                        maxWidth={300}
-                        autoPan
-                        keepInView
-                        autoPanPaddingTopLeft={[16, 120]}
-                        autoPanPaddingBottomRight={[16, 72]}
-                        className="music-station-map-popup"
-                      >
-                        <MusicStationPopup station={station} variant="card" />
-                      </Popup>
+                      {!useMobileStationSheet && (
+                        <Popup
+                          minWidth={250}
+                          maxWidth={300}
+                          autoPan
+                          keepInView
+                          autoPanPaddingTopLeft={[16, 120]}
+                          autoPanPaddingBottomRight={[16, 72]}
+                          className="music-station-map-popup"
+                        >
+                          <MusicStationPopup station={station} variant="card" />
+                        </Popup>
+                      )}
                     </Marker>
                   ))}
               </MapContainer>
+              {useMobileStationSheet && selectedStation && (
+                <div className="fixed inset-0 z-[10010] sm:hidden" role="dialog" aria-modal="true" aria-label={`Trạm cảm xúc của ${selectedStation.userName}`}>
+                  <button
+                    type="button"
+                    className="absolute inset-0 h-full w-full bg-slate-950/45 backdrop-blur-[2px]"
+                    onClick={() => setSelectedStation(null)}
+                    aria-label="Đóng trạm cảm xúc"
+                  />
+                  <div className="absolute inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] mx-auto flex max-h-[calc(100dvh-7rem)] max-w-[320px] justify-center overflow-y-auto rounded-3xl">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStation(null)}
+                      className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/70 text-white shadow-lg backdrop-blur"
+                      aria-label="Đóng trạm cảm xúc"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                    <MusicStationPopup station={selectedStation} variant="card" />
+                  </div>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setIsCreateStationModalOpen(true)}

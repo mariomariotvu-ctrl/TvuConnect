@@ -99,7 +99,7 @@ export const MusicStationPopup: React.FC<MusicStationPopupProps> = ({ station, v
   const heroImage = station.imageUrl || station.song?.coverUrl || '';
 
   return (
-    <article className="w-[min(78vw,280px)] overflow-hidden rounded-3xl bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white">
+    <article className="w-full max-w-[300px] overflow-hidden rounded-3xl bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white">
       {heroImage ? (
         <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
           <img src={heroImage} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
