@@ -326,7 +326,7 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
     const proxyOrigin = window.location.hostname === 'localhost'
       ? 'https://tvuconnect.vercel.app'
       : window.location.origin;
-    const directDownloadUrl = `${proxyOrigin}/api/drive-office?fileId=${encodeURIComponent(driveReference.fileId)}`;
+    const directDownloadUrl = `${proxyOrigin}/api/drive-office?fileId=${encodeURIComponent(driveReference.fileId)}&v=2`;
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(directDownloadUrl)}`;
   }, [driveReference, embeddedUrl]);
   const [driveState, setDriveState] = useState<DriveViewerState>({ status: 'checking' });

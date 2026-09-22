@@ -237,7 +237,7 @@ describe('getEmbeddedDocumentUrl', () => {
     expect(screen.getByTitle('Tài liệu: ÔN TẬP TRẮC NGHIỆM'))
       .toHaveAttribute(
         'src',
-        'https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Ftvuconnect.vercel.app%2Fapi%2Fdrive-office%3FfileId%3Dpublic-ppt',
+        'https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Ftvuconnect.vercel.app%2Fapi%2Fdrive-office%3FfileId%3Dpublic-ppt%26v%3D2',
       );
     expect(screen.queryByText('Định dạng này chưa xem trực tiếp được')).not.toBeInTheDocument();
   });
