@@ -7,6 +7,23 @@ import {
 
 export const TVU_DRIVE_LIBRARY_OWNER = 'tvu-drive-library';
 
+/**
+ * Keep the last complete Drive index visible while a new level-by-level scan
+ * is in progress. The completed snapshot remains authoritative so files that
+ * were removed from Drive disappear once synchronization finishes.
+ */
+export function mergeDriveProgress<T extends { id: string }>(
+  current: T[],
+  incoming: T[],
+  complete: boolean,
+): T[] {
+  if (complete) return incoming;
+
+  const merged = new Map(current.map((item) => [item.id, item]));
+  for (const item of incoming) merged.set(item.id, item);
+  return [...merged.values()];
+}
+
 const normalized = (value: string) => value
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')

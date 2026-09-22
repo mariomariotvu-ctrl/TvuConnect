@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { driveFileToDocumentLink, inferDriveDocumentCategory, isExternalGoogleDriveDocument } from './driveLibrary';
+import {
+  driveFileToDocumentLink,
+  inferDriveDocumentCategory,
+  isExternalGoogleDriveDocument,
+  mergeDriveProgress,
+} from './driveLibrary';
 
 describe('TVU Drive library mapping', () => {
   it('uses the folder path as the searchable subject and removes file extensions', () => {
@@ -26,5 +31,13 @@ describe('TVU Drive library mapping', () => {
     const base = driveFileToDocumentLink({ id: 'file-2', name: 'Tài liệu.pdf', mimeType: 'application/pdf', folderPath: [] });
     expect(isExternalGoogleDriveDocument(base)).toBe(false);
     expect(isExternalGoogleDriveDocument({ ...base, source: 'firestore', url: 'https://drive.google.com/file/d/old/view' })).toBe(true);
+  });
+
+  it('keeps already loaded files during a progressive refresh, then trusts the completed index', () => {
+    const oldFile = { id: 'old', name: 'Tài liệu đang xem' };
+    const refreshedFile = { id: 'new', name: 'Tài liệu vừa quét' };
+
+    expect(mergeDriveProgress([oldFile], [refreshedFile], false)).toEqual([oldFile, refreshedFile]);
+    expect(mergeDriveProgress([oldFile], [refreshedFile], true)).toEqual([refreshedFile]);
   });
 });

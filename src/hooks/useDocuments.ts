@@ -7,6 +7,7 @@ import type { GoogleDriveLibraryFolder } from '../utils/googleDriveClient';
 import {
   driveFileToDocumentLink,
   isExternalGoogleDriveDocument,
+  mergeDriveProgress,
   matchesDocumentFilters,
 } from '../utils/driveLibrary';
 
@@ -106,8 +107,9 @@ export function useDocuments(
     setDriveSyncing(true);
     try {
       const files = await listGoogleDriveLibraryFiles(force, (snapshot) => {
-        setDriveDocuments(snapshot.files.map(driveFileToDocumentLink));
-        setDriveFolders(snapshot.folders);
+        const nextDocuments = snapshot.files.map(driveFileToDocumentLink);
+        setDriveDocuments((current) => mergeDriveProgress(current, nextDocuments, snapshot.complete));
+        setDriveFolders((current) => mergeDriveProgress(current, snapshot.folders, snapshot.complete));
         if (snapshot.files.length || snapshot.folders.length || snapshot.complete) setDriveLoading(false);
         setDriveSyncing(!snapshot.complete);
       });
