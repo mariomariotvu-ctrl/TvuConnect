@@ -1,7 +1,9 @@
 import { BookOpen } from 'lucide-react';
 import { DocumentCard } from './DocumentCard';
+import { DriveImageQuiz } from './DriveImageQuiz';
 import { DocumentLink } from '../types/documentLink';
 import { User } from 'firebase/auth';
+import { buildLibraryGridItems } from '../utils/imageQuiz';
 
 interface DocumentGridProps {
   documents: DocumentLink[];
@@ -73,17 +75,23 @@ export function DocumentGrid({ documents, loading, currentUser, onEdit, onDelete
   }
 
   // Document grid - single column for horizontal cards
+  const gridItems = buildLibraryGridItems(documents);
+
   return (
     <div className="flex flex-col gap-4 md:gap-5 overflow-x-hidden">
-      {documents.map((document) => (
-        <DocumentCard
-          key={document.id}
-          document={document}
-          currentUser={currentUser}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onProfileClick={onProfileClick}
-        />
+      {gridItems.map((item) => (
+        item.type === 'image-quiz' ? (
+          <DriveImageQuiz key={item.key} documents={item.documents} />
+        ) : (
+          <DocumentCard
+            key={item.key}
+            document={item.document}
+            currentUser={currentUser}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onProfileClick={onProfileClick}
+          />
+        )
       ))}
     </div>
   );
