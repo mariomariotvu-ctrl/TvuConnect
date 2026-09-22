@@ -13,7 +13,7 @@ Nền tảng hỗ trợ sinh viên Đại học Trà Vinh tìm bạn cùng ngàn
 - Phòng học thoại nhóm tối đa 8 sinh viên. Ứng dụng không đặt bộ đếm tự ngắt; thời lượng thực tế vẫn phụ thuộc mạng, pin, trình duyệt và TURN.
 - Hẹn hò 18+ theo cơ chế vuốt, chỉ dành cho hồ sơ tự nguyện tham gia. Sinh viên có thể ẩn ảnh trên thẻ hẹn hò; trò chuyện chỉ mở sau khi hai bên cùng thích.
 - Kho tài liệu theo ngành, có bộ lọc sách/giáo trình. Chỉ dùng nguồn mở, nguồn chính thức hoặc nội dung được phép chia sẻ.
-- TVU Buddy: trợ lý học tập chạy qua Firebase Cloud Functions, không đưa khóa AI vào trình duyệt.
+- TVU BuBu: trợ lý học tập chạy qua Firebase Cloud Functions, không đưa khóa AI vào trình duyệt.
 
 ## Chạy ở máy cá nhân
 
@@ -54,7 +54,7 @@ VITE_GOOGLE_DRIVE_APP_ID=google_cloud_project_number
 
 ## Cài AI miễn phí, an toàn
 
-TVU Buddy sử dụng `gemini-2.5-flash` qua server. Google hiện có free tier cho model này, nhưng hạn mức có thể thay đổi; xem [trang giá Gemini](https://ai.google.dev/gemini-api/docs/pricing) trước khi triển khai.
+TVU BuBu sử dụng `gemini-2.5-flash` qua server. Google hiện có free tier cho model này, nhưng hạn mức có thể thay đổi; xem [trang giá Gemini](https://ai.google.dev/gemini-api/docs/pricing) trước khi triển khai.
 
 1. Tạo **authorization key** mới tại [Google AI Studio](https://aistudio.google.com/app/apikey). Từ tháng 9/2026, standard key cũ có thể bị Gemini API từ chối; trong trang API Keys, kiểm tra cột **Key Type** và thay key loại Standard bằng key loại Auth.
 2. Đăng nhập Firebase CLI và chọn project:

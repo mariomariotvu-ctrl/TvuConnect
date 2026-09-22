@@ -2,7 +2,7 @@
 
 ## Overview
 
-AI Assistant (TVU Buddy) hiện tại có nhiều vấn đề nghiêm trọng về mobile UX, đặc biệt là keyboard interaction và scroll behavior. Design này tập trung vào việc tối ưu hóa trải nghiệm mobile bằng cách:
+AI Assistant (TVU BuBu) hiện tại có nhiều vấn đề nghiêm trọng về mobile UX, đặc biệt là keyboard interaction và scroll behavior. Design này tập trung vào việc tối ưu hóa trải nghiệm mobile bằng cách:
 
 1. **Visual Viewport API Integration** - Sử dụng `window.visualViewport` để detect và adapt với keyboard height
 2. **Smart Scroll Management** - Loại bỏ aggressive scroll-to-top, implement conditional auto-scroll

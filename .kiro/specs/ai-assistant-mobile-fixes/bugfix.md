@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Tính năng AI Assistant (TVU Buddy) trong tab Khám phá có nhiều vấn đề về trải nghiệm người dùng trên mobile, đặc biệt liên quan đến keyboard interaction, scroll behavior, và layout stability. Các vấn đề này ảnh hưởng nghiêm trọng đến khả năng sử dụng của người dùng khi chat với AI trên thiết bị di động.
+Tính năng AI Assistant (TVU BuBu) trong tab Khám phá có nhiều vấn đề về trải nghiệm người dùng trên mobile, đặc biệt liên quan đến keyboard interaction, scroll behavior, và layout stability. Các vấn đề này ảnh hưởng nghiêm trọng đến khả năng sử dụng của người dùng khi chat với AI trên thiết bị di động.
 
 **Tác động:**
 - User không thấy được input field khi gõ tin nhắn

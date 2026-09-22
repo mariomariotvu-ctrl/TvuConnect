@@ -20,8 +20,8 @@ const QUICK_REPLIES = [
 ];
 
 type SpeechRecognitionAlternativeLike = { transcript: string };
-type SpeechRecognitionResultLike = { isFinal: boolean; [index: number]: SpeechRecognitionAlternativeLike };
-type SpeechRecognitionEventLike = { resultIndex: number; results: { length: number; [index: number]: SpeechRecognitionResultLike } };
+type SpeechRecognitionResultLike = { isFinal: boolean;[index: number]: SpeechRecognitionAlternativeLike };
+type SpeechRecognitionEventLike = { resultIndex: number; results: { length: number;[index: number]: SpeechRecognitionResultLike } };
 type SpeechRecognitionLike = {
   lang: string;
   continuous: boolean;
@@ -64,7 +64,7 @@ export const AIAssistant: React.FC = () => {
   const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('tvu_buddy_voice') === 'on');
   const [isListening, setIsListening] = useState(false);
   const [recognizedDraft, setRecognizedDraft] = useState('');
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,7 +93,7 @@ export const AIAssistant: React.FC = () => {
     setVoiceEnabled(next);
     localStorage.setItem('tvu_buddy_voice', next ? 'on' : 'off');
     if (!next && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-    if (next) toast.success('Đã bật giọng Miu nhẹ nhàng cho TVU Buddy.');
+    if (next) toast.success('Đã bật giọng Miu nhẹ nhàng cho TVU BuBu.');
   };
 
   useEffect(() => {
@@ -129,16 +129,16 @@ export const AIAssistant: React.FC = () => {
     const now = Date.now();
     const oneMinuteAgo = now - 60000;
     const fiveMinutesAgo = now - 300000;
-    
+
     // Kiểm tra heavy user (20 tin trong 5 phút)
     const recentFiveMin = messageTimestamps.filter(t => t > fiveMinutesAgo);
     const isHeavyUser = recentFiveMin.length >= HEAVY_USER_THRESHOLD;
-    
+
     // Lọc các timestamps trong 1 phút gần đây
     const recentMessages = messageTimestamps.filter(t => t > oneMinuteAgo);
     const limit = isHeavyUser ? HEAVY_USER_LIMIT : MAX_MESSAGES_PER_MINUTE;
     const remaining = limit - recentMessages.length;
-    
+
     return {
       allowed: recentMessages.length < limit,
       remaining: remaining,
@@ -171,19 +171,19 @@ export const AIAssistant: React.FC = () => {
         setMessages(prev => [...prev, userMessage, assistantMessage]);
         setInputText('');
         speakResponse(cachedResponse);
-        
+
         return;
       }
     }
 
     // Kiểm tra rate limit (chỉ cho API calls)
     const { allowed, remaining, isHeavyUser } = checkRateLimit();
-    
+
     if (!allowed) {
-      const message = isHeavyUser 
-        ? 'Bạn đã chat khá nhiều. Hãy đợi một phút để TVU Buddy phục vụ mọi người tốt hơn.'
+      const message = isHeavyUser
+        ? 'Bạn đã chat khá nhiều. Hãy đợi một phút để TVU BuBu phục vụ mọi người tốt hơn.'
         : 'Bạn đã gửi quá nhiều tin nhắn. Vui lòng đợi một phút.';
-      
+
       toast.error(message, { duration: 5000 });
       return;
     }
@@ -193,7 +193,7 @@ export const AIAssistant: React.FC = () => {
       const message = isHeavyUser
         ? `Bạn đang dùng nhiều. Còn ${remaining} tin nhắn trong phút này.`
         : `Còn ${remaining} tin nhắn trong phút này.`;
-      
+
       toast.warning(message, { duration: 3000 });
     }
 
@@ -206,10 +206,10 @@ export const AIAssistant: React.FC = () => {
 
     // Get history BEFORE adding new message
     const history = getGeminiHistory();
-    
+
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
-    
+
     setIsLoading(true);
 
     // Cập nhật timestamps
@@ -233,10 +233,10 @@ export const AIAssistant: React.FC = () => {
       speakResponse(aiResponse);
     } catch (error: any) {
       console.error('Error in handleSendMessage:', error);
-      
+
       // Hiển thị error message chi tiết hơn
       const errorMessage = error.message || 'Không thể gửi tin nhắn';
-      
+
       // Thêm error message vào chat để user thấy
       const errorChatMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -244,9 +244,9 @@ export const AIAssistant: React.FC = () => {
         content: `Xin lỗi, có lỗi xảy ra:\n\n${errorMessage}\n\nVui lòng thử lại sau.`,
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, errorChatMessage]);
-      
+
       // Toast notification
       toast.error(`Lỗi: ${errorMessage.substring(0, 100)}`, { duration: 5000 });
     } finally {
@@ -309,7 +309,7 @@ export const AIAssistant: React.FC = () => {
     recognition.onerror = (event) => {
       if (event.error !== 'aborted' && event.error !== 'no-speech') {
         toast.error(event.error === 'not-allowed'
-          ? 'Hãy cho phép micro để nói chuyện với TVU Buddy.'
+          ? 'Hãy cho phép micro để nói chuyện với TVU BuBu.'
           : 'Chưa nghe rõ. Bạn thử nói lại nhé.');
       }
       setIsListening(false);
@@ -323,9 +323,9 @@ export const AIAssistant: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       className="flex flex-col overflow-hidden"
-      style={{ 
+      style={{
         height: '100%',
         maxHeight: '100dvh'
       }}
@@ -335,7 +335,7 @@ export const AIAssistant: React.FC = () => {
           <Bot className="w-5 h-5" aria-hidden="true" />
         </span>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-base truncate leading-tight text-slate-950 dark:text-white">TVU Buddy</h3>
+          <h3 className="font-bold text-base truncate leading-tight text-slate-950 dark:text-white">TVU BuBu</h3>
           <p className="text-xs mt-0.5 text-slate-500 dark:text-slate-400">Trợ lý học tập và hướng dẫn sử dụng</p>
         </div>
         <button type="button" onClick={toggleVoice} className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ${voiceEnabled ? 'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`} title={voiceEnabled ? 'Tắt giọng Miu' : 'Bật giọng Miu nhẹ nhàng'}>
@@ -351,7 +351,7 @@ export const AIAssistant: React.FC = () => {
       {/* Content Area - Flex column with space-between */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Messages + Welcome - Scrollable top section */}
-        <div 
+        <div
           ref={containerRef}
           className="flex-shrink overflow-y-auto"
           style={{
@@ -366,46 +366,44 @@ export const AIAssistant: React.FC = () => {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 py-3 shadow-md ${
-                    message.role === 'user'
+                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 py-3 shadow-md ${message.role === 'user'
                       ? 'bg-indigo-600 text-white rounded-tr-md dark:bg-indigo-500'
                       : 'rounded-tl-none'
-                  }`}
+                    }`}
                   style={{
                     wordBreak: 'break-word',
                     whiteSpace: 'pre-wrap',
-                    backgroundColor: message.role === 'user' 
-                      ? undefined 
-                      : theme === 'dark' 
-                        ? '#1e1b4b' 
+                    backgroundColor: message.role === 'user'
+                      ? undefined
+                      : theme === 'dark'
+                        ? '#1e1b4b'
                         : '#ffffff',
-                    color: message.role === 'user' 
-                      ? undefined 
-                      : theme === 'dark' 
-                        ? '#f3f4f6' 
+                    color: message.role === 'user'
+                      ? undefined
+                      : theme === 'dark'
+                        ? '#f3f4f6'
                         : '#1f2937',
-                    border: message.role === 'user' 
-                      ? 'none' 
-                      : theme === 'dark' 
-                        ? '1px solid rgba(99, 102, 241, 0.2)' 
+                    border: message.role === 'user'
+                      ? 'none'
+                      : theme === 'dark'
+                        ? '1px solid rgba(99, 102, 241, 0.2)'
                         : '1px solid rgba(229, 231, 235, 1)',
                   }}
                 >
                   <div className="text-sm leading-relaxed">
                     {message.content}
                   </div>
-                  <p 
-                    className={`text-xs mt-1 ${
-                      message.role === 'user' 
-                        ? 'text-indigo-200' 
-                        : theme === 'dark' 
-                        ? 'text-gray-400' 
-                        : 'text-gray-500'
-                    }`}
+                  <p
+                    className={`text-xs mt-1 ${message.role === 'user'
+                        ? 'text-indigo-200'
+                        : theme === 'dark'
+                          ? 'text-gray-400'
+                          : 'text-gray-500'
+                      }`}
                   >
-                    {message.timestamp.toLocaleTimeString('vi-VN', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                    {message.timestamp.toLocaleTimeString('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}
                   </p>
                 </div>
@@ -415,18 +413,18 @@ export const AIAssistant: React.FC = () => {
             {/* Welcome message when no messages */}
             {displayMessages.length === 0 && !isLoading && (
               <div className="flex items-start justify-start">
-                <div 
+                <div
                   className="max-w-[85%] md:max-w-[80%] rounded-xl px-3 py-2"
                   style={{
-                    backgroundColor: theme === 'dark' 
-                      ? 'rgba(55, 65, 81, 0.8)' 
+                    backgroundColor: theme === 'dark'
+                      ? 'rgba(55, 65, 81, 0.8)'
                       : '#FFFFFF',
                     border: theme === 'light' ? '1px solid rgba(229, 231, 235, 0.8)' : 'none',
                     boxShadow: theme === 'light' ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'
                   }}
                 >
                   <div className="text-sm leading-relaxed" style={{ color: theme === 'dark' ? '#E5E7EB' : '#1F2937' }}>
-                    Xin chào! Tớ là TVU Buddy, trợ lý học tập của TVU Connect. Tớ có thể giúp bạn:
+                    Xin chào! Tớ là TVU BuBu, trợ lý học tập của TVU Connect. Tớ có thể giúp bạn:
                     <br />
                     <br />
                     • Lập kế hoạch ôn tập và giải thích kiến thức
@@ -440,13 +438,13 @@ export const AIAssistant: React.FC = () => {
                     <br />
                     Đừng gửi mật khẩu, mã OTP, MSSV hoặc địa chỉ chính xác. Bạn cần mình hỗ trợ việc gì?
                   </div>
-                  <p 
+                  <p
                     className="text-xs mt-1"
                     style={{ color: theme === 'dark' ? '#9CA3AF' : '#6B7280' }}
                   >
-                    {new Date().toLocaleTimeString('vi-VN', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                    {new Date().toLocaleTimeString('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}
                   </p>
                 </div>
@@ -457,11 +455,10 @@ export const AIAssistant: React.FC = () => {
             {isLoading && (
               <div className="flex justify-start">
                 <div
-                  className={`rounded-xl px-3 py-2 flex items-center gap-2 ${
-                    theme === 'dark'
+                  className={`rounded-xl px-3 py-2 flex items-center gap-2 ${theme === 'dark'
                       ? 'bg-gradient-to-br from-gray-700 to-gray-800 text-gray-100'
                       : 'bg-white text-gray-900 shadow-sm'
-                  }`}
+                    }`}
                   style={{
                     border: theme === 'light' ? '1px solid rgba(229, 231, 235, 0.8)' : 'none'
                   }}
@@ -480,7 +477,7 @@ export const AIAssistant: React.FC = () => {
         <div className="flex-shrink-0">
           {/* Quick Replies */}
           {displayMessages.length === 0 && !isLoading && (
-            <div 
+            <div
               className="px-3 py-2 border-t"
               style={{
                 backgroundColor: theme === 'dark' ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
@@ -507,13 +504,13 @@ export const AIAssistant: React.FC = () => {
           )}
 
           {/* Input Area */}
-          <div 
+          <div
             className="p-2 border-t pb-[calc(0.5rem+var(--sab))]"
             style={{
               backgroundColor: theme === 'dark' ? 'rgba(31, 41, 55, 0.98)' : 'rgba(255, 255, 255, 0.98)',
               borderColor: theme === 'dark' ? 'rgba(99, 102, 241, 0.3)' : 'rgba(209, 213, 219, 1)',
-              boxShadow: theme === 'dark' 
-                ? '0 -2px 10px rgba(0, 0, 0, 0.3)' 
+              boxShadow: theme === 'dark'
+                ? '0 -2px 10px rgba(0, 0, 0, 0.3)'
                 : '0 -2px 10px rgba(0, 0, 0, 0.05)'
             }}
           >
@@ -524,7 +521,7 @@ export const AIAssistant: React.FC = () => {
               }}
               className="flex gap-2"
             >
-              <button type="button" onClick={startListening} disabled={isLoading} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border ${isListening ? 'border-pink-400 bg-pink-50 text-pink-600 animate-pulse dark:bg-pink-950/40' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`} aria-label={isListening ? 'Dừng nghe' : 'Nói với TVU Buddy'} title={isListening ? 'Đang nghe, bấm để dừng' : 'Nói với TVU Buddy'}>
+              <button type="button" onClick={startListening} disabled={isLoading} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border ${isListening ? 'border-pink-400 bg-pink-50 text-pink-600 animate-pulse dark:bg-pink-950/40' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`} aria-label={isListening ? 'Dừng nghe' : 'Nói với TVU BuBu'} title={isListening ? 'Đang nghe, bấm để dừng' : 'Nói với TVU BuBu'}>
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </button>
               <input

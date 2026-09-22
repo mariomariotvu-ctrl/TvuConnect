@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence, useSpring } from 'motion/react';
-import { Bot, X, Sparkles } from 'lucide-react';
+import { Bot, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { Bubu_MESSAGES } from '../utils/buddyMessages';
 
 // Lazy load the AI Assistant
 const LazyAIAssistant = React.lazy(() =>
@@ -192,6 +193,20 @@ const PulseRing: React.FC<{ delay: number }> = ({ delay }) => (
 );
 
 // ── Main Floating Button ────────────────────────────────────────────────────
+
+// Shuffle array using Fisher-Yates for true random order each session
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Shuffled once per session so messages feel fresh each visit
+const shuffledMessages = shuffleArray(Bubu_MESSAGES);
+
 interface AIFloatingButtonProps {
   avoidChatComposer?: boolean;
 }
@@ -199,32 +214,52 @@ interface AIFloatingButtonProps {
 export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatComposer = false }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tooltipDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [currentMessage, setCurrentMessage] = useState<string | null>(null);
+  const [messageIndex, setMessageIndex] = useState(0);
+  const speechTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Spring-based hover scale
   const hoverScale = useSpring(1, { stiffness: 400, damping: 25 });
 
-  // Show tooltip hint after 4s if never interacted
+  // Auto-speaking cycle: show a message, then hide, then show next
   useEffect(() => {
-    if (!hasInteracted) {
-      tooltipTimer.current = setTimeout(() => {
-        setShowTooltip(true);
-        tooltipDismissTimer.current = setTimeout(() => setShowTooltip(false), 5000);
-      }, 4000);
-      return () => {
-        if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-        if (tooltipDismissTimer.current) clearTimeout(tooltipDismissTimer.current);
-      };
+    if (isOpen) {
+      setCurrentMessage(null);
+      return;
     }
-  }, [hasInteracted]);
+
+    const showNextMessage = () => {
+      setMessageIndex(prev => {
+        const next = (prev + 1) % shuffledMessages.length;
+        setCurrentMessage(shuffledMessages[next]);
+        return next;
+      });
+
+      dismissTimer.current = setTimeout(() => {
+        setCurrentMessage(null);
+      }, 5500);
+    };
+
+    // First message after 3 seconds
+    speechTimer.current = setTimeout(showNextMessage, 3000);
+
+    // Then cycle every 12 seconds
+    const cycleInterval = setInterval(() => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      showNextMessage();
+    }, 12000);
+
+    return () => {
+      if (speechTimer.current) clearTimeout(speechTimer.current);
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      clearInterval(cycleInterval);
+    };
+  }, [isOpen]);
 
   const handleToggle = useCallback(() => {
     setIsOpen(prev => !prev);
-    setHasInteracted(true);
-    setShowTooltip(false);
+    setCurrentMessage(null);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -257,38 +292,45 @@ export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatCom
         }}
         data-chat-composer-safe={avoidChatComposer ? 'true' : undefined}
       >
-        {/* Tooltip bubble */}
+        {/* ── Speech Bubble (auto-speaking messages) ── */}
         <AnimatePresence>
-          {showTooltip && !isOpen && !avoidChatComposer && (
+          {currentMessage && !isOpen && (
             <motion.div
-              initial={{ opacity: 0, x: 10, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 10, scale: 0.9 }}
+              key={currentMessage}
+              initial={{ opacity: 0, y: 8, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -5, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="absolute right-full mr-1 top-1/2 hidden -translate-y-1/2 whitespace-nowrap sm:block"
+              className="absolute bottom-full mb-3 right-0"
+              style={{ width: 220, maxWidth: '70vw' }}
+              onClick={() => setCurrentMessage(null)}
             >
               <div
-                className="px-3 py-2 rounded-xl text-xs font-semibold shadow-lg backdrop-blur-md flex items-center gap-1.5"
+                className="px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed font-medium shadow-xl"
                 style={{
                   background: isDark
-                    ? 'rgba(99, 102, 241, 0.9)'
-                    : 'rgba(79, 70, 229, 0.9)',
+                    ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(139, 92, 246, 0.95))'
+                    : 'linear-gradient(135deg, rgba(79, 70, 229, 0.95), rgba(124, 58, 237, 0.92))',
                   color: '#fff',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: isDark
+                    ? '1px solid rgba(167, 139, 250, 0.3)'
+                    : '1px solid rgba(139, 92, 246, 0.2)',
                 }}
               >
-                <Sparkles className="w-3 h-3" />
-                Hỏi TVU Buddy nè!
-                {/* Arrow */}
+                {currentMessage}
+                {/* Triangle pointer */}
                 <div
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full"
+                  className="absolute -bottom-1.5 right-6"
                   style={{
                     width: 0,
                     height: 0,
-                    borderTop: '6px solid transparent',
-                    borderBottom: '6px solid transparent',
-                    borderLeft: isDark
-                      ? '6px solid rgba(99, 102, 241, 0.9)'
-                      : '6px solid rgba(79, 70, 229, 0.9)',
+                    borderLeft: '8px solid transparent',
+                    borderRight: '8px solid transparent',
+                    borderTop: isDark
+                      ? '8px solid rgba(119, 97, 243, 0.95)'
+                      : '8px solid rgba(101, 64, 233, 0.94)',
                   }}
                 />
               </div>
@@ -328,7 +370,7 @@ export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatCom
               ? 'drop-shadow(0 4px 12px rgba(129, 140, 248, 0.45)) drop-shadow(0 1px 3px rgba(0,0,0,0.3))'
               : 'drop-shadow(0 4px 12px rgba(99, 102, 241, 0.3)) drop-shadow(0 2px 4px rgba(0,0,0,0.08))',
           }}
-          aria-label={isOpen ? 'Đóng trợ lý AI' : 'Mở trợ lý AI TVU Buddy'}
+          aria-label={isOpen ? 'Đóng trợ lý AI' : 'Mở trợ lý AI TVU BuBu'}
         >
           <AnimatePresence mode="wait" initial={false}>
             {isOpen ? (
@@ -451,7 +493,7 @@ export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatCom
                           className="text-sm font-medium"
                           style={{ color: isDark ? '#94a3b8' : '#64748b' }}
                         >
-                          Đang thức dậy TVU Buddy...
+                          Đang thức dậy TVU BuBu...
                         </p>
                       </div>
                     </div>
