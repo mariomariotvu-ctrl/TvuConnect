@@ -1,7 +1,8 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Camera, Download, Image as ImageIcon, ShieldAlert, X } from 'lucide-react';
 import { getImagePermissionHelp, isMobileDevice, isStandaloneApp, requestAppInstall } from '../utils/platform';
+import { StoryCamera } from './StoryCamera';
 
 interface ImageSourcePickerProps {
   children: (openPicker: () => void) => React.ReactNode;
@@ -9,6 +10,7 @@ interface ImageSourcePickerProps {
   multiple?: boolean;
   disabled?: boolean;
   title?: string;
+  maxFiles?: number;
 }
 
 /**
@@ -22,9 +24,12 @@ export const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
   multiple = false,
   disabled = false,
   title = 'Thêm ảnh',
+  maxFiles = multiple ? 3 : 1,
 }) => {
   const id = useId().replace(/:/g, '');
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [storyCameraOpen, setStoryCameraOpen] = useState(false);
   const [showPermissionHelp, setShowPermissionHelp] = useState(false);
   const mobile = isMobileDevice();
   const standalone = isStandaloneApp();
@@ -41,6 +46,12 @@ export const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
     if (files.length === 0) return;
 
     close();
+    setStoryCameraOpen(false);
+    await onFilesSelected(files);
+  };
+
+  const handleCameraFiles = async (files: File[]) => {
+    setStoryCameraOpen(false);
     await onFilesSelected(files);
   };
 
@@ -60,7 +71,7 @@ export const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label htmlFor={`${id}-gallery`} className="flex min-h-24 cursor-pointer items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-left transition active:scale-[0.98] dark:border-indigo-800/50 dark:bg-indigo-950/30">
+          <label htmlFor={`${id}-gallery-persistent`} className="flex min-h-24 cursor-pointer items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-left transition active:scale-[0.98] dark:border-indigo-800/50 dark:bg-indigo-950/30">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm dark:bg-slate-950">
               <ImageIcon className="h-5 w-5" />
             </span>
@@ -69,22 +80,16 @@ export const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
               <span className="mt-0.5 block text-xs leading-4 text-slate-500 dark:text-slate-400">Không cần quyền camera</span>
             </span>
           </label>
-          <input id={`${id}-gallery`} type="file" accept="image/*" multiple={multiple} className="sr-only" onChange={handleFiles} />
 
-          {mobile && (
-            <>
-              <label htmlFor={`${id}-camera`} className="flex min-h-24 cursor-pointer items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-left transition active:scale-[0.98] dark:border-violet-800/50 dark:bg-violet-950/30">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-violet-600 shadow-sm dark:bg-slate-950">
-                  <Camera className="h-5 w-5" />
-                </span>
-                <span>
-                  <span className="block text-sm font-extrabold text-slate-950 dark:text-white">Chụp ảnh mới</span>
-                  <span className="mt-0.5 block text-xs leading-4 text-slate-500 dark:text-slate-400">Dùng camera sau</span>
-                </span>
-              </label>
-              <input id={`${id}-camera`} type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleFiles} />
-            </>
-          )}
+          <button type="button" onClick={() => { close(); setStoryCameraOpen(true); }} className="flex min-h-24 items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-left transition active:scale-[0.98] dark:border-violet-800/50 dark:bg-violet-950/30">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-violet-600 shadow-sm dark:bg-slate-950">
+              <Camera className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block text-sm font-extrabold text-slate-950 dark:text-white">Chụp ảnh mới</span>
+              <span className="mt-0.5 block text-xs leading-4 text-slate-500 dark:text-slate-400">{mobile ? 'Toàn màn hình kiểu Story' : 'Dùng webcam kiểu Story'}</span>
+            </span>
+          </button>
         </div>
 
         <button type="button" onClick={() => setShowPermissionHelp((value) => !value)} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
@@ -117,10 +122,20 @@ export const ImageSourcePicker: React.FC<ImageSourcePickerProps> = ({
 
   return (
     <>
+      <input ref={galleryInputRef} id={`${id}-gallery-persistent`} type="file" accept="image/*" multiple={multiple} className="sr-only" onChange={handleFiles} />
       {children(() => {
         if (!disabled) setOpen(true);
       })}
       {picker}
+      {storyCameraOpen && (
+        <StoryCamera
+          multiple={multiple}
+          maxFiles={maxFiles}
+          onClose={() => setStoryCameraOpen(false)}
+          onDone={handleCameraFiles}
+          onPickFromLibrary={() => galleryInputRef.current?.click()}
+        />
+      )}
     </>
   );
 };

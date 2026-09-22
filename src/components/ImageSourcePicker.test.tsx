@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 describe('ImageSourcePicker', () => {
-  it('offers gallery and camera separately on Android', () => {
+  it('offers gallery and a full-screen Story camera separately on Android', async () => {
     vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile');
     vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
@@ -26,7 +26,12 @@ describe('ImageSourcePicker', () => {
     expect(screen.getByText('Chọn ảnh có sẵn')).toBeInTheDocument();
     expect(screen.getByText('Không cần quyền camera')).toBeInTheDocument();
     expect(screen.getByText('Chụp ảnh mới')).toBeInTheDocument();
-    expect(document.querySelector('input[capture="environment"]')).toBeInTheDocument();
+    expect(screen.getByText('Toàn màn hình kiểu Story')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Chụp ảnh mới/i }));
+    expect(screen.getByRole('dialog', { name: 'Camera Story TVU Connect' })).toBeInTheDocument();
+    expect(screen.getByText('STORY TVU')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/chưa hỗ trợ camera trực tiếp/i)).toBeInTheDocument());
   });
 
   it('passes selected gallery files to the upload flow', async () => {

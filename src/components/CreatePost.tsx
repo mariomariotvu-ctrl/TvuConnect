@@ -559,6 +559,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, userProfile, onPos
               <ImageSourcePicker
                 title="Thêm ảnh vào bài viết"
                 multiple
+                maxFiles={MAX_IMAGES - images.length}
                 disabled={posting || compressing || images.length >= MAX_IMAGES}
                 onFilesSelected={processFiles}
               >

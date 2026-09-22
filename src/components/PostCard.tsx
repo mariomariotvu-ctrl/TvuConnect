@@ -811,7 +811,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, currentUser, onDelet
 
             {/* Add Image Button */}
             {editedImages.length < 3 && (
-              <ImageSourcePicker title="Thêm ảnh vào bài viết" multiple onFilesSelected={handleImageUpload}>
+              <ImageSourcePicker title="Thêm ảnh vào bài viết" multiple maxFiles={3 - editedImages.length} onFilesSelected={handleImageUpload}>
                 {(openPicker) => (
                   <button
                     type="button"

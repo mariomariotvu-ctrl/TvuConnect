@@ -253,6 +253,21 @@ a {
   }
 }
 
+/* Story capture is a camera surface, not a bottom-sheet dialog. */
+.story-camera-dialog[role='dialog'] {
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  z-index: 2147483647 !important;
+}
+
+.dark .story-camera-dialog .bg-white {
+  background-color: #ffffff !important;
+}
+
 #root {
   overflow-x: hidden;
   max-width: 100vw;

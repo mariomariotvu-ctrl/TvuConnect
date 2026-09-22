@@ -14,7 +14,9 @@ export const isMobileDevice = (): boolean => isIosDevice() || isAndroidDevice();
 export const isStandaloneApp = (): boolean => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   const iosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
-  return iosStandalone || window.matchMedia('(display-mode: standalone)').matches;
+  const displayModeStandalone = typeof window.matchMedia === 'function'
+    && window.matchMedia('(display-mode: standalone)').matches;
+  return iosStandalone || displayModeStandalone;
 };
 
 export const APP_INSTALL_REQUEST_EVENT = 'tvu-connect:request-install';
