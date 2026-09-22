@@ -17,6 +17,21 @@ vi.mock('docx-preview', () => ({
   }),
 }));
 
+vi.mock('pdfjs-dist', () => ({
+  GlobalWorkerOptions: { workerSrc: '' },
+  getDocument: vi.fn(() => ({
+    destroy: vi.fn(async () => {}),
+    promise: Promise.resolve({
+      numPages: 1,
+      destroy: vi.fn(async () => {}),
+      getPage: vi.fn(async () => ({
+        getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }),
+        render: vi.fn(() => ({ promise: Promise.resolve() })),
+      })),
+    }),
+  })),
+}));
+
 describe('getEmbeddedDocumentUrl', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -163,10 +178,11 @@ describe('getEmbeddedDocumentUrl', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('renders a public Drive PDF from a local blob URL', async () => {
+  it('renders a public Drive PDF inside the app without relying on the browser PDF iframe', async () => {
     vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:tvu-connect-pdf');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({} as CanvasRenderingContext2D);
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
         id: 'public-pdf',
@@ -187,8 +203,39 @@ describe('getEmbeddedDocumentUrl', () => {
       onClose: () => {},
     }));
 
-    await waitFor(() => {
-      expect(screen.getByTitle('Tài liệu: Giáo trình')).toHaveAttribute('src', 'blob:tvu-connect-pdf');
-    });
+    expect(await screen.findByText('Đang xem PDF trực tiếp')).toBeInTheDocument();
+    expect(await screen.findByText('1 / 1 trang')).toBeInTheDocument();
+    expect(screen.getByLabelText('Trang 1 / 1')).toBeInTheDocument();
+    expect(screen.queryByTitle('Tài liệu: Giáo trình')).not.toBeInTheDocument();
+  });
+
+  it('opens legacy PowerPoint files in the Drive viewer instead of forcing a download', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:tvu-connect-ppt');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 'public-ppt',
+        name: 'ÔN TẬP TRẮC NGHIỆM.ppt',
+        mimeType: 'application/vnd.ms-powerpoint',
+        size: '24576',
+        capabilities: { canDownload: true },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('ppt-content', {
+        status: 200,
+        headers: { 'Content-Type': 'application/vnd.ms-powerpoint' },
+      }));
+
+    render(createElement(DocumentViewerModal, {
+      open: true,
+      title: 'ÔN TẬP TRẮC NGHIỆM',
+      url: 'https://drive.google.com/file/d/public-ppt/view',
+      onClose: () => {},
+    }));
+
+    expect(await screen.findByText('Đang xem file Office trực tiếp')).toBeInTheDocument();
+    expect(screen.getByTitle('Tài liệu: ÔN TẬP TRẮC NGHIỆM'))
+      .toHaveAttribute('src', 'https://drive.google.com/file/d/public-ppt/preview');
+    expect(screen.queryByText('Định dạng này chưa xem trực tiếp được')).not.toBeInTheDocument();
   });
 });
