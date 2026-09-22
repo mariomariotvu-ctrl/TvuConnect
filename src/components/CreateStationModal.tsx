@@ -5,9 +5,11 @@ import { X, Search, MapPin, Music, Loader2, Image as ImageIcon } from 'lucide-re
 import { toast } from 'sonner';
 import { useTheme } from '../contexts/ThemeContext';
 import { safeWrite } from '../utils/quotaManager';
+import { requestFreshGeolocation } from '../utils/geolocation';
 
 interface CreateStationModalProps {
   currentUser: User;
+  currentProfile: any; // Using any or StudentProfile | null
   onClose: () => void;
 }
 
@@ -19,7 +21,7 @@ interface iTunesSong {
   previewUrl: string;
 }
 
-export const CreateStationModal: React.FC<CreateStationModalProps> = ({ currentUser, onClose }) => {
+export const CreateStationModal: React.FC<CreateStationModalProps> = ({ currentUser, currentProfile, onClose }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -63,45 +65,45 @@ export const CreateStationModal: React.FC<CreateStationModalProps> = ({ currentU
     setIsSubmitting(true);
     try {
       // Lấy vị trí
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const expiresAt = new Date();
-          expiresAt.setHours(expiresAt.getHours() + 24); // Tồn tại 24h
+      try {
+        const position = await requestFreshGeolocation();
+        
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24); // Tồn tại 24h
 
-          const stationData = {
-            userId: currentUser.uid,
-            userName: currentUser.displayName || 'Người dùng',
-            userAvatar: currentUser.photoURL || '',
-            content: content.trim(),
-            imageUrl: selectedSong?.artworkUrl100?.replace('100x100bb', '600x600bb') || '', // Lấy ảnh bìa nét hơn
-            song: selectedSong ? {
-              id: String(selectedSong.trackId),
-              title: selectedSong.trackName,
-              artist: selectedSong.artistName,
-              coverUrl: selectedSong.artworkUrl100,
-              previewUrl: selectedSong.previewUrl
-            } : null,
-            location: {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            },
-            createdAt: serverTimestamp(),
-            expiresAt: expiresAt
-          };
+        const stationData = {
+          userId: currentUser.uid,
+          userName: currentProfile?.fullName || currentUser.displayName || 'Người dùng',
+          userAvatar: currentProfile?.photoURL || currentUser.photoURL || '',
+          content: content.trim(),
+          imageUrl: selectedSong?.artworkUrl100?.replace('100x100bb', '600x600bb') || '', // Lấy ảnh bìa nét hơn
+          song: selectedSong ? {
+            id: String(selectedSong.trackId),
+            title: selectedSong.trackName,
+            artist: selectedSong.artistName,
+            coverUrl: selectedSong.artworkUrl100,
+            previewUrl: selectedSong.previewUrl
+          } : null,
+          location: {
+            lat: position.lat,
+            lng: position.lng
+          },
+          createdAt: serverTimestamp(),
+          expiresAt: expiresAt
+        };
 
-          await safeWrite(
-            () => addDoc(collection(db, 'musicStations'), stationData),
-            'musicStation'
-          );
+        await safeWrite(
+          () => addDoc(collection(db, 'musicStations'), stationData),
+          'musicStation'
+        );
 
-          toast.success('Đã thả Trạm Cảm Xúc thành công!');
-          onClose();
-        },
-        (error) => {
-          toast.error('Không thể lấy vị trí của bạn. Vui lòng bật định vị.');
-          setIsSubmitting(false);
-        }
-      );
+        toast.success('Đã thả Trạm Cảm Xúc thành công!');
+        onClose();
+      } catch (err: any) {
+        console.error('Error submitting station:', err);
+        toast.error(err.message || 'Không thể lấy vị trí của bạn. Vui lòng bật định vị.');
+        setIsSubmitting(false);
+      }
     } catch (error) {
       console.error('Error submitting station:', error);
       toast.error('Có lỗi xảy ra, vui lòng thử lại');

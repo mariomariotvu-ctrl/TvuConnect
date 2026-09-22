@@ -1,17 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { MusicStation } from '../types';
-import { Play, Pause } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
-import { format } from 'date-fns';
+import { Play, Pause, Music } from 'lucide-react';
 
 interface MusicStationPopupProps {
   station: MusicStation;
 }
 
 export const MusicStationPopup: React.FC<MusicStationPopupProps> = ({ station }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -31,82 +26,49 @@ export const MusicStationPopup: React.FC<MusicStationPopupProps> = ({ station })
     setIsPlaying(false);
   };
 
-  // Lấy ảnh bìa: Nếu có ảnh tự chọn thì dùng ảnh đó, nếu không lấy ảnh bài hát, nếu không có nữa thì bỏ qua
-  const displayImage = station.imageUrl || station.song?.coverUrl;
-
-  const dateStr = station.createdAt 
-    ? format(station.createdAt.toDate ? station.createdAt.toDate() : new Date(station.createdAt), 'HH:mm dd/MM/yyyy') 
-    : '';
-
   return (
     <div 
-      className="rounded-2xl overflow-hidden font-sans shadow-[0_8px_30px_rgb(0,0,0,0.12)] w-64 border"
-      style={{
-        background: isDark ? '#1e293b' : '#ffffff',
-        borderColor: isDark ? '#334155' : '#e2e8f0',
-        color: isDark ? '#f8fafc' : '#0f172a'
-      }}
+      className="flex items-center gap-2.5 rounded-full bg-white/95 p-1.5 pr-4 shadow-[0_4px_16px_rgba(0,0,0,0.12)] border border-slate-200 dark:bg-slate-900/95 dark:border-slate-800 pointer-events-auto transition-transform hover:scale-105 cursor-pointer max-w-[240px]"
+      onClick={station.song?.previewUrl ? togglePlay : undefined}
     >
-      {/* Ảnh bìa */}
-      {displayImage && (
-        <div className="relative w-full aspect-video bg-gray-100 dark:bg-slate-800">
-          <img 
-            src={displayImage} 
-            alt="Cover" 
-            className="w-full h-full object-cover"
-          />
-          
-          {/* Nút Play/Pause nổi trên ảnh nếu có bài hát */}
-          {station.song?.previewUrl && (
-            <button
-              onClick={togglePlay}
-              className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors group"
-            >
-              <div className="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-purple-600 transform scale-90 group-hover:scale-100 transition-transform">
-                {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-1" />}
-              </div>
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Thông tin bài hát đang phát */}
-      {station.song && isPlaying && (
-        <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800/30 flex items-center gap-2">
-          <div className="w-1 h-3 bg-purple-500 rounded-full animate-pulse" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 truncate">
-              {station.song.title}
-            </p>
-            <p className="text-[10px] text-purple-600/70 dark:text-purple-400/70 truncate">
-              {station.song.artist}
-            </p>
+      {/* Avatar + Nút Play */}
+      <div className="relative shrink-0 flex items-center justify-center h-8 w-8 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 ring-2 ring-indigo-50 dark:ring-indigo-900/50">
+        <img 
+          src={station.userAvatar || 'https://via.placeholder.com/40'} 
+          alt={station.userName} 
+          className="absolute inset-0 w-full h-full object-cover" 
+        />
+        {station.song?.previewUrl ? (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[1px]">
+            {isPlaying ? <Pause className="h-4 w-4 text-white fill-current" /> : <Play className="h-4 w-4 text-white fill-current ml-0.5" />}
           </div>
-        </div>
-      )}
-
-      {/* Nội dung status */}
-      <div className="p-4">
-        <h3 className="font-serif font-black text-lg tracking-wide uppercase mb-3 text-slate-800 dark:text-slate-100" style={{ fontFamily: 'Georgia, serif' }}>
-          {station.userName}
-        </h3>
-        
-        <p className="text-sm font-medium italic text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-          "{station.content}"
-        </p>
-        
-        <p className="text-[11px] font-medium text-right text-slate-400 dark:text-slate-500">
-          {dateStr}
-        </p>
+        ) : (
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+            <Music className="h-3.5 w-3.5 text-white" />
+          </div>
+        )}
       </div>
 
-      {/* Thẻ audio ẩn */}
+      {/* Nội dung */}
+      <div className="flex flex-col min-w-0 flex-1 py-0.5">
+        {station.song && (
+          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate leading-tight">
+            {station.song.title}
+          </span>
+        )}
+        <span className="text-[11px] text-slate-700 dark:text-slate-200 truncate leading-tight" title={`${station.userName}: ${station.content}`}>
+          <strong className="font-semibold text-slate-900 dark:text-white mr-1">{station.userName}</strong>
+          {station.content ? <span className="opacity-90">{station.content}</span> : null}
+        </span>
+      </div>
+
+      {/* Trình phát nhạc ẩn */}
       {station.song?.previewUrl && (
         <audio 
-          ref={audioRef}
-          src={station.song.previewUrl}
-          onEnded={handleEnded}
-          preload="none"
+          ref={audioRef} 
+          src={station.song.previewUrl} 
+          onEnded={handleEnded} 
+          className="hidden" 
         />
       )}
     </div>

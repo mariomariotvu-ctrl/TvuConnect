@@ -745,13 +745,42 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                     pathOptions={{ color: '#2563eb', fillColor: '#60a5fa', fillOpacity: 0.1, weight: 1 }}
                   />
                 )}
-                {locations.map((location) => {
-                  const relation = relationFor(location);
-                  const distance = distanceFor(location);
-                  const markerPosition: [number, number] = location.isOwn && localPosition
-                    ? [localPosition.lat, localPosition.lng]
-                    : [location.latitude, location.longitude];
-                  return (
+                {(() => {
+                  const grouped = new Map<string, typeof locations>();
+                  locations.forEach(location => {
+                    const coord = location.isOwn && localPosition
+                      ? [localPosition.lat, localPosition.lng]
+                      : [location.latitude, location.longitude];
+                    if (Number.isFinite(coord[0])) {
+                      const key = `${coord[0].toFixed(5)},${coord[1].toFixed(5)}`;
+                      const arr = grouped.get(key) || [];
+                      arr.push(location);
+                      grouped.set(key, arr);
+                    }
+                  });
+
+                  return locations.map((location) => {
+                    const relation = relationFor(location);
+                    const distance = distanceFor(location);
+                    let markerPosition: [number, number] = location.isOwn && localPosition
+                      ? [localPosition.lat, localPosition.lng]
+                      : [location.latitude, location.longitude];
+
+                    const key = `${markerPosition[0].toFixed(5)},${markerPosition[1].toFixed(5)}`;
+                    const group = grouped.get(key);
+                    if (group && group.length > 1) {
+                      const index = group.findIndex(g => g.uid === location.uid);
+                      const radius = 0.00003; // ~3 meters offset
+                      const angle = (index / group.length) * Math.PI * 2;
+                      markerPosition = [
+                        markerPosition[0] + radius * Math.cos(angle),
+                        markerPosition[1] + radius * Math.sin(angle)
+                      ];
+                    }
+
+                    const userStation = musicStations.find(s => s.userId === location.uid);
+
+                    return (
                     <Marker
                       key={location.uid}
                       position={markerPosition}
@@ -763,31 +792,20 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                       )}
                       eventHandlers={{ click: () => selectStudent(location) }}
                     >
-                      <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
-                        <strong>{location.fullName}</strong>
-                        {distance && <span className="block text-xs">{distance.label}</span>}
-                      </Tooltip>
+                      {userStation ? (
+                        <Tooltip permanent interactive direction="top" offset={[0, -20]} opacity={1} className="bg-transparent border-0 shadow-none !p-0">
+                          <MusicStationPopup station={userStation} />
+                        </Tooltip>
+                      ) : (
+                        <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
+                          <strong>{location.fullName}</strong>
+                          {distance && <span className="block text-xs">{distance.label}</span>}
+                        </Tooltip>
+                      )}
                     </Marker>
                   );
-                })}
-
-                {/* --- MUSIC STATIONS MARKERS --- */}
-                {musicStations.map((station) => (
-                  <Marker
-                    key={station.id}
-                    position={[station.location.lat, station.location.lng]}
-                    icon={divIcon({
-                      className: 'custom-station-marker',
-                      html: `<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:3px solid white;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);"><img src="${station.userAvatar || 'https://via.placeholder.com/40'}" style="width:100%;height:100%;object-fit:cover;" /></div><div style="position:absolute;bottom:-4px;right:-4px;background:#a855f7;border-radius:50%;padding:2px;border:2px solid white;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg></div>`,
-                      iconSize: [40, 40],
-                      iconAnchor: [20, 20],
-                    })}
-                  >
-                    <Popup className="music-station-popup-container" closeButton={false} offset={[0, -10]}>
-                      <MusicStationPopup station={station} />
-                    </Popup>
-                  </Marker>
-                ))}
+                  });
+                })()}
               </MapContainer>
               <button
                 type="button"
@@ -941,6 +959,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       {isCreateStationModalOpen && (
         <CreateStationModal
           currentUser={currentUser}
+          currentProfile={currentProfile}
           onClose={() => setIsCreateStationModalOpen(false)}
         />
       )}
