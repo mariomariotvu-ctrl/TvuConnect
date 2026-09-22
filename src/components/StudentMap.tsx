@@ -32,7 +32,7 @@ import {
   Users,
   Music,
 } from 'lucide-react';
-import { db, collection, query, where, onSnapshot } from '../firebase';
+import { db, collection, query, where, onSnapshot, limit } from '../firebase';
 import { CreateStationModal } from './CreateStationModal';
 import { MusicStationPopup } from './MusicStationPopup';
 import { toast } from 'sonner';
@@ -128,6 +128,7 @@ const VISIBILITY_OPTIONS: Array<{
 ];
 
 const markerIconCache = new Map<string, ReturnType<typeof divIcon>>();
+const stationIconCache = new Map<string, ReturnType<typeof divIcon>>();
 const markerIcon = (
   kind: 'own' | 'friend' | 'major' | 'tvu',
   isMoving = false,
@@ -157,6 +158,27 @@ const markerIcon = (
   });
   if (markerIconCache.size > 500) markerIconCache.clear();
   markerIconCache.set(cacheKey, icon);
+  return icon;
+};
+
+const stationMarkerIcon = (station: MusicStation) => {
+  const safePhotoURL = safeStudentMarkerPhotoURL(station.userAvatar);
+  const initials = studentMarkerInitials(station.userName);
+  const cacheKey = `${safePhotoURL || ''}:${initials}`;
+  const cached = stationIconCache.get(cacheKey);
+  if (cached) return cached;
+  const face = safePhotoURL
+    ? `<img src="${escapeMarkerAttribute(safePhotoURL)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover" />`
+    : `<span style="font:800 11px/1 system-ui,sans-serif;color:#5b21b6">${initials}</span>`;
+  const icon = divIcon({
+    className: 'music-station-marker',
+    html: `<span style="position:relative;display:flex;width:38px;height:38px;align-items:center;justify-content:center;overflow:visible;border-radius:9999px;background:white;border:3px solid white;box-shadow:0 0 0 4px #e9d5ff,0 7px 18px rgba(76,29,149,.3)"><span style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden;border-radius:9999px;background:#f3e8ff">${face}</span><span style="position:absolute;right:-7px;bottom:-5px;display:flex;width:19px;height:19px;align-items:center;justify-content:center;border-radius:9999px;background:#7c3aed;color:white;border:2px solid white;font:800 11px/1 system-ui">♫</span></span>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 42],
+    popupAnchor: [0, -45],
+  });
+  if (stationIconCache.size > 300) stationIconCache.clear();
+  stationIconCache.set(cacheKey, icon);
   return icon;
 };
 
@@ -299,7 +321,8 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     const now = new Date();
     const q = query(
       stationsRef,
-      where('expiresAt', '>', now)
+      where('expiresAt', '>', now),
+      limit(60),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -778,8 +801,6 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                       ];
                     }
 
-                    const userStation = musicStations.find(s => s.userId === location.uid);
-
                     return (
                     <Marker
                       key={location.uid}
@@ -792,21 +813,42 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                       )}
                       eventHandlers={{ click: () => selectStudent(location) }}
                     >
-                      {userStation ? (
-                        <Tooltip permanent interactive direction="top" offset={[0, -20]} opacity={1} className="bg-transparent border-0 shadow-none !p-0">
-                          <MusicStationPopup station={userStation} />
-                        </Tooltip>
-                      ) : (
-                        <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
-                          <strong>{location.fullName}</strong>
-                          {distance && <span className="block text-xs">{distance.label}</span>}
-                        </Tooltip>
-                      )}
+                      <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
+                        <strong>{location.fullName}</strong>
+                        {distance && <span className="block text-xs">{distance.label}</span>}
+                      </Tooltip>
                     </Marker>
                   );
                   });
                 })()}
+                {musicStations
+                  .filter((station) => Number.isFinite(station.location?.lat) && Number.isFinite(station.location?.lng))
+                  .map((station) => (
+                    <Marker
+                      key={`station-${station.id || `${station.userId}-${station.location.lat}-${station.location.lng}`}`}
+                      position={[station.location.lat, station.location.lng]}
+                      icon={stationMarkerIcon(station)}
+                      zIndexOffset={450}
+                    >
+                      <Tooltip direction="top" offset={[0, -42]} opacity={0.95}>
+                        <strong>{station.userName}</strong>
+                        <span className="block text-xs">Trạm cảm xúc · chạm để xem</span>
+                      </Tooltip>
+                      <Popup minWidth={250} maxWidth={300} className="music-station-map-popup">
+                        <MusicStationPopup station={station} variant="card" />
+                      </Popup>
+                    </Marker>
+                  ))}
               </MapContainer>
+              <button
+                type="button"
+                onClick={() => setIsCreateStationModalOpen(true)}
+                className="absolute bottom-14 left-3 z-[500] flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_8px_16px_rgba(79,70,229,0.3)] transition-transform hover:scale-105 active:scale-95"
+                title="Thả trạm cảm xúc tại đây"
+                aria-label="Thả trạm cảm xúc tại đây"
+              >
+                <Music className="h-5 w-5" />
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -947,14 +989,6 @@ export const StudentMap: React.FC<StudentMapProps> = ({
           <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><BellRing className="mb-2 h-5 w-5 text-violet-600" /><strong className="block text-slate-900 dark:text-white">Chạm mặt có đồng thuận</strong><span>Không tạo sự kiện nếu một trong hai người tắt tính năng hoặc chặn nhau.</span></div>
         </section>
       </div>
-
-      {/* FAB: Thêm Trạm Cảm Xúc */}
-      <button
-        onClick={() => setIsCreateStationModalOpen(true)}
-        className="absolute bottom-16 left-4 z-[500] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_8px_16px_rgba(79,70,229,0.3)] transition-transform hover:scale-105 active:scale-95"
-      >
-        <Music className="h-6 w-6" />
-      </button>
 
       {isCreateStationModalOpen && (
         <CreateStationModal

@@ -83,6 +83,30 @@
   display: none;
 }
 
+/* Music-station cards bring their own surface and shadow. */
+.music-station-map-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.music-station-map-popup .leaflet-popup-close-button {
+  z-index: 2;
+  top: 8px !important;
+  right: 8px !important;
+  display: flex;
+  width: 28px !important;
+  height: 28px !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.68);
+  color: white !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  backdrop-filter: blur(6px);
+}
+
 /* Dark mode support */
 .dark .leaflet-popup-content-wrapper {
   background-color: rgba(31, 41, 55, 0.98);
