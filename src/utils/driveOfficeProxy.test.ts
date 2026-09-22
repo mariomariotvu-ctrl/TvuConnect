@@ -3,7 +3,6 @@ import driveOfficeHandler from '../../api/drive-office';
 
 describe('Drive Office preview proxy', () => {
   afterEach(() => {
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
@@ -18,22 +17,14 @@ describe('Drive Office preview proxy', () => {
   });
 
   it('streams a public PowerPoint with headers understood by online Office viewers', async () => {
-    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        id: 'powerpoint-file-id',
-        name: 'Bài giảng Logic.ppt',
-        mimeType: 'application/vnd.ms-powerpoint',
-        size: '1024',
-        capabilities: { canDownload: true },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response('powerpoint-bytes', {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/vnd.ms-powerpoint',
-          'Content-Length': '16',
-        },
-      }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('powerpoint-bytes', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': "attachment; filename*=UTF-8''B%C3%A0i%20gi%E1%BA%A3ng%20Logic.ppt",
+        'Content-Length': '16',
+      },
+    }));
 
     const response = await driveOfficeHandler.fetch(
       new Request('https://tvuconnect.vercel.app/api/drive-office?fileId=powerpoint-file-id'),
@@ -46,14 +37,14 @@ describe('Drive Office preview proxy', () => {
   });
 
   it('does not expose non-Office Drive files', async () => {
-    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-      id: 'public-pdf-file',
-      name: 'Giáo trình.pdf',
-      mimeType: 'application/pdf',
-      size: '2048',
-      capabilities: { canDownload: true },
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('pdf-bytes', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': "attachment; filename*=UTF-8''Gi%C3%A1o%20tr%C3%ACnh.pdf",
+        'Content-Length': '9',
+      },
+    }));
 
     const response = await driveOfficeHandler.fetch(
       new Request('https://tvuconnect.vercel.app/api/drive-office?fileId=public-pdf-file'),
