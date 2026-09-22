@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, auth, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc, handleFirestoreError, OperationType, onSnapshot } from '../firebase';
 import { User } from 'firebase/auth';
 import { deleteField } from 'firebase/firestore';
@@ -11,6 +11,7 @@ import { normalizeVietnameseText } from '../utils/matchingUtils';
 import { buildStudentSearchTokens } from '../utils/studentSearch';
 import { toast } from 'sonner';
 import { useTheme } from '../contexts/ThemeContext';
+import { ImageSourcePicker } from './ImageSourcePicker';
 
 // Danh sách 63 tỉnh/thành phố Việt Nam
 const VIETNAM_PROVINCES = [
@@ -67,7 +68,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
   const [isConfirmUnblockOpen, setIsConfirmUnblockOpen] = useState(false);
   const [userToUnblock, setUserToUnblock] = useState<StudentProfile | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const calculateZodiac = (dateStr: string) => {
     if (!dateStr) return '';
@@ -449,8 +449,8 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
     });
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handlePhotoUpload = async (files: File[]) => {
+    const file = files[0];
     if (!file) return;
 
     setUploadingPhoto(true);
@@ -479,10 +479,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       toast.error(error.message || 'Không thể tải ảnh lên. Vui lòng thử lại.');
     } finally {
       setUploadingPhoto(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
   };
 
@@ -499,55 +495,45 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 mb-8 md:mb-10 p-4 md:p-6 bg-gradient-to-br from-indigo-50/50 via-violet-50/50 to-blue-50/50 rounded-3xl border border-indigo-100/50">
         <div className="relative group">
           {/* Clickable Avatar Container */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingPhoto}
-            className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-[5px] border-indigo-500 transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ring-2 ring-indigo-200"
-          >
-            {profile.photoURL ? (
-              <img
-                src={profile.photoURL}
-                alt="Avatar"
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                <UserIcon className="w-10 h-10 text-gray-400" />
-              </div>
-            )}
-            
-            {/* Upload Overlay - Always visible on mobile, hover on desktop */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-2">
-              <div className="flex flex-col items-center gap-1">
-                <Camera className="w-5 h-5 text-white drop-shadow-lg" />
-                <span className="text-[10px] text-white font-bold drop-shadow-lg">Đổi ảnh</span>
-              </div>
-            </div>
+          <ImageSourcePicker title="Đổi ảnh đại diện" disabled={uploadingPhoto} onFilesSelected={handlePhotoUpload}>
+            {(openPicker) => (
+              <button
+                type="button"
+                onClick={openPicker}
+                disabled={uploadingPhoto}
+                className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-[5px] border-indigo-500 transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed ring-2 ring-indigo-200"
+              >
+                {profile.photoURL ? (
+                  <img
+                    src={profile.photoURL}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <UserIcon className="w-10 h-10 text-gray-400" />
+                  </div>
+                )}
 
-            {/* Loading Overlay */}
-            {uploadingPhoto && (
-              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 backdrop-blur-sm">
-                <Loader2 className="w-6 h-6 text-white animate-spin" />
-                <span className="text-[10px] text-white font-bold">Đang tải...</span>
-              </div>
-            )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-2">
+                  <div className="flex flex-col items-center gap-1">
+                    <Camera className="w-5 h-5 text-white drop-shadow-lg" />
+                    <span className="text-[10px] text-white font-bold drop-shadow-lg">Đổi ảnh</span>
+                  </div>
+                </div>
 
-            {/* Pulse Ring Effect when uploading */}
-            {uploadingPhoto && (
-              <div className="absolute inset-0 rounded-2xl border-2 border-indigo-500 animate-ping opacity-75"></div>
-            )}
-          </button>
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 backdrop-blur-sm">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    <span className="text-[10px] text-white font-bold">Đang tải...</span>
+                  </div>
+                )}
 
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoUpload}
-            className="hidden"
-          />
+                {uploadingPhoto && <div className="absolute inset-0 rounded-2xl border-2 border-indigo-500 animate-ping opacity-75" />}
+              </button>
+            )}
+          </ImageSourcePicker>
 
           {/* Camera Icon Badge - Desktop only */}
           <div className="hidden md:block absolute -bottom-2 -right-2 p-2 bg-gradient-to-r from-indigo-600 to-blue-500 text-white rounded-xl shadow-lg pointer-events-none">

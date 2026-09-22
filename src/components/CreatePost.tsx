@@ -11,6 +11,7 @@ import { isImageBlocked, addToBlacklist } from '../utils/imageHashBlocking';
 import { isImageDangerous, analyzeImage } from '../utils/basicImageDetection';
 import { checkBanStatus, applyBan, recordViolation, formatTimeRemaining } from '../utils/banSystem';
 import { logger } from '../utils/logger';
+import { ImageSourcePicker } from './ImageSourcePicker';
 
 interface CreatePostProps {
   user: User;
@@ -33,7 +34,6 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, userProfile, onPos
   const [images, setImages] = useState<string[]>([]);
   const [compressing, setCompressing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
   // Listen to current user's profile for avatar updates
@@ -160,16 +160,6 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, userProfile, onPos
     } finally {
       setCompressing(false);
     }
-  };
-
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    await processFiles(files);
-    
-    // Reset input
-    e.target.value = '';
   };
 
   // Drag & Drop handlers
@@ -566,20 +556,18 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, userProfile, onPos
               </span>
               
               {/* Image Upload Button - FIX: Thu nhỏ trên mobile */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
+              <ImageSourcePicker
+                title="Thêm ảnh vào bài viết"
                 multiple
-                onChange={handleImageSelect}
                 disabled={posting || compressing || images.length >= MAX_IMAGES}
-                className="hidden"
-              />
-              
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={posting || compressing || images.length >= MAX_IMAGES}
-                style={{
+                onFilesSelected={processFiles}
+              >
+                {(openPicker) => (
+                  <button
+                    type="button"
+                    onClick={openPicker}
+                    disabled={posting || compressing || images.length >= MAX_IMAGES}
+                    style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
@@ -602,22 +590,22 @@ export const CreatePost: React.FC<CreatePostProps> = ({ user, userProfile, onPos
                     ? 'none' 
                     : '0 2px 8px rgba(99, 102, 241, 0.3)'
                 }}
-                title={images.length >= MAX_IMAGES ? `Đã đạt giới hạn ${MAX_IMAGES} ảnh` : 'Thêm ảnh'}
-              >
-                {compressing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span className="hidden sm:inline">Xử lý...</span>
-                  </>
-                ) : (
-                  <>
-                    <Camera className="w-4 h-4" />
-                    <span>
-                      {images.length > 0 ? `${images.length}/${MAX_IMAGES}` : 'Ảnh'}
-                    </span>
-                  </>
+                    title={images.length >= MAX_IMAGES ? `Đã đạt giới hạn ${MAX_IMAGES} ảnh` : 'Thêm ảnh'}
+                  >
+                    {compressing ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span className="hidden sm:inline">Xử lý...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-4 h-4" />
+                        <span>{images.length > 0 ? `${images.length}/${MAX_IMAGES}` : 'Ảnh'}</span>
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+              </ImageSourcePicker>
             </div>
             
             {/* Post Button - FIX: Không bị đẩy tràn + Touch-friendly */}

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { db, collection, addDoc, serverTimestamp } from '../firebase';
 import { X, Search, MapPin, Music, Loader2, Image as ImageIcon } from 'lucide-react';
@@ -8,6 +8,7 @@ import { safeWrite } from '../utils/quotaManager';
 import { requestFreshGeolocation } from '../utils/geolocation';
 import { compressImage } from '../utils/imageCompression';
 import type { StudentProfile } from '../types';
+import { ImageSourcePicker } from './ImageSourcePicker';
 
 interface CreateStationModalProps {
   currentUser: User;
@@ -36,7 +37,6 @@ export const CreateStationModal: React.FC<CreateStationModalProps> = ({ currentU
   const [imagePreview, setImagePreview] = useState('');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
   
   // Debounce search
   useEffect(() => {
@@ -71,7 +71,6 @@ export const CreateStationModal: React.FC<CreateStationModalProps> = ({ currentU
       toast.error(error instanceof Error ? error.message : 'Chưa thể xử lý ảnh này.');
     } finally {
       setIsProcessingImage(false);
-      if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
 
@@ -181,29 +180,30 @@ export const CreateStationModal: React.FC<CreateStationModalProps> = ({ currentU
               <label className="text-sm font-medium opacity-80">Ảnh tại đây (tùy chọn)</label>
               {imagePreview && <button type="button" onClick={() => setImagePreview('')} className="text-xs font-semibold text-red-500">Bỏ ảnh</button>}
             </div>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => void handleImageSelected(event.target.files?.[0])}
-            />
-            <button
-              type="button"
+            <ImageSourcePicker
+              title="Ảnh cho Trạm Cảm Xúc"
               disabled={isProcessingImage}
-              onClick={() => imageInputRef.current?.click()}
-              className="relative flex min-h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-dashed transition hover:border-purple-500 disabled:opacity-60"
-              style={{ borderColor: isDark ? '#475569' : '#cbd5e1', background: isDark ? '#0f172a' : '#f8fafc' }}
+              onFilesSelected={(files) => handleImageSelected(files[0])}
             >
-              {imagePreview ? (
-                <img src={imagePreview} alt="Ảnh sẽ đăng" className="max-h-52 w-full object-cover" />
-              ) : (
-                <span className="flex flex-col items-center gap-2 py-5 text-xs font-semibold opacity-70">
-                  {isProcessingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
-                  {isProcessingImage ? 'Đang làm nhẹ ảnh…' : 'Chạm để chọn ảnh'}
-                </span>
+              {(openPicker) => (
+                <button
+                  type="button"
+                  disabled={isProcessingImage}
+                  onClick={openPicker}
+                  className="relative flex min-h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-dashed transition hover:border-purple-500 disabled:opacity-60"
+                  style={{ borderColor: isDark ? '#475569' : '#cbd5e1', background: isDark ? '#0f172a' : '#f8fafc' }}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Ảnh sẽ đăng" className="max-h-52 w-full object-cover" />
+                  ) : (
+                    <span className="flex flex-col items-center gap-2 py-5 text-xs font-semibold opacity-70">
+                      {isProcessingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
+                      {isProcessingImage ? 'Đang làm nhẹ ảnh…' : 'Chạm để chọn hoặc chụp ảnh'}
+                    </span>
+                  )}
+                </button>
               )}
-            </button>
+            </ImageSourcePicker>
           </div>
 
           {/* Tìm nhạc */}

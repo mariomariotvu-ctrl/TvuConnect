@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   Bell,
   BookOpen,
+  Download,
   FileText,
   Home,
   LogOut,
@@ -16,6 +17,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import type { View } from '../types';
 import type { ExploreTab } from '../routes/appRoutes';
 import { ThemeToggle } from './ThemeToggle';
+import { isStandaloneApp, requestAppInstall } from '../utils/platform';
 
 interface MobileMoreMenuProps {
   open: boolean;
@@ -63,6 +65,7 @@ export const MobileMoreMenu: React.FC<MobileMoreMenuProps> = ({
   onOpenExplore,
   onLogout,
 }) => {
+  const standalone = isStandaloneApp();
   useEffect(() => {
     if (!open) return;
 
@@ -150,6 +153,18 @@ export const MobileMoreMenu: React.FC<MobileMoreMenuProps> = ({
 
               <section aria-labelledby="appearance-title" className="space-y-2">
                 <h3 id="appearance-title" className="px-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Giao diện</h3>
+                {!standalone && (
+                  <MenuItem
+                    title="Cài TVU Connect"
+                    description="Mở toàn màn hình và dùng như một ứng dụng"
+                    icon={Download}
+                    tone="violet"
+                    onClick={() => {
+                      onClose();
+                      requestAppInstall();
+                    }}
+                  />
+                )}
                 <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
                   <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Chế độ sáng / tối</span>
                   <ThemeToggle />

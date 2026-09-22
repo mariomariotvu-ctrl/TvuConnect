@@ -10,6 +10,7 @@ import { ReactionsModal } from './ReactionsModal';
 import { CommentSection } from './CommentSection';
 import { compressImage } from '../utils/imageCompression';
 import { logger } from '../utils/logger';
+import { ImageSourcePicker } from './ImageSourcePicker';
 
 // Adaptive Image Layout Component - Optimized for mobile performance
 const AdaptiveImageLayout: React.FC<{ images: string[] }> = React.memo(({ images }) => {
@@ -549,9 +550,8 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, currentUser, onDelet
     setEditedImages([...displayedImages]);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const handleImageUpload = async (files: File[]) => {
+    if (files.length === 0) return;
 
     const remainingSlots = 3 - editedImages.length;
     if (remainingSlots <= 0) {
@@ -559,7 +559,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, currentUser, onDelet
       return;
     }
 
-    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    const filesToProcess = files.slice(0, remainingSlots);
     
     try {
       const compressedImages = await Promise.all(
@@ -811,23 +811,19 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, currentUser, onDelet
 
             {/* Add Image Button */}
             {editedImages.length < 3 && (
-              <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                style={{
-                  borderColor: theme === 'dark' ? '#4b5563' : '#d1d5db'
-                }}
-              >
-                <ImageIcon className="w-5 h-5 text-gray-400" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Thêm ảnh ({editedImages.length}/3)
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
+              <ImageSourcePicker title="Thêm ảnh vào bài viết" multiple onFilesSelected={handleImageUpload}>
+                {(openPicker) => (
+                  <button
+                    type="button"
+                    onClick={openPicker}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+                    style={{ borderColor: theme === 'dark' ? '#4b5563' : '#d1d5db' }}
+                  >
+                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Thêm ảnh ({editedImages.length}/3)</span>
+                  </button>
+                )}
+              </ImageSourcePicker>
             )}
           </div>
 

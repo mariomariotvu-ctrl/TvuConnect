@@ -89,6 +89,7 @@ export default defineConfig({
     },
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(self), fullscreen=(self)',
     },
   },
 });
