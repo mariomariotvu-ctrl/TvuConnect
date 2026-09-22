@@ -1752,6 +1752,14 @@ nav {
 }
 
 @media (max-width: 767px) {
+  .document-viewer-modal {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
   .docx-preview-shell .docx-wrapper {
     padding: 0.5rem !important;
   }
