@@ -202,6 +202,7 @@ export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatCom
   const [hasInteracted, setHasInteracted] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Spring-based hover scale
   const hoverScale = useSpring(1, { stiffness: 400, damping: 25 });
@@ -209,8 +210,14 @@ export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatCom
   // Show tooltip hint after 4s if never interacted
   useEffect(() => {
     if (!hasInteracted) {
-      tooltipTimer.current = setTimeout(() => setShowTooltip(true), 4000);
-      return () => { if (tooltipTimer.current) clearTimeout(tooltipTimer.current); };
+      tooltipTimer.current = setTimeout(() => {
+        setShowTooltip(true);
+        tooltipDismissTimer.current = setTimeout(() => setShowTooltip(false), 5000);
+      }, 4000);
+      return () => {
+        if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+        if (tooltipDismissTimer.current) clearTimeout(tooltipDismissTimer.current);
+      };
     }
   }, [hasInteracted]);
 
@@ -258,7 +265,7 @@ export const AIFloatingButton: React.FC<AIFloatingButtonProps> = ({ avoidChatCom
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 10, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              className="absolute right-full mr-1 top-1/2 -translate-y-1/2 whitespace-nowrap"
+              className="absolute right-full mr-1 top-1/2 hidden -translate-y-1/2 whitespace-nowrap sm:block"
             >
               <div
                 className="px-3 py-2 rounded-xl text-xs font-semibold shadow-lg backdrop-blur-md flex items-center gap-1.5"
