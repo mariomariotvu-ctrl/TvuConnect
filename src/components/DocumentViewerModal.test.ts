@@ -9,6 +9,14 @@ import {
   parseGoogleDriveReference,
 } from '../utils/googleDriveClient';
 
+vi.mock('docx-preview', () => ({
+  renderAsync: vi.fn(async (_blob: Blob, container: HTMLElement) => {
+    const page = document.createElement('p');
+    page.textContent = 'Nội dung Word đã hiển thị';
+    container.appendChild(page);
+  }),
+}));
+
 describe('getEmbeddedDocumentUrl', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -108,6 +116,36 @@ describe('getEmbeddedDocumentUrl', () => {
       expect(screen.getByTitle('Tài liệu: Giáo trình lớn'))
         .toHaveAttribute('src', 'https://drive.google.com/file/d/large-pdf/preview');
     });
+  });
+
+  it('renders public Word files directly in the app without forcing a download', async () => {
+    vi.stubEnv('VITE_GOOGLE_DRIVE_API_KEY', 'test-api-key');
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:tvu-connect-docx');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 'public-docx',
+        name: 'Ôn-tập-HVTD (1).docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        size: '24576',
+        capabilities: { canDownload: true },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('docx-content', {
+        status: 200,
+        headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+      }));
+
+    render(createElement(DocumentViewerModal, {
+      open: true,
+      title: 'Ôn-tập-HVTD (1)',
+      url: 'https://drive.google.com/file/d/public-docx/view',
+      onClose: () => {},
+    }));
+
+    expect(await screen.findByText('Nội dung Word đã hiển thị')).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('link', { name: 'Tải bản gốc' })).toHaveAttribute('href', 'blob:tvu-connect-docx');
+    expect(screen.queryByText('Định dạng này chưa xem trực tiếp được')).not.toBeInTheDocument();
   });
 
   it('explains unsupported Drive folders without loading the Google error page', () => {

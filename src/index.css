@@ -1737,3 +1737,29 @@ nav {
 .map-tiles-dark {
   filter: brightness(0.62) contrast(1.18) saturate(0.72);
 }
+
+/* Keep locally rendered Word pages readable without forcing a download. */
+.docx-preview-shell .docx-wrapper {
+  min-height: 100%;
+  padding: 1.5rem !important;
+  background: transparent !important;
+}
+
+.docx-preview-shell .docx-wrapper > section.docx {
+  margin: 0 auto 1.5rem;
+  max-width: 100%;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+}
+
+@media (max-width: 767px) {
+  .docx-preview-shell .docx-wrapper {
+    padding: 0.5rem !important;
+  }
+
+  .docx-preview-shell .docx-wrapper > section.docx {
+    width: 100% !important;
+    min-height: auto !important;
+    margin-bottom: 0.75rem;
+    padding: 1rem !important;
+  }
+}
