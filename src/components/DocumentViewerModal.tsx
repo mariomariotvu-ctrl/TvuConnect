@@ -389,7 +389,7 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex bg-slate-950/70 p-0 md:p-4" role="dialog" aria-modal="true" aria-labelledby="document-viewer-title">
+    <div className="fixed inset-0 z-[10020] flex bg-slate-950/70 p-0 md:p-4" role="dialog" aria-modal="true" aria-labelledby="document-viewer-title">
       <section className="m-auto flex h-full w-full max-w-7xl flex-col overflow-hidden bg-white md:h-[94dvh] md:rounded-2xl dark:bg-slate-950">
         <header className="flex min-h-16 items-center gap-3 border-b border-slate-200 px-4 dark:border-slate-800">
           <FileText className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
