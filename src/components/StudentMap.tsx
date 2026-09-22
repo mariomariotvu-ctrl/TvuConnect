@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { User } from 'firebase/auth';
 import { divIcon, latLngBounds } from 'leaflet';
 import {
@@ -877,7 +878,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                     </Marker>
                   ))}
               </MapContainer>
-              {useMobileStationSheet && selectedStation && (
+              {useMobileStationSheet && selectedStation && typeof document !== 'undefined' && createPortal((
                 <div className="fixed inset-0 z-[10010] sm:hidden" role="dialog" aria-modal="true" aria-label={`Trạm cảm xúc của ${selectedStation.userName}`}>
                   <button
                     type="button"
@@ -900,7 +901,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                     <MusicStationPopup station={selectedStation} variant="card" />
                   </div>
                 </div>
-              )}
+              ), document.body)}
               <button
                 type="button"
                 onClick={() => setIsCreateStationModalOpen(true)}
