@@ -885,7 +885,10 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                     onClick={() => setSelectedStation(null)}
                     aria-label="Đóng trạm cảm xúc"
                   />
-                  <div className="absolute inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] mx-auto flex max-h-[calc(100dvh-7rem)] max-w-[320px] justify-center overflow-y-auto rounded-3xl">
+                  <div
+                    className="absolute inset-x-3 mx-auto flex max-h-[calc(100dvh-7rem)] max-w-[320px] justify-center overflow-y-auto overscroll-contain rounded-3xl"
+                    style={{ bottom: 'calc(5.25rem + env(safe-area-inset-bottom))' }}
+                  >
                     <button
                       type="button"
                       onClick={() => setSelectedStation(null)}
