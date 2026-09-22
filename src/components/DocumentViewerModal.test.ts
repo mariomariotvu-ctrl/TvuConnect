@@ -23,7 +23,7 @@ vi.mock('pdfjs-dist', () => ({
     destroy: vi.fn(async () => {}),
     promise: Promise.resolve({
       numPages: 1,
-      destroy: vi.fn(async () => {}),
+      cleanup: vi.fn(async () => {}),
       getPage: vi.fn(async () => ({
         getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }),
         render: vi.fn(() => ({ promise: Promise.resolve() })),
@@ -235,7 +235,10 @@ describe('getEmbeddedDocumentUrl', () => {
 
     expect(await screen.findByText('Đang xem file Office trực tiếp')).toBeInTheDocument();
     expect(screen.getByTitle('Tài liệu: ÔN TẬP TRẮC NGHIỆM'))
-      .toHaveAttribute('src', 'https://drive.google.com/file/d/public-ppt/preview');
+      .toHaveAttribute(
+        'src',
+        'https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Ftvuconnect.vercel.app%2Fapi%2Fdrive-office%3FfileId%3Dpublic-ppt',
+      );
     expect(screen.queryByText('Định dạng này chưa xem trực tiếp được')).not.toBeInTheDocument();
   });
 });

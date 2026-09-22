@@ -321,6 +321,14 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
   const driveReference = useMemo(() => parseGoogleDriveReference(url), [url]);
   const isDriveFolder = useMemo(() => isGoogleDriveFolderUrl(url), [url]);
   const embeddedUrl = useMemo(() => getEmbeddedDocumentUrl(url), [url]);
+  const officeViewerUrl = useMemo(() => {
+    if (!driveReference) return embeddedUrl;
+    const proxyOrigin = window.location.hostname === 'localhost'
+      ? 'https://tvuconnect.vercel.app'
+      : window.location.origin;
+    const directDownloadUrl = `${proxyOrigin}/api/drive-office?fileId=${encodeURIComponent(driveReference.fileId)}`;
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(directDownloadUrl)}`;
+  }, [driveReference, embeddedUrl]);
   const [driveState, setDriveState] = useState<DriveViewerState>({ status: 'checking' });
   const objectUrlRef = useRef<string | null>(null);
 
@@ -487,7 +495,7 @@ export function DocumentViewerModal({ open, title, url, onClose }: DocumentViewe
             </p>
           </div>
           <iframe
-            src={embeddedUrl}
+            src={officeViewerUrl}
             title={`Tài liệu: ${title}`}
             className="min-h-0 flex-1 border-0 bg-white dark:bg-slate-900"
             allow="autoplay; fullscreen"
