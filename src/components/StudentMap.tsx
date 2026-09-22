@@ -9,6 +9,7 @@ import {
   Polyline,
   TileLayer,
   Tooltip,
+  Popup,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
@@ -29,7 +30,11 @@ import {
   ShieldCheck,
   UserRound,
   Users,
+  Music,
 } from 'lucide-react';
+import { db, collection, query, where, onSnapshot } from '../firebase';
+import { CreateStationModal } from './CreateStationModal';
+import { MusicStationPopup } from './MusicStationPopup';
 import { toast } from 'sonner';
 import type {
   LocationPreferences,
@@ -37,6 +42,7 @@ import type {
   Place,
   StudentProfile,
   VisibleStudentLocation,
+  MusicStation,
 } from '../types';
 import {
   getStudentRoute,
@@ -65,6 +71,12 @@ import {
   watchResponsiveGeolocation,
   type PreciseGeolocation,
 } from '../utils/geolocation';
+import {
+  buildVisibleStudentMapPoints,
+  escapeMarkerAttribute,
+  safeStudentMarkerPhotoURL,
+  studentMarkerInitials,
+} from '../utils/studentMapMarkers';
 
 interface StudentMapProps {
   currentUser: User;
@@ -116,8 +128,15 @@ const VISIBILITY_OPTIONS: Array<{
 ];
 
 const markerIconCache = new Map<string, ReturnType<typeof divIcon>>();
-const markerIcon = (kind: 'own' | 'friend' | 'major' | 'tvu', isMoving = false, photoURL?: string) => {
-  const cacheKey = `${kind}:${isMoving}:${photoURL || ''}`;
+const markerIcon = (
+  kind: 'own' | 'friend' | 'major' | 'tvu',
+  isMoving = false,
+  photoURL?: string | null,
+  fullName?: string,
+) => {
+  const safePhotoURL = safeStudentMarkerPhotoURL(photoURL);
+  const initials = studentMarkerInitials(fullName);
+  const cacheKey = `${kind}:${isMoving}:${safePhotoURL || ''}:${initials}`;
   const cached = markerIconCache.get(cacheKey);
   if (cached) return cached;
   const colors = {
@@ -127,19 +146,12 @@ const markerIcon = (kind: 'own' | 'friend' | 'major' | 'tvu', isMoving = false, 
     tvu: ['#475569', '#cbd5e1'],
   } as const;
   const [background, ring] = colors[kind];
-  let safePhotoURL: string | null = null;
-  if (photoURL) {
-    try {
-      const parsed = new URL(photoURL);
-      if (parsed.protocol === 'https:') safePhotoURL = parsed.href.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-    } catch { /* Fall back to a colored marker for invalid profile images. */ }
-  }
-  const size = safePhotoURL ? 40 : 30;
+  const size = 44;
   const icon = divIcon({
     className: `student-map-marker${isMoving ? ' student-map-marker--moving' : ''}`,
     html: safePhotoURL
-      ? `<span style="display:block;width:40px;height:40px;overflow:hidden;border-radius:9999px;background:${background};border:3px solid white;box-shadow:0 0 0 4px ${ring},0 6px 16px rgba(15,23,42,.28)"><img src="${safePhotoURL}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover" /></span>`
-      : `<span style="display:block;width:22px;height:22px;border-radius:9999px;background:${background};border:4px solid white;box-shadow:0 0 0 4px ${ring},0 6px 16px rgba(15,23,42,.28)"></span>`,
+      ? `<span style="display:block;width:44px;height:44px;overflow:hidden;border-radius:9999px;background:${background};border:3px solid white;box-shadow:0 0 0 4px ${ring},0 6px 16px rgba(15,23,42,.28)"><img src="${escapeMarkerAttribute(safePhotoURL)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover" /></span>`
+      : `<span aria-hidden="true" style="display:flex;width:44px;height:44px;align-items:center;justify-content:center;border-radius:9999px;background:${background};color:white;border:3px solid white;box-shadow:0 0 0 4px ${ring},0 6px 16px rgba(15,23,42,.28);font:800 13px/1 system-ui,sans-serif;letter-spacing:.02em">${initials}</span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -158,13 +170,17 @@ const formatLastShared = (timestamp: number) => {
 
 const StudentMapViewport: React.FC<{
   center: [number, number];
+  visiblePoints: Array<[number, number]>;
   focus?: [number, number] | null;
   routePath?: StudentRoute['path'];
   followUser: boolean;
   onFollowChange: (following: boolean) => void;
   recenterToken: number;
-}> = ({ center, focus, routePath, followUser, onFollowChange, recenterToken }) => {
+}> = ({ center, visiblePoints, focus, routePath, followUser, onFollowChange, recenterToken }) => {
   const map = useMap();
+  const visiblePointsSignature = visiblePoints
+    .map(([latitude, longitude]) => `${latitude.toFixed(6)},${longitude.toFixed(6)}`)
+    .join('|');
 
   useMapEvents({ dragstart: () => onFollowChange(false) });
 
@@ -198,14 +214,23 @@ const StudentMapViewport: React.FC<{
   }, [center[0], center[1], focus?.[0], focus?.[1], map, routePath?.length]);
 
   useEffect(() => {
-    if (!followUser) return;
+    if (!followUser || focus) return;
     if (routePath?.length) {
       if (!map.getBounds().pad(-0.22).contains(center)) map.panTo(center, { animate: true, duration: 0.3 });
       return;
     }
-    if (map.getZoom() < 15) map.setView(center, 15, { animate: false });
-    else map.panTo(center, { animate: true, duration: 0.3 });
-  }, [center[0], center[1], followUser, map, routePath?.length]);
+    if (visiblePoints.length > 1) {
+      map.fitBounds(latLngBounds(visiblePoints), {
+        paddingTopLeft: map.getSize().x < 640 ? [28, 84] : [56, 48],
+        paddingBottomRight: [28, 72],
+        maxZoom: 17,
+        animate: true,
+        duration: 0.35,
+      });
+      return;
+    }
+    map.flyTo(visiblePoints[0] || center, Math.max(map.getZoom(), 16), { duration: 0.35 });
+  }, [center[0], center[1], focus?.[0], focus?.[1], followUser, map, routePath?.length, visiblePointsSignature]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!recenterToken) return;
@@ -247,6 +272,11 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const [localPosition, setLocalPosition] = useState<PreciseGeolocation | null>(null);
   const [followUser, setFollowUser] = useState(true);
   const [recenterToken, setRecenterToken] = useState(0);
+
+  // --- Music Station States ---
+  const [musicStations, setMusicStations] = useState<MusicStation[]>([]);
+  const [isCreateStationModalOpen, setIsCreateStationModalOpen] = useState(false);
+
   const loadingLocationsRef = useRef(false);
   const loadingFocusedLocationRef = useRef(false);
   const routeRequestRef = useRef(0);
@@ -262,6 +292,28 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     console.warn('Could not load location preferences:', preferenceError);
     setError('Chưa thể đọc cài đặt chia sẻ vị trí.');
   }), [currentUser.uid]);
+
+  // --- MUSIC STATION EFFECTS ---
+  useEffect(() => {
+    const stationsRef = collection(db, 'musicStations');
+    const now = new Date();
+    const q = query(
+      stationsRef,
+      where('expiresAt', '>', now)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const stations: MusicStation[] = [];
+      snapshot.forEach((doc) => {
+        stations.push({ id: doc.id, ...doc.data() } as MusicStation);
+      });
+      setMusicStations(stations);
+    }, (error) => {
+      console.error('Error fetching music stations:', error);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const loadLocations = useCallback(async () => {
     if (!sharingActive) {
@@ -406,6 +458,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     : ownLocation
     ? [ownLocation.latitude, ownLocation.longitude] as [number, number]
     : DEFAULT_MAP_CENTER;
+  const visibleMapPoints = useMemo(() => (
+    buildVisibleStudentMapPoints(center, locations, localPosition)
+  ), [center[0], center[1], localPosition?.lat, localPosition?.lng, locations]);
 
   const nearestPlace = useMemo(() => {
     if (!selectedLocation) return null;
@@ -650,6 +705,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                 <AttributionControl position="bottomright" prefix={false} />
                 <StudentMapViewport
                   center={center}
+                  visiblePoints={visibleMapPoints}
                   focus={selectedLocation
                     ? [selectedLocation.latitude, selectedLocation.longitude]
                     : null}
@@ -699,7 +755,12 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                     <Marker
                       key={location.uid}
                       position={markerPosition}
-                      icon={markerIcon(relation.kind, location.isMoving, location.isOwn ? undefined : location.photoURL)}
+                      icon={markerIcon(
+                        relation.kind,
+                        location.isMoving,
+                        location.photoURL || (location.isOwn ? currentProfile?.photoURL || currentUser.photoURL : null),
+                        location.fullName,
+                      )}
                       eventHandlers={{ click: () => selectStudent(location) }}
                     >
                       <Tooltip direction="top" offset={[0, -14]} opacity={0.95}>
@@ -709,6 +770,24 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                     </Marker>
                   );
                 })}
+
+                {/* --- MUSIC STATIONS MARKERS --- */}
+                {musicStations.map((station) => (
+                  <Marker
+                    key={station.id}
+                    position={[station.location.lat, station.location.lng]}
+                    icon={divIcon({
+                      className: 'custom-station-marker',
+                      html: `<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:3px solid white;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);"><img src="${station.userAvatar || 'https://via.placeholder.com/40'}" style="width:100%;height:100%;object-fit:cover;" /></div><div style="position:absolute;bottom:-4px;right:-4px;background:#a855f7;border-radius:50%;padding:2px;border:2px solid white;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg></div>`,
+                      iconSize: [40, 40],
+                      iconAnchor: [20, 20],
+                    })}
+                  >
+                    <Popup className="music-station-popup-container" closeButton={false} offset={[0, -10]}>
+                      <MusicStationPopup station={station} />
+                    </Popup>
+                  </Marker>
+                ))}
               </MapContainer>
               <button
                 type="button"
@@ -850,6 +929,21 @@ export const StudentMap: React.FC<StudentMapProps> = ({
           <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><BellRing className="mb-2 h-5 w-5 text-violet-600" /><strong className="block text-slate-900 dark:text-white">Chạm mặt có đồng thuận</strong><span>Không tạo sự kiện nếu một trong hai người tắt tính năng hoặc chặn nhau.</span></div>
         </section>
       </div>
+
+      {/* FAB: Thêm Trạm Cảm Xúc */}
+      <button
+        onClick={() => setIsCreateStationModalOpen(true)}
+        className="absolute bottom-16 left-4 z-[500] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_8px_16px_rgba(79,70,229,0.3)] transition-transform hover:scale-105 active:scale-95"
+      >
+        <Music className="h-6 w-6" />
+      </button>
+
+      {isCreateStationModalOpen && (
+        <CreateStationModal
+          currentUser={currentUser}
+          onClose={() => setIsCreateStationModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

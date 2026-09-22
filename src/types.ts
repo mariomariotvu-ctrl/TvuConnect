@@ -259,6 +259,28 @@ export interface Notification {
   createdAt: Timestamp;
 }
 
+export interface MusicStation {
+  id?: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  content: string;
+  imageUrl?: string;
+  song?: {
+    id: string;
+    title: string;
+    artist: string;
+    coverUrl: string;
+    previewUrl: string;
+  };
+  location: {
+    lat: number;
+    lng: number;
+  };
+  createdAt: any;
+  expiresAt: any;
+}
+
 // ===============================================================
 // MAP & EXPLORE FEATURE TYPES
 // ===============================================================
