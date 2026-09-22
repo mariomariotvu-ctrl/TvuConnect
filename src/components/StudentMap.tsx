@@ -172,10 +172,12 @@ const stationMarkerIcon = (station: MusicStation) => {
     : `<span style="font:800 11px/1 system-ui,sans-serif;color:#5b21b6">${initials}</span>`;
   const icon = divIcon({
     className: 'music-station-marker',
-    html: `<span style="position:relative;display:flex;width:38px;height:38px;align-items:center;justify-content:center;overflow:visible;border-radius:9999px;background:white;border:3px solid white;box-shadow:0 0 0 4px #e9d5ff,0 7px 18px rgba(76,29,149,.3)"><span style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden;border-radius:9999px;background:#f3e8ff">${face}</span><span style="position:absolute;right:-7px;bottom:-5px;display:flex;width:19px;height:19px;align-items:center;justify-content:center;border-radius:9999px;background:#7c3aed;color:white;border:2px solid white;font:800 11px/1 system-ui">♫</span></span>`,
-    iconSize: [38, 38],
-    iconAnchor: [19, 42],
-    popupAnchor: [0, -45],
+    html: `<span style="position:relative;display:flex;width:40px;height:40px;align-items:center;justify-content:center;overflow:visible;border-radius:9999px;background:white;border:3px solid white;box-shadow:0 0 0 4px #e9d5ff,0 7px 18px rgba(76,29,149,.3)"><span style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden;border-radius:9999px;background:#f3e8ff">${face}</span><span style="position:absolute;right:-7px;bottom:-5px;display:flex;width:20px;height:20px;align-items:center;justify-content:center;border-radius:9999px;background:#7c3aed;color:white;border:2px solid white;font:800 11px/1 system-ui">♫</span></span>`,
+    // Keep a 48px hit area even though the visible marker is slightly smaller.
+    // This meets mobile touch-target guidance without making the map look busy.
+    iconSize: [48, 48],
+    iconAnchor: [24, 48],
+    popupAnchor: [0, -51],
   });
   if (stationIconCache.size > 300) stationIconCache.clear();
   stationIconCache.set(cacheKey, icon);
@@ -829,12 +831,21 @@ export const StudentMap: React.FC<StudentMapProps> = ({
                       position={[station.location.lat, station.location.lng]}
                       icon={stationMarkerIcon(station)}
                       zIndexOffset={450}
+                      alt={`Trạm cảm xúc của ${station.userName}`}
+                      title={`Trạm cảm xúc của ${station.userName}`}
+                      eventHandlers={{
+                        click: (event) => event.target.openPopup(),
+                      }}
                     >
-                      <Tooltip direction="top" offset={[0, -42]} opacity={0.95}>
-                        <strong>{station.userName}</strong>
-                        <span className="block text-xs">Trạm cảm xúc · chạm để xem</span>
-                      </Tooltip>
-                      <Popup minWidth={250} maxWidth={300} className="music-station-map-popup">
+                      <Popup
+                        minWidth={250}
+                        maxWidth={300}
+                        autoPan
+                        keepInView
+                        autoPanPaddingTopLeft={[16, 120]}
+                        autoPanPaddingBottomRight={[16, 72]}
+                        className="music-station-map-popup"
+                      >
                         <MusicStationPopup station={station} variant="card" />
                       </Popup>
                     </Marker>

@@ -14,6 +14,22 @@
   animation: student-map-pulse 1.4s ease-in-out infinite;
 }
 
+.music-station-marker {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Let Leaflet receive the tap instead of the nested avatar/badge. */
+.music-station-marker > span,
+.music-station-marker > span * {
+  pointer-events: none;
+  user-select: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .student-map-marker--moving > span {
     animation: none;
