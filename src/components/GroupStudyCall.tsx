@@ -29,12 +29,12 @@ import {
   subscribeToStudySignals,
   touchStudyRoom,
 } from '../services/studyRoomService';
+import { SynchronizedYouTubePlayer } from './SynchronizedYouTubePlayer';
 import { getStudyRoomErrorMessage } from '../utils/userFacingErrors';
 import { playAppSound } from '../utils/appSounds';
 import { applyCallTrackHints, getCallMediaConstraints, optimizeCallSenders } from '../utils/callMedia';
 import {
   extractYouTubeVideoId,
-  getYouTubeEmbedUrl,
   getYouTubeWatchUrl,
   supportsDisplayCapture,
 } from '../utils/meetingMedia';
@@ -137,6 +137,9 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
   const [youtubeInput, setYoutubeInput] = useState('');
   const [youtubeComposerOpen, setYoutubeComposerOpen] = useState(false);
   const [sharedYouTubeId, setSharedYouTubeId] = useState(room.youtubeVideoId || '');
+  const [youtubePlaybackState, setYoutubePlaybackState] = useState<'playing' | 'paused'>(room.youtubePlaybackState || 'paused');
+  const [youtubePlaybackTime, setYoutubePlaybackTime] = useState(room.youtubePlaybackTime || 0);
+  const [youtubePlaybackUpdatedAt, setYoutubePlaybackUpdatedAt] = useState(room.youtubePlaybackUpdatedAt);
   const [savingYouTube, setSavingYouTube] = useState(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -366,6 +369,9 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
             return;
           }
           setSharedYouTubeId(latestRoom.youtubeVideoId || '');
+          setYoutubePlaybackState(latestRoom.youtubePlaybackState || 'paused');
+          setYoutubePlaybackTime(latestRoom.youtubePlaybackTime || 0);
+          setYoutubePlaybackUpdatedAt(latestRoom.youtubePlaybackUpdatedAt);
         }, (roomError) => {
           console.warn('Meeting room status listener failed:', roomError);
         });
@@ -642,17 +648,18 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
                 )}
               </div>
               <div className="aspect-video bg-black">
-                <iframe
-                  className="h-full w-full"
-                  src={getYouTubeEmbedUrl(sharedYouTubeId)}
-                  title="Video YouTube đang xem chung"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
+                <SynchronizedYouTubePlayer
+                  key={`${sharedYouTubeId}-${room.ownerUid === currentUser.uid ? 'controller' : 'viewer'}`}
+                  roomId={room.id}
+                  videoId={sharedYouTubeId}
+                  isController={room.ownerUid === currentUser.uid}
+                  playbackState={youtubePlaybackState}
+                  playbackTime={youtubePlaybackTime}
+                  playbackUpdatedAt={youtubePlaybackUpdatedAt}
                 />
               </div>
               <div className="flex items-center justify-between gap-3 bg-slate-900 px-4 py-2 text-xs text-slate-400">
-                <span>Nếu chủ video tắt quyền nhúng, hãy mở bằng YouTube.</span>
+                <span>{room.ownerUid === currentUser.uid ? 'Bạn điều khiển; mọi người tự đồng bộ theo thời gian thực.' : 'Phát, dừng và tua đang theo chủ phòng.'}</span>
                 <a href={getYouTubeWatchUrl(sharedYouTubeId)} target="_blank" rel="noopener noreferrer" className="flex-none rounded-full bg-white/10 px-3 py-1.5 font-bold text-white hover:bg-white/20">Mở YouTube</a>
               </div>
             </section>

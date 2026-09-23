@@ -28,6 +28,9 @@ const mapRoom = (id: string, data: Record<string, unknown>): StudyRoom => ({
   participantCount: Number(data.participantCount || 0),
   youtubeVideoId: typeof data.youtubeVideoId === 'string' ? data.youtubeVideoId : '',
   youtubeUpdatedAt: data.youtubeUpdatedAt,
+  youtubePlaybackState: data.youtubePlaybackState === 'playing' ? 'playing' : 'paused',
+  youtubePlaybackTime: Math.max(0, Number(data.youtubePlaybackTime || 0)),
+  youtubePlaybackUpdatedAt: data.youtubePlaybackUpdatedAt,
   createdAt: data.createdAt,
   ownerLastSeenAt: data.ownerLastSeenAt,
 });
@@ -70,6 +73,8 @@ export async function createStudyRoom(
     maxParticipants: MAX_ROOM_PARTICIPANTS,
     participantCount: 0,
     youtubeVideoId: '',
+    youtubePlaybackState: 'paused',
+    youtubePlaybackTime: 0,
     createdAt: serverTimestamp(),
     ownerLastSeenAt: serverTimestamp(),
   });
@@ -92,6 +97,8 @@ export async function createStudyRoom(
     maxParticipants: MAX_ROOM_PARTICIPANTS,
     participantCount: 1,
     youtubeVideoId: '',
+    youtubePlaybackState: 'paused',
+    youtubePlaybackTime: 0,
   };
 }
 
@@ -99,6 +106,21 @@ export async function setStudyRoomYouTube(roomId: string, videoId: string) {
   await updateDoc(doc(db, 'studyRooms', roomId), {
     youtubeVideoId: videoId,
     youtubeUpdatedAt: serverTimestamp(),
+    youtubePlaybackState: 'paused',
+    youtubePlaybackTime: 0,
+    youtubePlaybackUpdatedAt: serverTimestamp(),
+  });
+}
+
+export async function setStudyRoomYouTubePlayback(
+  roomId: string,
+  state: 'playing' | 'paused',
+  timeSeconds: number,
+) {
+  await updateDoc(doc(db, 'studyRooms', roomId), {
+    youtubePlaybackState: state,
+    youtubePlaybackTime: Math.max(0, Math.min(864_000, timeSeconds)),
+    youtubePlaybackUpdatedAt: serverTimestamp(),
   });
 }
 

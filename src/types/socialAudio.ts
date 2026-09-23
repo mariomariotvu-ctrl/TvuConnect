@@ -23,6 +23,9 @@ export interface StudyRoom {
   participantCount: number;
   youtubeVideoId?: string;
   youtubeUpdatedAt?: unknown;
+  youtubePlaybackState?: 'playing' | 'paused';
+  youtubePlaybackTime?: number;
+  youtubePlaybackUpdatedAt?: unknown;
   createdAt?: unknown;
   ownerLastSeenAt?: unknown;
 }

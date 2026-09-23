@@ -528,11 +528,21 @@ service cloud.firestore {
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['ownerLastSeenAt', 'status', 'closedAt', 'youtubeVideoId', 'youtubeUpdatedAt'])
+          .hasOnly([
+            'ownerLastSeenAt', 'status', 'closedAt',
+            'youtubeVideoId', 'youtubeUpdatedAt',
+            'youtubePlaybackState', 'youtubePlaybackTime', 'youtubePlaybackUpdatedAt'
+          ])
         && request.resource.data.status in ['open', 'closed']
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['youtubeVideoId'])
           || (request.resource.data.youtubeVideoId is string
-            && request.resource.data.youtubeVideoId.size() <= 16));
+            && request.resource.data.youtubeVideoId.size() <= 16))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['youtubePlaybackState'])
+          || request.resource.data.youtubePlaybackState in ['playing', 'paused'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['youtubePlaybackTime'])
+          || (request.resource.data.youtubePlaybackTime is number
+            && request.resource.data.youtubePlaybackTime >= 0
+            && request.resource.data.youtubePlaybackTime <= 864000));
       allow delete: if false;
 
       match /participants/{uid} {

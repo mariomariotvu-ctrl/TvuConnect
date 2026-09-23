@@ -246,6 +246,14 @@ describeWithEmulator('Firestore security rules for social features', () => {
     await assertSucceeds(updateDoc(doc(studentA, 'studyRooms/room-1'), {
       youtubeVideoId: 'dQw4w9WgXcQ',
       youtubeUpdatedAt: serverTimestamp(),
+      youtubePlaybackState: 'paused',
+      youtubePlaybackTime: 0,
+      youtubePlaybackUpdatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(updateDoc(doc(studentA, 'studyRooms/room-1'), {
+      youtubePlaybackState: 'playing',
+      youtubePlaybackTime: 42.5,
+      youtubePlaybackUpdatedAt: serverTimestamp(),
     }));
     await assertFails(updateDoc(doc(studentB, 'studyRooms/room-1'), {
       youtubeVideoId: 'M7lc1UVf-VE',
@@ -254,6 +262,11 @@ describeWithEmulator('Firestore security rules for social features', () => {
     await assertFails(updateDoc(doc(studentA, 'studyRooms/room-1'), {
       youtubeVideoId: 'not-a-valid-video-id-that-is-too-long',
       youtubeUpdatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(studentA, 'studyRooms/room-1'), {
+      youtubePlaybackState: 'fast-forward',
+      youtubePlaybackTime: -10,
+      youtubePlaybackUpdatedAt: serverTimestamp(),
     }));
     await assertSucceeds(setDoc(doc(studentA, 'communityReviews/place_place-1_student-a'), {
       userId: 'student-a',
