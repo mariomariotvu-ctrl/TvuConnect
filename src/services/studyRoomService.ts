@@ -26,6 +26,8 @@ const mapRoom = (id: string, data: Record<string, unknown>): StudyRoom => ({
   status: data.status as StudyRoom['status'],
   maxParticipants: Number(data.maxParticipants || MAX_ROOM_PARTICIPANTS),
   participantCount: Number(data.participantCount || 0),
+  youtubeVideoId: typeof data.youtubeVideoId === 'string' ? data.youtubeVideoId : '',
+  youtubeUpdatedAt: data.youtubeUpdatedAt,
   createdAt: data.createdAt,
   ownerLastSeenAt: data.ownerLastSeenAt,
 });
@@ -67,6 +69,7 @@ export async function createStudyRoom(
     status: 'open',
     maxParticipants: MAX_ROOM_PARTICIPANTS,
     participantCount: 0,
+    youtubeVideoId: '',
     createdAt: serverTimestamp(),
     ownerLastSeenAt: serverTimestamp(),
   });
@@ -88,7 +91,15 @@ export async function createStudyRoom(
     status: 'open',
     maxParticipants: MAX_ROOM_PARTICIPANTS,
     participantCount: 1,
+    youtubeVideoId: '',
   };
+}
+
+export async function setStudyRoomYouTube(roomId: string, videoId: string) {
+  await updateDoc(doc(db, 'studyRooms', roomId), {
+    youtubeVideoId: videoId,
+    youtubeUpdatedAt: serverTimestamp(),
+  });
 }
 
 export async function joinStudyRoom(roomId: string) {

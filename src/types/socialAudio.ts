@@ -21,6 +21,8 @@ export interface StudyRoom {
   status: 'open' | 'closed';
   maxParticipants: number;
   participantCount: number;
+  youtubeVideoId?: string;
+  youtubeUpdatedAt?: unknown;
   createdAt?: unknown;
   ownerLastSeenAt?: unknown;
 }

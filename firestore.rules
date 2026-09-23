@@ -509,7 +509,7 @@ service cloud.firestore {
     }
 
     // ===============================================================
-    // Voice-only study rooms. The app does not apply a duration timer;
+    // Study meeting rooms. The app does not apply a duration timer;
     // signalling is scoped to active room participants.
     // ===============================================================
     match /studyRooms/{roomId} {
@@ -528,8 +528,11 @@ service cloud.firestore {
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['ownerLastSeenAt', 'status', 'closedAt'])
-        && request.resource.data.status in ['open', 'closed'];
+          .hasOnly(['ownerLastSeenAt', 'status', 'closedAt', 'youtubeVideoId', 'youtubeUpdatedAt'])
+        && request.resource.data.status in ['open', 'closed']
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['youtubeVideoId'])
+          || (request.resource.data.youtubeVideoId is string
+            && request.resource.data.youtubeVideoId.size() <= 16));
       allow delete: if false;
 
       match /participants/{uid} {

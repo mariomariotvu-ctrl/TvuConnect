@@ -7,6 +7,8 @@ import {
   Clock3,
   Mic,
   MicOff,
+  Maximize2,
+  Minimize2,
   Phone,
   PhoneOff,
   ShieldCheck,
@@ -97,6 +99,27 @@ const timestampToMillis = (value: unknown): number | null => {
   return null;
 };
 
+const StreamVideo: React.FC<{
+  stream: MediaStream;
+  muted?: boolean;
+  className: string;
+  label: string;
+}> = ({ stream, muted = false, className, label }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+  return <video ref={ref} autoPlay muted={muted} playsInline className={className} aria-label={label} />;
+};
+
+const StreamAudio: React.FC<{ stream: MediaStream | null; label: string }> = ({ stream, label }) => {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+  return <audio ref={ref} autoPlay playsInline aria-label={label} />;
+};
+
 export const CallDialog: React.FC<CallDialogProps> = ({
   currentUser,
   peer,
@@ -118,10 +141,8 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   const [connectionQuality, setConnectionQuality] = useState<CallConnectionQuality>('checking');
   const [callDurationSeconds, setCallDurationSeconds] = useState(0);
   const [showReport, setShowReport] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const callIdRef = useRef<string | null>(incomingCall?.id || null);
@@ -551,18 +572,6 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   }, [beginOutgoingCall, clearCallExpiryTimeout, clearConnectionTimeout, direction, handleRemoteTermination, incomingCall?.id, scheduleCallExpiry, stopListeners]);
 
   useEffect(() => {
-    if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream;
-  }, [remoteStream]);
-
-  useEffect(() => {
-    if (remoteAudioRef.current && remoteStream) remoteAudioRef.current.srcObject = remoteStream;
-  }, [remoteStream]);
-
-  useEffect(() => {
     stopAppSound('incoming-call');
     stopAppSound('outgoing-call');
 
@@ -597,6 +606,10 @@ export const CallDialog: React.FC<CallDialogProps> = ({
     updateDuration();
     const interval = window.setInterval(updateDuration, 1_000);
     return () => window.clearInterval(interval);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase === 'ended' || phase === 'failed' || phase === 'incoming') setIsMinimized(false);
   }, [phase]);
 
   useEffect(() => {
@@ -691,23 +704,77 @@ export const CallDialog: React.FC<CallDialogProps> = ({
   const name = isAnonymous ? 'Bạn trò chuyện ẩn danh' : peerName(peer);
   const isIncoming = phase === 'incoming';
   const showVideo = kind === 'video' && !isIncoming;
-  const hasRemoteVideo = showVideo && Boolean(remoteStream);
+  const hasRemoteVideo = showVideo && Boolean(
+    remoteStream?.getVideoTracks().some((track) => track.readyState === 'live'),
+  );
   const showLocalPreview = showVideo
     && Boolean(localStream)
     && phase !== 'ended'
     && phase !== 'failed';
   const quality = qualityPresentation[connectionQuality];
 
+  if (isMinimized && !isIncoming) {
+    const miniVideoStream = hasRemoteVideo ? remoteStream : (showVideo ? localStream : null);
+    return (
+      <aside
+        className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-3 z-[10001] w-[min(19rem,calc(100vw-1.5rem))] overflow-hidden rounded-3xl border border-white/15 bg-slate-950 text-white shadow-2xl sm:bottom-5 sm:right-5"
+        role="dialog"
+        aria-modal="false"
+        aria-label="Cuộc gọi thu nhỏ"
+      >
+        {kind === 'audio' && <StreamAudio stream={remoteStream} label={`Âm thanh từ ${name}`} />}
+        <div className="relative h-36 overflow-hidden bg-[radial-gradient(circle_at_top,_#4f46e5,_#0f172a_70%)]">
+          {miniVideoStream ? (
+            <StreamVideo
+              stream={miniVideoStream}
+              muted={!hasRemoteVideo}
+              label={hasRemoteVideo ? `Video từ ${name}` : 'Video của bạn'}
+              className={`h-full w-full object-cover ${!hasRemoteVideo && facingMode === 'user' ? '-scale-x-100' : ''}`}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-violet-600 text-xl font-black">
+                {!isAnonymous && peer?.photoURL
+                  ? <img src={peer.photoURL} alt={name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  : getInitials(name)}
+              </div>
+            </div>
+          )}
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-gradient-to-b from-black/75 to-transparent p-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black">{name}</p>
+              <p className="text-[11px] text-white/70">{phase === 'active' ? formatCallDuration(callDurationSeconds) : phaseText[phase]}</p>
+            </div>
+            <button type="button" onClick={() => setIsMinimized(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/45" aria-label="Mở rộng cuộc gọi">
+              <Maximize2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-3 p-3">
+          <button onClick={toggleMute} className={`flex h-11 w-11 items-center justify-center rounded-full ${isMuted ? 'bg-white text-slate-950' : 'bg-white/10'}`} aria-label={isMuted ? 'Bật micro' : 'Tắt micro'}>
+            {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </button>
+          {kind === 'video' && (
+            <button onClick={toggleCamera} className={`flex h-11 w-11 items-center justify-center rounded-full ${!isCameraOn ? 'bg-white text-slate-950' : 'bg-white/10'}`} aria-label={isCameraOn ? 'Tắt camera' : 'Bật camera'}>
+              {isCameraOn ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
+            </button>
+          )}
+          <button onClick={dismiss} className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-600" aria-label="Kết thúc cuộc gọi">
+            <PhoneOff className="h-5 w-5" />
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950 sm:p-4" role="dialog" aria-modal="true" aria-label="Cuộc gọi">
       <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-950 text-white shadow-2xl sm:h-[min(92dvh,780px)] sm:max-w-5xl sm:rounded-[2rem]">
-        {kind === 'audio' && <audio ref={remoteAudioRef} autoPlay playsInline aria-label={`Âm thanh từ ${name}`} />}
+        {kind === 'audio' && <StreamAudio stream={remoteStream} label={`Âm thanh từ ${name}`} />}
         {hasRemoteVideo ? (
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            disablePictureInPicture
+          <StreamVideo
+            stream={remoteStream!}
+            label={`Video từ ${name}`}
             className="absolute inset-0 h-full w-full bg-black object-cover"
           />
         ) : (
@@ -747,6 +814,17 @@ export const CallDialog: React.FC<CallDialogProps> = ({
                 <Wifi className="h-3.5 w-3.5" />{quality.label}
               </span>
             )}
+            {!isIncoming && phase !== 'ended' && phase !== 'failed' && (
+              <button
+                type="button"
+                onClick={() => setIsMinimized(true)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/35 text-white/80 backdrop-blur-md transition hover:bg-white/20 hover:text-white"
+                aria-label="Thu nhỏ cuộc gọi để tiếp tục dùng web"
+                title="Thu nhỏ PiP"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </button>
+            )}
             {peer && (
               <button
                 type="button"
@@ -764,12 +842,10 @@ export const CallDialog: React.FC<CallDialogProps> = ({
         {showLocalPreview && (
           <div className="absolute right-4 top-20 z-20 overflow-hidden rounded-2xl border border-white/25 bg-slate-900 shadow-2xl sm:right-6 sm:top-24">
             {isCameraOn ? (
-              <video
-                ref={localVideoRef}
-                autoPlay
+              <StreamVideo
+                stream={localStream!}
                 muted
-                playsInline
-                disablePictureInPicture
+                label="Video của bạn"
                 className={`h-36 w-24 object-cover sm:h-32 sm:w-48 ${facingMode === 'user' ? '-scale-x-100' : ''}`}
               />
             ) : (

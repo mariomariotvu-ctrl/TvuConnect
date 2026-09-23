@@ -264,6 +264,16 @@ a {
   z-index: 2147483647 !important;
 }
 
+/* Meeting room is a full-screen media surface, not a mobile bottom sheet. */
+.meeting-room-dialog[role='dialog'] {
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+
 .dark .story-camera-dialog .bg-white {
   background-color: #ffffff !important;
 }

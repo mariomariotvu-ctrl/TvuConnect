@@ -27,7 +27,7 @@ import { validateProfile, RESTRICTED_FEATURES, PUBLIC_FEATURES } from './utils/p
 import { setupForegroundListener, getFCMToken } from './utils/fcm';
 import { showNotification, formatMessageNotification } from './utils/notifications';
 import { onlineStatusManager } from './utils/onlineStatusManager';
-import { subscribeToIncomingCalls } from './services/callService';
+import { subscribeToIncomingCalls, updateCallStatus } from './services/callService';
 import { CallContext, CallKind, CallSession } from './types/call';
 import { initializeAppSounds, playAppSound } from './utils/appSounds';
 import { safeNotificationRoute } from './services/notificationCenterService';
@@ -49,6 +49,8 @@ import {
 } from './routes/lazyRoutes';
 import { RouteLoader } from './components/RouteLoader';
 import { AIFloatingButton } from './components/AIFloatingButton';
+import { GroupStudyCall } from './components/GroupStudyCall';
+import { StudyRoom } from './types/socialAudio';
 import { getCachedData, setCachedData } from './utils/cacheManager';
 import { logger } from '@/utils/logger';
 import { performanceMonitor } from './utils/performance';
@@ -90,8 +92,10 @@ export default function App() {
   const [profileComplete, setProfileComplete] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<StudentProfile | null>(null);
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
+  const [activeStudyRoom, setActiveStudyRoom] = useState<StudyRoom | null>(null);
   const initialLoadRef = useRef(true);
   const activeCallRef = useRef<ActiveCall | null>(null);
+  const activeStudyRoomRef = useRef<StudyRoom | null>(null);
   const seenUnreadMessageIdsRef = useRef<Set<string>>(new Set());
   const unreadListenerReadyRef = useRef(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -592,7 +596,13 @@ export default function App() {
     if (!user || !profileComplete) return;
 
     return subscribeToIncomingCalls(user.uid, async (incomingCall) => {
-      if (!incomingCall || activeCallRef.current) return;
+      if (!incomingCall) return;
+      if (activeCallRef.current || activeStudyRoomRef.current) {
+        void updateCallStatus(incomingCall.id, 'declined', user.uid).catch((error) => {
+          handleFirestoreError(error, OperationType.UPDATE, `calls/${incomingCall.id}`, true);
+        });
+        return;
+      }
 
       try {
         const callerProfile = await getDoc(doc(db, 'profiles', incomingCall.callerUid));
@@ -761,7 +771,7 @@ export default function App() {
   }, [navigate]);
 
   const handleStartCall = useCallback((profile: StudentProfile, kind: CallKind, context?: CallContext) => {
-    if (activeCallRef.current) {
+    if (activeCallRef.current || activeStudyRoomRef.current) {
       toast.info('Bạn đang có một cuộc gọi khác. Hãy kết thúc cuộc gọi đó trước nhé.');
       return;
     }
@@ -774,6 +784,20 @@ export default function App() {
   const handleCloseCall = useCallback(() => {
     activeCallRef.current = null;
     setActiveCall(null);
+  }, []);
+
+  const handleOpenStudyRoom = useCallback((room: StudyRoom) => {
+    if (activeCallRef.current || activeStudyRoomRef.current) {
+      toast.info('Bạn đang có một cuộc gọi khác. Hãy kết thúc cuộc gọi đó trước nhé.');
+      return;
+    }
+    activeStudyRoomRef.current = room;
+    setActiveStudyRoom(room);
+  }, []);
+
+  const handleCloseStudyRoom = useCallback(() => {
+    activeStudyRoomRef.current = null;
+    setActiveStudyRoom(null);
   }, []);
 
   const handleOpenExploreTab = useCallback((tab: ExploreTab) => {
@@ -804,6 +828,7 @@ export default function App() {
               onMatchFound={handleMatchFound}
               onStartChat={handleStartChat}
               onStartCall={(profile, kind, context) => handleStartCall(profile, kind, context)}
+              onOpenStudyRoom={handleOpenStudyRoom}
               mode={matchingMode || 'quick'}
             />
           </RouteLoader>
@@ -1569,6 +1594,13 @@ export default function App() {
           incomingCall={activeCall.incomingCall}
           context={activeCall.context}
           onClose={handleCloseCall}
+        />
+      )}
+      {activeStudyRoom && user && (
+        <GroupStudyCall
+          room={activeStudyRoom}
+          currentUser={user}
+          onClose={handleCloseStudyRoom}
         />
       )}
       <InstallPrompt />

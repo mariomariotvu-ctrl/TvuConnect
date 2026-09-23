@@ -231,6 +231,7 @@ describeWithEmulator('Firestore security rules for social features', () => {
       ['places/place-1', { name: 'Quán ăn TVU' }],
     ]);
     const studentA = environment.authenticatedContext('student-a').firestore();
+    const studentB = environment.authenticatedContext('student-b').firestore();
 
     await assertFails(setDoc(doc(studentA, 'studyRooms/room-1/participants/student-c'), {
       uid: 'student-c',
@@ -241,6 +242,18 @@ describeWithEmulator('Firestore security rules for social features', () => {
       type: 'offer',
       description: { type: 'offer', sdp: 'v=0' },
       createdAt: serverTimestamp(),
+    }));
+    await assertSucceeds(updateDoc(doc(studentA, 'studyRooms/room-1'), {
+      youtubeVideoId: 'dQw4w9WgXcQ',
+      youtubeUpdatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(studentB, 'studyRooms/room-1'), {
+      youtubeVideoId: 'M7lc1UVf-VE',
+      youtubeUpdatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(studentA, 'studyRooms/room-1'), {
+      youtubeVideoId: 'not-a-valid-video-id-that-is-too-long',
+      youtubeUpdatedAt: serverTimestamp(),
     }));
     await assertSucceeds(setDoc(doc(studentA, 'communityReviews/place_place-1_student-a'), {
       userId: 'student-a',

@@ -25,16 +25,18 @@ import { QuickVoiceMatch } from './QuickVoiceMatch';
 import { StudyRoomHub } from './StudyRoomHub';
 import { DatingDeck } from './DatingDeck';
 import { CallContext } from '../types/call';
+import { StudyRoom } from '../types/socialAudio';
 
 interface MatchingProps {
   currentUser: User;
   onMatchFound: (profile: StudentProfile) => void;
   onStartChat: (uid: string) => void;
   onStartCall: (profile: StudentProfile, kind: 'audio', context?: CallContext) => void;
+  onOpenStudyRoom: (room: StudyRoom) => void;
   mode: 'lover' | 'study' | 'quick' | 'hobby';
 }
 
-export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, onStartChat, onStartCall, mode }) => {
+export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, onStartChat, onStartCall, onOpenStudyRoom, mode }) => {
   const { theme } = useTheme();
   
   // Use custom hooks
@@ -217,7 +219,7 @@ export const Matching: React.FC<MatchingProps> = ({ currentUser, onMatchFound, o
       </div>
 
       {mode === 'study' && (
-        <StudyRoomHub currentUser={currentUser} currentProfile={currentProfile} />
+        <StudyRoomHub currentProfile={currentProfile} onOpenRoom={onOpenStudyRoom} />
       )}
 
       <div 
