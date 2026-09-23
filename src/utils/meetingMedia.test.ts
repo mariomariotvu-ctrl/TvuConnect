@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractYouTubeVideoId, getYouTubeEmbedUrl } from './meetingMedia';
+import { extractYouTubeVideoId, getYouTubeEmbedUrl, getYouTubeWatchUrl } from './meetingMedia';
 
 describe('meetingMedia', () => {
   it.each([
@@ -19,6 +19,9 @@ describe('meetingMedia', () => {
   });
 
   it('uses the privacy-enhanced YouTube embed host', () => {
-    expect(getYouTubeEmbedUrl('dQw4w9WgXcQ')).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?playsinline=1&rel=0');
+    expect(getYouTubeEmbedUrl('dQw4w9WgXcQ', 'https://tvuconnect.vercel.app')).toBe(
+      'https://www.youtube.com/embed/dQw4w9WgXcQ?playsinline=1&rel=0&origin=https%3A%2F%2Ftvuconnect.vercel.app',
+    );
+    expect(getYouTubeWatchUrl('dQw4w9WgXcQ')).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
   });
 });

@@ -32,7 +32,12 @@ import {
 import { getStudyRoomErrorMessage } from '../utils/userFacingErrors';
 import { playAppSound } from '../utils/appSounds';
 import { applyCallTrackHints, getCallMediaConstraints, optimizeCallSenders } from '../utils/callMedia';
-import { extractYouTubeVideoId, getYouTubeEmbedUrl, supportsDisplayCapture } from '../utils/meetingMedia';
+import {
+  extractYouTubeVideoId,
+  getYouTubeEmbedUrl,
+  getYouTubeWatchUrl,
+  supportsDisplayCapture,
+} from '../utils/meetingMedia';
 
 interface GroupStudyCallProps {
   room: StudyRoom;
@@ -636,14 +641,19 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
                   <button onClick={() => void clearYouTube()} disabled={savingYouTube} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold hover:bg-white/20">Đóng video</button>
                 )}
               </div>
-              <div className="aspect-video">
+              <div className="aspect-video bg-black">
                 <iframe
                   className="h-full w-full"
                   src={getYouTubeEmbedUrl(sharedYouTubeId)}
                   title="Video YouTube đang xem chung"
+                  referrerPolicy="strict-origin-when-cross-origin"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 />
+              </div>
+              <div className="flex items-center justify-between gap-3 bg-slate-900 px-4 py-2 text-xs text-slate-400">
+                <span>Nếu chủ video tắt quyền nhúng, hãy mở bằng YouTube.</span>
+                <a href={getYouTubeWatchUrl(sharedYouTubeId)} target="_blank" rel="noopener noreferrer" className="flex-none rounded-full bg-white/10 px-3 py-1.5 font-bold text-white hover:bg-white/20">Mở YouTube</a>
               </div>
             </section>
           )}

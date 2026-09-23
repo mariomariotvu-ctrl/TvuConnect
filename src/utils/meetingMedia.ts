@@ -25,8 +25,19 @@ export function extractYouTubeVideoId(input: string): string | null {
   }
 }
 
-export function getYouTubeEmbedUrl(videoId: string): string {
-  return `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0`;
+export function getYouTubeEmbedUrl(videoId: string, pageOrigin?: string): string {
+  const origin = pageOrigin || (
+    typeof window !== 'undefined' && /^https?:$/.test(window.location.protocol)
+      ? window.location.origin
+      : ''
+  );
+  const parameters = new URLSearchParams({ playsinline: '1', rel: '0' });
+  if (origin) parameters.set('origin', origin);
+  return `https://www.youtube.com/embed/${videoId}?${parameters.toString()}`;
+}
+
+export function getYouTubeWatchUrl(videoId: string): string {
+  return `https://www.youtube.com/watch?v=${videoId}`;
 }
 
 export function supportsDisplayCapture(): boolean {
