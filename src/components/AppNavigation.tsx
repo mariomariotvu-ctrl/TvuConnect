@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, FileText, Home, MapPin, Menu, MessageSquare, Users } from 'lucide-react';
+import { Home, MapPin, Menu, MessageSquare, Users } from 'lucide-react';
 import type { View } from '../types';
 import { preloadRoute } from '../utils/routePreloader';
 
@@ -12,18 +12,12 @@ interface AppNavigationProps {
   onMore?: () => void;
 }
 
-const desktopItems = [
+const primaryItems = [
   { view: 'home' as const, label: 'Trang chủ', icon: Home },
-  { view: 'students' as const, label: 'Tìm bạn', icon: Users },
+  { view: 'students' as const, label: 'Kết nối', icon: Users },
   { view: 'conversations' as const, label: 'Tin nhắn', icon: MessageSquare },
-  { view: 'posts' as const, label: 'Cộng đồng', icon: FileText },
-  { view: 'documents' as const, label: 'Tài liệu', icon: BookOpen },
-  { view: 'explore' as const, label: 'Khám phá', icon: MapPin },
+  { view: 'explore' as const, label: 'Quanh bạn', icon: MapPin },
 ];
-
-const mobileItems = desktopItems.filter(({ view }) =>
-  ['home', 'students', 'conversations', 'explore'].includes(view),
-);
 
 const isItemActive = (current: View, item: View) => {
   if (item === 'students') return ['students', 'matching', 'results'].includes(current);
@@ -47,7 +41,8 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
   onNavigate,
   onMore,
 }) => {
-  const items = mobile ? mobileItems : desktopItems;
+  const items = primaryItems;
+  const moreActive = moreOpen || ['profile', 'notifications', 'settings', 'documents', 'posts'].includes(view);
 
   return (
     <div className={mobile ? 'app-tabs' : 'app-nav'} role="navigation" aria-label="Điều hướng chính">
@@ -82,20 +77,19 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
           </button>
         );
       })}
-      {mobile && (
-        <button
-          type="button"
-          data-menu-toggle="true"
-          data-tour="mobile-more"
-          className={moreOpen || ['profile', 'notifications', 'settings', 'documents', 'posts'].includes(view) ? 'is-active' : undefined}
-          aria-expanded={moreOpen}
-          aria-controls="mobile-menu-container"
-          onClick={onMore}
-        >
-          <Menu aria-hidden="true" />
-          <span>Thêm</span>
-        </button>
-      )}
+      <button
+        type="button"
+        data-menu-toggle="true"
+        data-tour={`${mobile ? 'mobile' : 'desktop'}-more`}
+        className={moreActive ? 'is-active' : undefined}
+        aria-label="Mở tất cả tiện ích"
+        aria-expanded={moreOpen}
+        aria-controls="utility-menu-container"
+        onClick={onMore}
+      >
+        <Menu aria-hidden="true" />
+        <span>Tiện ích</span>
+      </button>
     </div>
   );
 };

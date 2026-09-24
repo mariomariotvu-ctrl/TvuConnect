@@ -9,6 +9,7 @@ const renderMenu = (overrides: Partial<React.ComponentProps<typeof MobileMoreMen
     onClose: vi.fn(),
     onNavigate: vi.fn(),
     onOpenExplore: vi.fn(),
+    onOpenMatching: vi.fn(),
     onLogout: vi.fn(),
     ...overrides,
   };
@@ -26,11 +27,11 @@ describe('MobileMoreMenu', () => {
   it('shows the secondary destinations in a visible dialog', () => {
     renderMenu();
 
-    expect(screen.getByRole('dialog', { name: 'Thêm tiện ích' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Tất cả tiện ích' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Tìm trọ/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ăn gì quanh đây/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Thông báo/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Cài đặt tài khoản/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Cài đặt/ })).toBeInTheDocument();
   });
 
   it('closes and opens the requested destination', () => {
@@ -49,5 +50,14 @@ describe('MobileMoreMenu', () => {
 
     expect(props.onClose).toHaveBeenCalledTimes(1);
     expect(props.onOpenExplore).toHaveBeenCalledWith('food');
+  });
+
+  it('groups matching modes under one clear connection section', () => {
+    const props = renderMenu();
+
+    fireEvent.click(screen.getByRole('button', { name: /Gọi nhanh 1–1/ }));
+
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onOpenMatching).toHaveBeenCalledWith('quick');
   });
 });

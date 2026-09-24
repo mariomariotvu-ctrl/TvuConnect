@@ -5,7 +5,7 @@ import { divIcon, Icon, latLngBounds, LatLngBounds, point } from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Place, CheckIn, PlaceEvent, StudentProfile } from '../types';
 import { db, collection, query, where, onSnapshot, orderBy, limit } from '../firebase';
-import { Bike, Bot, Calendar, Car, Footprints, Home, Loader2, LocateFixed, MapPin, Navigation, Phone, Route as RouteIcon, Star, Utensils, Users, X } from 'lucide-react';
+import { Bike, Bot, Calendar, Car, ChevronDown, Footprints, Home, Loader2, LocateFixed, MapPin, Navigation, Phone, Route as RouteIcon, Star, Utensils, Users, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { PlaceList } from './PlaceList';
 import { RentalList } from './RentalList';
@@ -69,6 +69,18 @@ interface MapViewProps {
 }
 
 export type ExploreTab = 'map' | 'people' | 'list' | 'food' | 'ai' | 'rental';
+
+const primaryExploreTabs = [
+  { tab: 'map' as const, icon: MapPin, label: 'Bản đồ', color: 'from-emerald-500 to-teal-500' },
+  { tab: 'people' as const, icon: Users, label: 'Bạn bè', color: 'from-indigo-500 to-violet-500' },
+  { tab: 'list' as const, icon: Navigation, label: 'Địa điểm', color: 'from-indigo-500 to-violet-500' },
+];
+
+const utilityExploreTabs = [
+  { tab: 'food' as const, icon: Utensils, label: 'Ăn gần', description: 'Tìm quán quanh vị trí hiện tại' },
+  { tab: 'ai' as const, icon: Bot, label: 'AI học tập', description: 'Hỏi bài và tìm học liệu' },
+  { tab: 'rental' as const, icon: Home, label: 'Tìm trọ', description: 'Phòng trọ và ở ghép' },
+];
 
 // TVU Campus coordinates
 const TVU_CENTER: [number, number] = [9.9345, 106.3461];
@@ -248,6 +260,8 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
   const { theme } = useTheme();
   const navigate = useNavigate();
   const activeTab = initialTab;
+  const [exploreToolsOpen, setExploreToolsOpen] = useState(false);
+  const exploreToolsRef = useRef<HTMLDivElement | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [shouldLoadMap, setShouldLoadMap] = useState(false); // Lazy load map
   const [isMapReady, setIsMapReady] = useState(false); // Track map ready state
@@ -268,6 +282,22 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
   const routeRequestRef = useRef(0);
   const locationErrorShownRef = useRef(false);
   const autoLocationAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (!exploreToolsOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!exploreToolsRef.current?.contains(event.target as Node)) setExploreToolsOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExploreToolsOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [exploreToolsOpen]);
   
   // Firestore optimization - Task 8
   const [cacheManager] = useState(() => new FirestoreCacheManager({
@@ -877,7 +907,7 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
         }}
       >
         <div
-          className="flex items-center gap-1.5 rounded-2xl p-1 overflow-x-auto"
+          className="grid grid-cols-4 items-center gap-1.5 rounded-2xl p-1"
           style={{
             backgroundColor: theme === 'dark' ? 'rgba(31,41,55,0.8)' : '#ffffff',
             boxShadow: theme === 'dark'
@@ -885,27 +915,79 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
               : 'inset 0 1px 3px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.8)',
           }}
         >
-          {[
-            { tab: 'map',    icon: <MapPin className="w-4 h-4" />,      label: 'Bản đồ',   color: 'from-emerald-500 to-teal-500' },
-            { tab: 'people', icon: <Users className="w-4 h-4" />,       label: 'Bạn bè',   color: 'from-indigo-500 to-violet-500' },
-            { tab: 'list',   icon: <Navigation className="w-4 h-4" />,  label: 'Địa điểm', color: 'from-indigo-500 to-violet-500' },
-            { tab: 'food',   icon: <Utensils className="w-4 h-4" />,    label: 'Ăn gần',    color: 'from-orange-500 to-rose-500' },
-            { tab: 'ai',     icon: <Bot className="w-4 h-4" />,         label: 'AI',        color: 'from-violet-500 to-purple-600' },
-            { tab: 'rental', icon: <Home className="w-4 h-4" />,        label: 'Tìm Trọ',  color: 'from-orange-400 to-rose-500' },
-          ].map(({ tab, icon, label, color }) => (
+          {primaryExploreTabs.map(({ tab, icon: Icon, label, color }) => (
             <button
               key={tab}
-              onClick={() => handleTabChange(tab as ExploreTab)}
-              className={`flex-none sm:flex-1 min-w-[68px] flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 active:scale-95 ${
+              type="button"
+              onClick={() => {
+                setExploreToolsOpen(false);
+                handleTabChange(tab);
+              }}
+              className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2 font-bold text-xs transition-all duration-200 active:scale-95 sm:text-sm ${
                 activeTab === tab
                   ? `bg-gradient-to-r ${color} text-white shadow-md`
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200'
               }`}
             >
-              <span className={`flex-shrink-0 ${activeTab === tab ? 'drop-shadow-sm' : ''}`}>{icon}</span>
-              <span className="leading-none whitespace-nowrap">{label}</span>
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="truncate leading-none">{label}</span>
             </button>
           ))}
+
+          <div ref={exploreToolsRef} className="relative min-w-0">
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={exploreToolsOpen}
+              aria-controls="explore-utility-menu"
+              onClick={() => setExploreToolsOpen((open) => !open)}
+              className={`flex w-full min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 font-bold text-xs transition-all duration-200 active:scale-95 sm:text-sm ${
+                utilityExploreTabs.some(({ tab }) => tab === activeTab)
+                  ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200'
+              }`}
+            >
+              {(() => {
+                const currentUtility = utilityExploreTabs.find(({ tab }) => tab === activeTab);
+                const CurrentIcon = currentUtility?.icon || ChevronDown;
+                return <CurrentIcon className="h-4 w-4 shrink-0" />;
+              })()}
+              <span className="truncate leading-none">
+                {utilityExploreTabs.find(({ tab }) => tab === activeTab)?.label || 'Tiện ích'}
+              </span>
+              <ChevronDown className={`hidden h-3.5 w-3.5 shrink-0 sm:block ${exploreToolsOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {exploreToolsOpen && (
+              <div
+                id="explore-utility-menu"
+                role="menu"
+                className="absolute right-0 top-[calc(100%+0.55rem)] z-[1200] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+              >
+                <p className="px-3 pb-2 pt-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Tiện ích quanh bạn</p>
+                {utilityExploreTabs.map(({ tab, icon: Icon, label, description }) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setExploreToolsOpen(false);
+                      handleTabChange(tab);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${activeTab === tab ? 'bg-violet-50 dark:bg-violet-950/35' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-violet-600 dark:bg-slate-800 dark:text-violet-300">
+                      <Icon className="h-4.5 w-4.5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-extrabold text-slate-900 dark:text-white">{label}</span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">{description}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

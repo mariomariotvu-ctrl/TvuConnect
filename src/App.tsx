@@ -825,9 +825,15 @@ export default function App() {
     setActiveStudyRoom(null);
   }, []);
 
+  const handleOpenMatchingMode = useCallback((mode: MatchingMode) => {
+    if (!canAccessFeature()) return;
+    navigate(pathForMatching(mode));
+  }, [canAccessFeature, navigate]);
+
   const handleOpenExploreTab = useCallback((tab: ExploreTab) => {
+    if (!canAccessFeature()) return;
     navigate(pathForExplore(tab));
-  }, [navigate]);
+  }, [canAccessFeature, navigate]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -1442,7 +1448,13 @@ export default function App() {
 
             {user && (
               <div className="hidden xl:flex flex-1 justify-center px-4">
-                <AppNavigation view={view} messageUnreadCount={unreadMessageCount} onNavigate={handleViewChange} />
+                <AppNavigation
+                  view={view}
+                  moreOpen={showMobileMenu}
+                  messageUnreadCount={unreadMessageCount}
+                  onNavigate={handleViewChange}
+                  onMore={() => setShowMobileMenu((open) => !open)}
+                />
               </div>
             )}
 
@@ -1555,6 +1567,7 @@ export default function App() {
             onClose={() => setShowMobileMenu(false)}
             onNavigate={handleViewChange}
             onOpenExplore={handleOpenExploreTab}
+            onOpenMatching={handleOpenMatchingMode}
             onLogout={handleLogout}
           />
           <AppNavigation

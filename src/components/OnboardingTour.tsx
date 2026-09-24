@@ -39,7 +39,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     const intervalId = setInterval(() => {
       const expectedTargets = isCompactNavigation
         ? ['mobile-home', 'mobile-students', 'mobile-messages', 'mobile-explore', 'mobile-more', 'notifications', 'profile']
-        : ['desktop-home', 'desktop-students', 'desktop-messages', 'desktop-posts', 'desktop-documents', 'desktop-explore', 'notifications', 'profile'];
+        : ['desktop-home', 'desktop-students', 'desktop-messages', 'desktop-explore', 'desktop-more', 'notifications', 'profile'];
       const found = expectedTargets.filter((target) => document.querySelector(`[data-tour="${target}"]`)).length;
       attempts++;
 
@@ -79,8 +79,8 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     },
     {
       target: '[data-tour="mobile-students"]',
-      title: 'Tìm bạn',
-      content: 'Tìm sinh viên cùng ngành, cùng sở thích hoặc bắt đầu ghép cặp nhanh.',
+      title: 'Kết nối',
+      content: 'Tìm sinh viên cùng ngành; các kiểu ghép cặp khác nằm trong Tiện ích.',
       placement: 'top',
     },
     {
@@ -91,14 +91,14 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     },
     {
       target: '[data-tour="mobile-explore"]',
-      title: 'Khám phá và bản đồ',
+      title: 'Quanh bạn',
       content: 'Xem bạn bè công khai vị trí, tìm quán ăn và nhận chỉ đường theo thời gian thực.',
       placement: 'top',
     },
     {
       target: '[data-tour="mobile-more"]',
-      title: 'Thêm',
-      content: 'Mở Cộng đồng, Thư viện học liệu, Hồ sơ, Cài đặt và các tiện ích khác.',
+      title: 'Tiện ích',
+      content: 'Mọi tính năng phụ được gom theo nhóm Kết nối, Học tập, Quanh bạn và Cá nhân.',
       placement: 'top',
     },
     {
@@ -125,8 +125,8 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     },
     {
       target: '[data-tour="desktop-students"]',
-      title: 'Tìm bạn',
-      content: 'Tìm sinh viên cùng ngành, cùng lớp hoặc ở gần bạn.',
+      title: 'Kết nối',
+      content: 'Tìm sinh viên cùng ngành hoặc cùng lớp. Ghép cặp nhanh và hẹn hò nằm trong Tiện ích.',
       placement: 'bottom',
     },
     {
@@ -136,21 +136,15 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
       placement: 'bottom',
     },
     {
-      target: '[data-tour="desktop-posts"]',
-      title: 'Cộng đồng',
-      content: 'Đăng bài và tương tác với cộng đồng sinh viên TVU.',
-      placement: 'bottom',
-    },
-    {
-      target: '[data-tour="desktop-documents"]',
-      title: 'Tài liệu',
-      content: 'Đọc trực tiếp và chia sẻ học liệu được đồng bộ từ thư viện TVU Connect.',
-      placement: 'bottom',
-    },
-    {
       target: '[data-tour="desktop-explore"]',
-      title: 'Khám phá và bản đồ',
+      title: 'Quanh bạn',
       content: 'Xem bạn bè công khai vị trí, tìm địa điểm và nhận chỉ đường theo thời gian thực.',
+      placement: 'bottom',
+    },
+    {
+      target: '[data-tour="desktop-more"]',
+      title: 'Tiện ích',
+      content: 'Cộng đồng, học liệu, AI, phòng học, hẹn hò và cài đặt được chia nhóm rõ tại đây.',
       placement: 'bottom',
     },
     {
