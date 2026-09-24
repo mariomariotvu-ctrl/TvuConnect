@@ -7,8 +7,31 @@ export interface ChatMessage {
   parts: { text: string }[];
 }
 
+export type StudentAssistantMode = 'normal' | 'library-search' | 'image-study';
+
+export interface StudentAssistantImage {
+  data: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+}
+
+export interface StudentAssistantSource {
+  title: string;
+  url: string;
+}
+
+export interface StudentAssistantResult {
+  answer: string;
+  sources: StudentAssistantSource[];
+}
+
 interface StudentAssistantResponse {
   answer: string;
+  sources?: StudentAssistantSource[];
+}
+
+interface StudentAssistantOptions {
+  mode?: StudentAssistantMode;
+  image?: StudentAssistantImage;
 }
 
 const errorMessageFor = (error: unknown): string => {
@@ -44,23 +67,34 @@ const errorMessageFor = (error: unknown): string => {
 export async function sendMessageToAI(
   userText: string,
   chatHistory: ChatMessage[] = [],
-): Promise<string> {
+  options: StudentAssistantOptions = {},
+): Promise<StudentAssistantResult> {
   const message = userText.trim();
   if (!message) throw new Error('Hãy nhập câu hỏi trước khi gửi.');
 
   const askStudentAssistant = httpsCallable<
-    { message: string; history: ChatMessage[] },
+    {
+      message: string;
+      history: ChatMessage[];
+      mode: StudentAssistantMode;
+      image?: StudentAssistantImage;
+    },
     StudentAssistantResponse
-  >(functions, 'askStudentAssistant', { timeout: 45_000 });
+  >(functions, 'askStudentAssistant', { timeout: 35_000 });
 
   try {
     const result = await askStudentAssistant({
       message,
       history: chatHistory.slice(-8),
+      mode: options.mode || 'normal',
+      image: options.image,
     });
     const answer = result.data?.answer?.trim();
     if (!answer) throw new Error('Trợ lý chưa trả về nội dung hợp lệ.');
-    return answer;
+    const sources = Array.isArray(result.data?.sources)
+      ? result.data.sources.filter((source) => source?.title && /^https?:\/\//i.test(source?.url || ''))
+      : [];
+    return { answer, sources };
   } catch (error) {
     throw new Error(errorMessageFor(error));
   }

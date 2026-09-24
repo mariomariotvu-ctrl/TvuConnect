@@ -1631,7 +1631,9 @@ export default function App() {
         />
       )}
       <InstallPrompt />
-      {user && <AIFloatingButton avoidChatComposer={view === 'chat'} />}
+      {user && !(view === 'explore' && exploreTab === 'ai') && (
+        <AIFloatingButton avoidChatComposer={view === 'chat'} />
+      )}
     </div>
   );
 }

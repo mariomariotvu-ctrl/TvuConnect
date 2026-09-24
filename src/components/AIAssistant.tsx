@@ -1,8 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Loader2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { BookOpen, Bot, Camera, ExternalLink, Globe2, Loader2, Send, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { sendMessageToAI, ChatMessage } from '../utils/geminiAI';
+import {
+  sendMessageToAI,
+  type ChatMessage,
+  type StudentAssistantSource,
+} from '../utils/geminiAI';
 import { findCachedResponse, shouldUseCache } from '../utils/aiCache';
+import {
+  hasSpecificLibrarySearchTerms,
+  isLibrarySearchQuery,
+  searchPublicDriveLibrary,
+  type AILibraryResult,
+} from '../utils/aiLibrarySearch';
+import { prepareImageForAI, type PreparedAIImage } from '../utils/aiImage';
+import { DocumentViewerModal } from './DocumentViewerModal';
+import { ImageSourcePicker } from './ImageSourcePicker';
 import { toast } from 'sonner';
 
 interface Message {
@@ -10,44 +23,17 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  imagePreview?: string;
+  librarySources?: AILibraryResult[];
+  webSources?: StudentAssistantSource[];
 }
 
 const QUICK_REPLIES = [
   { text: 'Tìm bạn cùng ngành như thế nào?' },
   { text: 'Cách tìm trọ an toàn cho sinh viên' },
-  { text: 'Tìm sách và giáo trình theo ngành' },
+  { text: 'Tìm giáo trình Sinh lý học' },
   { text: 'Lập kế hoạch ôn thi trong 7 ngày' },
 ];
-
-type SpeechRecognitionAlternativeLike = { transcript: string };
-type SpeechRecognitionResultLike = { isFinal: boolean;[index: number]: SpeechRecognitionAlternativeLike };
-type SpeechRecognitionEventLike = { resultIndex: number; results: { length: number;[index: number]: SpeechRecognitionResultLike } };
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  abort: () => void;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: { error?: string }) => void) | null;
-  onend: (() => void) | null;
-};
-
-type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
-
-const getSpeechRecognition = (): SpeechRecognitionConstructorLike | null => {
-  const browserWindow = window as typeof window & {
-    SpeechRecognition?: SpeechRecognitionConstructorLike;
-    webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
-  };
-  return browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition || null;
-};
-
-const CUTE_VOICE = {
-  rate: 1.02,
-  pitch: 1.2,
-};
 
 // Rate limiting: Progressive - Linh hoạt hơn
 const MAX_MESSAGES_PER_MINUTE = 10; // Tăng lên 10 cho normal users
@@ -60,48 +46,18 @@ export const AIAssistant: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState('Đang phân tích câu hỏi…');
   const [messageTimestamps, setMessageTimestamps] = useState<number[]>([]);
-  const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('tvu_buddy_voice') === 'on');
-  const [isListening, setIsListening] = useState(false);
-  const [recognizedDraft, setRecognizedDraft] = useState('');
+  const [selectedImage, setSelectedImage] = useState<PreparedAIImage | null>(null);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
+  const [viewerSource, setViewerSource] = useState<StudentAssistantSource | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const voiceEnabledRef = useRef(voiceEnabled);
-  const voiceSubmittedRef = useRef(false);
-
-  const speakResponse = (content: string) => {
-    if (!voiceEnabledRef.current || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(content.replace(/[*#`•]/g, ' ').replace(/\s+/g, ' ').trim());
-    const voices = window.speechSynthesis.getVoices();
-    utterance.voice = voices.find((voice) => voice.lang.toLowerCase().startsWith('vi'))
-      || voices.find((voice) => voice.lang.toLowerCase().startsWith('en'))
-      || null;
-    utterance.lang = utterance.voice?.lang || 'vi-VN';
-    utterance.rate = CUTE_VOICE.rate;
-    utterance.pitch = CUTE_VOICE.pitch;
-    utterance.volume = 0.9;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const toggleVoice = () => {
-    const next = !voiceEnabled;
-    voiceEnabledRef.current = next;
-    setVoiceEnabled(next);
-    localStorage.setItem('tvu_buddy_voice', next ? 'on' : 'off');
-    if (!next && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-    if (next) toast.success('Đã bật giọng Miu nhẹ nhàng cho TVU BuBu.');
-  };
 
   useEffect(() => {
     containerRef.current?.scrollTo({ top: 0 });
-    return () => {
-      recognitionRef.current?.abort();
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    };
   }, []);
 
   // Auto scroll to bottom ONLY when AI responds (not when user sends)
@@ -146,18 +102,95 @@ export const AIAssistant: React.FC = () => {
     };
   };
 
+  const handleLibrarySearch = async (text: string) => {
+    const hasSpecificTerms = hasSpecificLibrarySearchTerms(text);
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+    };
+    setMessages((current) => [...current, userMessage]);
+    setInputText('');
+    if (!hasSpecificTerms) {
+      setMessages((current) => [...current, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Bạn cho mình tên môn, ngành hoặc một phần tên sách nhé. Ví dụ: “Tìm giáo trình Sinh lý học” hoặc “Tìm tài liệu kế toán quản trị”.',
+        timestamp: new Date(),
+      }]);
+      return;
+    }
+
+    setLoadingLabel('Đang tìm trong Thư viện TVU và nguồn công khai…');
+    setIsLoading(true);
+
+    try {
+      const history = getGeminiHistory();
+      const now = Date.now();
+      setMessageTimestamps((current) => [
+        ...current.filter((timestamp) => timestamp > now - 300_000),
+        now,
+      ]);
+
+      const [libraryResult, webResult] = await Promise.allSettled([
+        searchPublicDriveLibrary(text),
+        sendMessageToAI(text, history, { mode: 'library-search' }),
+      ]);
+      const librarySources = libraryResult.status === 'fulfilled' ? libraryResult.value : [];
+      const webAnswer = webResult.status === 'fulfilled' ? webResult.value.answer : '';
+      const webSources = webResult.status === 'fulfilled' ? webResult.value.sources : [];
+      if (libraryResult.status === 'rejected') console.warn('TVU library search failed:', libraryResult.reason);
+      if (webResult.status === 'rejected') console.warn('Open academic search failed:', webResult.reason);
+
+      const summary = librarySources.length
+        ? `Mình tìm thấy ${librarySources.length} tài liệu trong Thư viện TVU. Bạn có thể mở và đọc ngay trong web.`
+        : webResult.status === 'fulfilled'
+          ? 'Thư viện TVU chưa có file khớp rõ, nên mình đã tìm thêm nguồn học liệu công khai trên Internet.'
+          : 'Thư viện TVU chưa có file khớp rõ và nguồn học liệu mở đang tạm bận.';
+
+      setMessages((current) => [...current, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: [summary, webAnswer].filter(Boolean).join('\n\n')
+          || 'Mình chưa tìm được nguồn đủ rõ. Bạn thử thêm tên môn, tác giả hoặc một phần tên sách nhé.',
+        timestamp: new Date(),
+        librarySources,
+        webSources,
+      }]);
+    } catch (error) {
+      console.error('Academic material search failed:', error);
+      setMessages((current) => [...current, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Nguồn học liệu đang phản hồi chậm. Bạn có thể mở Thư viện TVU để tìm trực tiếp hoặc thử lại sau.',
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setIsLoading(false);
+      inputRef.current?.focus();
+    }
+  };
+
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || isLoading) return;
+    if ((!text.trim() && !selectedImage) || isLoading || isPreparingImage) return;
+    const image = selectedImage;
+    const cleanText = text.trim() || 'Đọc chữ trong ảnh, xác định môn học và tìm tài liệu công khai phù hợp để mình đọc tiếp.';
+
+    if (!image && isLibrarySearchQuery(cleanText)) {
+      await handleLibrarySearch(cleanText);
+      return;
+    }
 
     // Reuse only stable in-app guidance. Study questions always go to the
     // server-side model so the answer is not stale or fabricated locally.
-    if (shouldUseCache(text)) {
-      const cachedResponse = findCachedResponse(text);
+    if (!image && shouldUseCache(cleanText)) {
+      const cachedResponse = findCachedResponse(cleanText);
       if (cachedResponse) {
         const userMessage: Message = {
           id: Date.now().toString(),
           role: 'user',
-          content: text.trim(),
+          content: cleanText,
           timestamp: new Date()
         };
 
@@ -170,8 +203,6 @@ export const AIAssistant: React.FC = () => {
 
         setMessages(prev => [...prev, userMessage, assistantMessage]);
         setInputText('');
-        speakResponse(cachedResponse);
-
         return;
       }
     }
@@ -200,8 +231,9 @@ export const AIAssistant: React.FC = () => {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: text.trim(),
-      timestamp: new Date()
+      content: text.trim() || 'Đọc trang sách này và tìm tài liệu liên quan.',
+      timestamp: new Date(),
+      imagePreview: image?.previewUrl,
     };
 
     // Get history BEFORE adding new message
@@ -209,8 +241,10 @@ export const AIAssistant: React.FC = () => {
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
+    setSelectedImage(null);
 
     setIsLoading(true);
+    setLoadingLabel(image ? 'Đang đọc chữ trong ảnh và đối chiếu học liệu…' : 'Đang phân tích câu hỏi…');
 
     // Cập nhật timestamps
     const now = Date.now();
@@ -220,17 +254,22 @@ export const AIAssistant: React.FC = () => {
     });
 
     try {
-      const aiResponse = await sendMessageToAI(text.trim(), history);
+      const aiResponse = await sendMessageToAI(cleanText, history, {
+        mode: image
+          ? (isLibrarySearchQuery(cleanText) ? 'library-search' : 'image-study')
+          : 'normal',
+        image: image ? { data: image.data, mimeType: image.mimeType } : undefined,
+      });
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: aiResponse,
-        timestamp: new Date()
+        content: aiResponse.answer,
+        timestamp: new Date(),
+        webSources: aiResponse.sources,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-      speakResponse(aiResponse);
     } catch (error: any) {
       console.error('Error in handleSendMessage:', error);
 
@@ -255,71 +294,25 @@ export const AIAssistant: React.FC = () => {
     }
   };
 
+  const handleImageSelected = async (files: File[]) => {
+    const file = files[0];
+    if (!file || isLoading) return;
+
+    setIsPreparingImage(true);
+    try {
+      const prepared = await prepareImageForAI(file);
+      setSelectedImage(prepared);
+      toast.success('Đã thêm ảnh. Bạn có thể nhập yêu cầu hoặc gửi để BuBu tự đọc và tìm tài liệu.');
+      inputRef.current?.focus();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Không thể xử lý ảnh này.');
+    } finally {
+      setIsPreparingImage(false);
+    }
+  };
+
   const handleQuickReply = (reply: { text: string }) => {
     handleSendMessage(reply.text);
-  };
-
-  const stopListening = () => {
-    recognitionRef.current?.abort();
-    recognitionRef.current = null;
-    setIsListening(false);
-  };
-
-  const startListening = () => {
-    if (isListening) {
-      stopListening();
-      return;
-    }
-    const SpeechRecognition = getSpeechRecognition();
-    if (!SpeechRecognition) {
-      toast.error('Trình duyệt này chưa hỗ trợ nhập giọng nói. Hãy dùng Chrome hoặc Edge mới nhất.');
-      return;
-    }
-
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'vi-VN';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognitionRef.current = recognition;
-    voiceSubmittedRef.current = false;
-    setRecognizedDraft('');
-    setIsListening(true);
-
-    recognition.onresult = (event) => {
-      let transcript = '';
-      let finalTranscript = '';
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const text = event.results[index][0]?.transcript || '';
-        transcript += text;
-        if (event.results[index].isFinal) finalTranscript += text;
-      }
-      const cleanTranscript = transcript.trim();
-      setRecognizedDraft(cleanTranscript);
-      setInputText(cleanTranscript);
-      if (finalTranscript.trim() && !voiceSubmittedRef.current) {
-        voiceSubmittedRef.current = true;
-        voiceEnabledRef.current = true;
-        setVoiceEnabled(true);
-        localStorage.setItem('tvu_buddy_voice', 'on');
-        void handleSendMessage(finalTranscript.trim());
-      }
-    };
-    recognition.onerror = (event) => {
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        toast.error(event.error === 'not-allowed'
-          ? 'Hãy cho phép micro để nói chuyện với TVU BuBu.'
-          : 'Chưa nghe rõ. Bạn thử nói lại nhé.');
-      }
-      setIsListening(false);
-    };
-    recognition.onend = () => {
-      recognitionRef.current = null;
-      setIsListening(false);
-      setRecognizedDraft('');
-    };
-    recognition.start();
   };
 
   return (
@@ -338,10 +331,10 @@ export const AIAssistant: React.FC = () => {
           <h3 className="font-bold text-base truncate leading-tight text-slate-950 dark:text-white">TVU BuBu</h3>
           <p className="text-xs mt-0.5 text-slate-500 dark:text-slate-400">Trợ lý học tập và hướng dẫn sử dụng</p>
         </div>
-        <button type="button" onClick={toggleVoice} className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ${voiceEnabled ? 'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`} title={voiceEnabled ? 'Tắt giọng Miu' : 'Bật giọng Miu nhẹ nhàng'}>
-          {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          <span className="hidden sm:inline">Giọng Miu</span>
-        </button>
+        <a href="/library" className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-indigo-50 px-2.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-200" title="Mở Thư viện học liệu">
+          <BookOpen className="h-4 w-4" />
+          <span className="hidden sm:inline">Thư viện</span>
+        </a>
         <span className="hidden items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 sm:inline-flex">
           <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
           Sẵn sàng
@@ -390,9 +383,73 @@ export const AIAssistant: React.FC = () => {
                         : '1px solid rgba(229, 231, 235, 1)',
                   }}
                 >
+                  {message.imagePreview && (
+                    <img
+                      src={message.imagePreview}
+                      alt="Trang sách đã gửi cho TVU BuBu"
+                      className="mb-2 max-h-56 w-full rounded-xl object-contain bg-black/10"
+                    />
+                  )}
                   <div className="text-sm leading-relaxed">
                     {message.content}
                   </div>
+                  {message.librarySources && message.librarySources.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">Trong Thư viện TVU</p>
+                      {message.librarySources.map((source) => (
+                        <a
+                          key={source.id}
+                          href={`/library?q=${encodeURIComponent(source.title)}`}
+                          className="flex min-h-14 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/80 p-2.5 text-left text-slate-900 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-white dark:hover:border-indigo-700"
+                        >
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-indigo-600 shadow-sm dark:bg-slate-900 dark:text-indigo-300">
+                            <BookOpen className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="line-clamp-2 text-xs font-bold leading-snug">{source.title}</span>
+                            <span className="mt-0.5 block truncate text-[11px] text-slate-500 dark:text-slate-400">
+                              {source.folderPath.length ? source.folderPath.join(' / ') : source.category}
+                            </span>
+                          </span>
+                          <ExternalLink className="h-4 w-4 shrink-0 text-indigo-500" aria-hidden="true" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {message.webSources && message.webSources.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Nguồn công khai trên web</p>
+                      {message.webSources.map((source) => (
+                        <div
+                          key={source.url}
+                          className="flex min-h-14 items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/80 p-2.5 text-slate-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-white"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setViewerSource(source)}
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                          >
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
+                              <Globe2 className="h-4 w-4" aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="line-clamp-2 text-xs font-bold leading-snug">{source.title}</span>
+                              <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Đọc trong TVU Connect</span>
+                            </span>
+                          </button>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Mở nguồn gốc: ${source.title}`}
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                          >
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <p
                     className={`text-xs mt-1 ${message.role === 'user'
                         ? 'text-indigo-200'
@@ -433,6 +490,8 @@ export const AIAssistant: React.FC = () => {
                     <br />
                     • Tìm tài liệu, sách và giáo trình hợp pháp
                     <br />
+                    • Chụp trang sách để đọc chữ và tìm học liệu liên quan
+                    <br />
                     • Hướng dẫn dùng các tính năng trong ứng dụng
                     <br />
                     <br />
@@ -464,7 +523,7 @@ export const AIAssistant: React.FC = () => {
                   }}
                 >
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Đang chuẩn bị câu trả lời…</span>
+                  <span className="text-sm">{loadingLabel}</span>
                 </div>
               </div>
             )}
@@ -514,6 +573,23 @@ export const AIAssistant: React.FC = () => {
                 : '0 -2px 10px rgba(0, 0, 0, 0.05)'
             }}
           >
+            {selectedImage && (
+              <div className="mb-2 flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-2 dark:border-indigo-800/60 dark:bg-indigo-950/30">
+                <img src={selectedImage.previewUrl} alt="Ảnh chờ TVU BuBu đọc" className="h-14 w-14 rounded-lg bg-white object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-slate-900 dark:text-white">{selectedImage.name}</p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-slate-600 dark:text-slate-300">BuBu sẽ đọc chữ, nhận diện môn và tìm tài liệu liên quan.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(null)}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-white dark:hover:bg-slate-900"
+                  aria-label="Bỏ ảnh đã chọn"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -521,16 +597,31 @@ export const AIAssistant: React.FC = () => {
               }}
               className="flex gap-2"
             >
-              <button type="button" onClick={startListening} disabled={isLoading} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border ${isListening ? 'border-pink-400 bg-pink-50 text-pink-600 animate-pulse dark:bg-pink-950/40' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`} aria-label={isListening ? 'Dừng nghe' : 'Nói với TVU BuBu'} title={isListening ? 'Đang nghe, bấm để dừng' : 'Nói với TVU BuBu'}>
-                {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-              </button>
+              <ImageSourcePicker
+                title="Quét trang sách hoặc đề bài"
+                disabled={isLoading || isPreparingImage}
+                onFilesSelected={handleImageSelected}
+              >
+                {(openPicker) => (
+                  <button
+                    type="button"
+                    onClick={openPicker}
+                    disabled={isLoading || isPreparingImage}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border-2 border-indigo-100 bg-indigo-50 text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300"
+                    aria-label="Chụp hoặc chọn ảnh trang sách"
+                    title="Chụp hoặc chọn ảnh trang sách"
+                  >
+                    {isPreparingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+                  </button>
+                )}
+              </ImageSourcePicker>
               <input
                 ref={inputRef}
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={isListening ? (recognizedDraft || 'Đang nghe bạn nói…') : 'Nhắn hoặc bấm micro để nói'}
-                disabled={isLoading}
+                placeholder={selectedImage ? 'Nhập yêu cầu hoặc gửi để tự đọc ảnh…' : 'Hỏi bài hoặc tìm sách, giáo trình…'}
+                disabled={isLoading || isPreparingImage}
                 className="flex-1 px-4 py-2.5 rounded-xl border-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 text-sm font-medium transition-all placeholder:font-medium"
                 style={{
                   backgroundColor: theme === 'dark' ? 'rgba(55, 65, 81, 0.9)' : '#FFFFFF',
@@ -540,7 +631,7 @@ export const AIAssistant: React.FC = () => {
               />
               <button
                 type="submit"
-                disabled={!inputText.trim() || isLoading}
+                disabled={(!inputText.trim() && !selectedImage) || isLoading || isPreparingImage}
                 className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400 flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {isLoading ? (
@@ -553,6 +644,14 @@ export const AIAssistant: React.FC = () => {
           </div>
         </div>
       </div>
+      {viewerSource && (
+        <DocumentViewerModal
+          open
+          title={viewerSource.title}
+          url={viewerSource.url}
+          onClose={() => setViewerSource(null)}
+        />
+      )}
     </div>
   );
 };

@@ -36,7 +36,9 @@ const pathEquals = (path: string[] = [], expected: string[]) => (
 
 export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepositoryProps) {
   const [filters, setFilters] = useState<FilterState>({ major_id: null, subject: null, category: null });
-  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState(() => (
+    new URLSearchParams(window.location.search).get('q')?.trim() || ''
+  ));
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDocument, setEditingDocument] = useState<DocumentLink | null>(null);
