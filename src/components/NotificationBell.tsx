@@ -25,6 +25,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ uid, active 
   return (
     <button
       type="button"
+      data-tour="notifications"
       onClick={onOpen}
       aria-label={label}
       aria-current={active ? 'page' : undefined}

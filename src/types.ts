@@ -54,6 +54,10 @@ export interface StudentProfile {
   datingBio?: string;
   university?: string;
   campus?: string;
+  /** Synced across devices after the first-use product tour is finished or skipped. */
+  onboardingCompletedAt?: Timestamp;
+  /** Set only while a newly created profile is waiting for its first-use tour. */
+  onboardingPending?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

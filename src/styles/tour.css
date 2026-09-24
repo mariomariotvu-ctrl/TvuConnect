@@ -3,17 +3,18 @@
 /* Spotlight border cho dark mode */
 .__floater__open .react-joyride__spotlight {
   box-shadow: 
-    0 0 0 3px rgba(59, 130, 246, 0.9),
-    0 0 0 6px rgba(59, 130, 246, 0.5),
-    0 0 20px rgba(59, 130, 246, 0.3) !important;
-  border-radius: 12px !important;
+    0 0 0 3px rgba(99, 102, 241, 0.95),
+    0 0 0 7px rgba(139, 92, 246, 0.42),
+    0 0 30px rgba(99, 102, 241, 0.38) !important;
+  border-radius: 16px !important;
 }
 
 /* Light mode - viền nhẹ hơn */
 html:not(.dark) .__floater__open .react-joyride__spotlight {
   box-shadow: 
-    0 0 0 2px rgba(59, 130, 246, 0.7),
-    0 0 10px rgba(59, 130, 246, 0.4) !important;
+    0 0 0 3px rgba(79, 70, 229, 0.78),
+    0 0 0 7px rgba(124, 58, 237, 0.2),
+    0 0 24px rgba(99, 102, 241, 0.32) !important;
 }
 
 /* Đảm bảo spotlight luôn visible */
@@ -32,7 +33,60 @@ html:not(.dark) .__floater__open .react-joyride__spotlight {
 
 /* Tăng contrast cho overlay trong dark mode */
 html.dark .react-joyride__overlay {
-  background-color: rgba(0, 0, 0, 0.8) !important;
+  background-color: rgba(2, 6, 23, 0.82) !important;
+}
+
+.react-joyride__tooltip {
+  overflow: hidden;
+}
+
+.react-joyride__tooltip::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #4f46e5, #7c3aed, #ec4899);
+}
+
+.tvu-tour-welcome {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.tvu-tour-welcome__mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(145deg, #6366f1, #7c3aed 58%, #2563eb);
+  box-shadow: inset 6px 6px 12px rgba(255, 255, 255, 0.2), 0 14px 28px rgba(79, 70, 229, 0.3);
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.tvu-tour-welcome p {
+  margin: 0;
+}
+
+.tvu-tour-welcome small {
+  color: #6366f1;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+html.dark .tvu-tour-welcome small {
+  color: #a5b4fc;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-joyride__spotlight {
+    animation: none;
+  }
 }
 
 /* Hover Effects cho Feature Cards */

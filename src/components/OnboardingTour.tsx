@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Joyride, STATUS, EVENTS, type Step, type EventData, type Controls } from 'react-joyride';
 import { useTheme } from '../contexts/ThemeContext';
 import { logger } from '@/utils/logger';
@@ -13,8 +13,16 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
   const [runTour, setRunTour] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const { theme } = useTheme();
-  const isMobileRef = useRef(window.innerWidth < 768);
-  const isMobile = isMobileRef.current;
+  const [isCompactNavigation, setIsCompactNavigation] = useState(() => (
+    window.matchMedia('(max-width: 1279px)').matches
+  ));
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1279px)');
+    const updateNavigationMode = (event: MediaQueryListEvent) => setIsCompactNavigation(event.matches);
+    mediaQuery.addEventListener('change', updateNavigationMode);
+    return () => mediaQuery.removeEventListener('change', updateNavigationMode);
+  }, []);
 
   useEffect(() => {
     if (!run) {
@@ -23,18 +31,21 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
       return;
     }
 
-    logger.log('Tour trigger | Mobile:', isMobile);
+    logger.log('Tour trigger | Compact navigation:', isCompactNavigation);
 
     // Poll until nav elements are in the DOM
     let attempts = 0;
     const maxAttempts = 30;
     const intervalId = setInterval(() => {
-      const found = document.querySelectorAll('[data-tour]').length;
+      const expectedTargets = isCompactNavigation
+        ? ['mobile-home', 'mobile-students', 'mobile-messages', 'mobile-explore', 'mobile-more', 'notifications', 'profile']
+        : ['desktop-home', 'desktop-students', 'desktop-messages', 'desktop-posts', 'desktop-documents', 'desktop-explore', 'notifications', 'profile'];
+      const found = expectedTargets.filter((target) => document.querySelector(`[data-tour="${target}"]`)).length;
       attempts++;
 
       logger.log(`Tour polling: found ${found} elements (attempt ${attempts})`);
 
-      if (found >= 3 || attempts >= maxAttempts) {
+      if (found === expectedTargets.length || attempts >= maxAttempts) {
         clearInterval(intervalId);
         setStepIndex(0);
         setRunTour(true);
@@ -43,78 +54,109 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     }, 100);
 
     return () => clearInterval(intervalId);
-  }, [run, isMobile]);
+  }, [run, isCompactNavigation]);
 
-  // Mobile steps follow the five-item bottom navigation.
-  const mobileSteps: Step[] = [
+  const welcomeStep: Step = {
+    target: 'body',
+    title: 'Chào mừng đến TVU Connect ✨',
+    content: (
+      <div className="tvu-tour-welcome">
+        <span className="tvu-tour-welcome__mark">TVU</span>
+        <p>Mất chưa đến một phút để biết nơi tìm bạn, nhắn tin, gọi nhóm, xem bản đồ và học liệu.</p>
+        <small>Bạn có thể mở lại hướng dẫn bất cứ lúc nào trong Cài đặt.</small>
+      </div>
+    ),
+    placement: 'center',
+  };
+
+  // Compact navigation is used by phones and tablets below the xl breakpoint.
+  const mobileSteps: Step[] = [welcomeStep,
     {
-      target: '[data-tour="home"]',
+      target: '[data-tour="mobile-home"]',
       title: 'Trang chủ',
-      content: 'Điểm bắt đầu của bạn — xem tổng quan và chọn chế độ kết nối.',
+      content: 'Điểm bắt đầu của bạn — xem hoạt động mới và chọn cách kết nối phù hợp.',
       placement: 'top',
     },
     {
-      target: '[data-tour="students"]',
+      target: '[data-tour="mobile-students"]',
       title: 'Tìm bạn',
-      content: 'Tìm sinh viên cùng ngành, cùng lớp hoặc ở gần bạn.',
+      content: 'Tìm sinh viên cùng ngành, cùng sở thích hoặc bắt đầu ghép cặp nhanh.',
       placement: 'top',
     },
     {
-      target: '[data-tour="messages"]',
-      title: 'Tin nhắn',
-      content: 'Trò chuyện riêng tư với những người bạn đã kết nối.',
+      target: '[data-tour="mobile-messages"]',
+      title: 'Tin nhắn và cuộc gọi',
+      content: 'Nhắn tin, gọi thoại, gọi video và tham gia phòng học nhóm ngay tại đây.',
       placement: 'top',
     },
     {
-      target: '[data-tour="explore"]',
-      title: 'Khám phá',
-      content: 'Tìm địa điểm, quán ăn và sự kiện thú vị quanh trường.',
+      target: '[data-tour="mobile-explore"]',
+      title: 'Khám phá và bản đồ',
+      content: 'Xem bạn bè công khai vị trí, tìm quán ăn và nhận chỉ đường theo thời gian thực.',
       placement: 'top',
     },
     {
-      target: '[data-tour="more"]',
+      target: '[data-tour="mobile-more"]',
       title: 'Thêm',
-      content: 'Mở cộng đồng, tài liệu, hồ sơ, cài đặt và các tiện ích sinh viên.',
+      content: 'Mở Cộng đồng, Thư viện học liệu, Hồ sơ, Cài đặt và các tiện ích khác.',
       placement: 'top',
+    },
+    {
+      target: '[data-tour="notifications"]',
+      title: 'Thông báo tập trung',
+      content: 'Tin nhắn, cuộc gọi, kết bạn và hoạt động gần bạn được gom về một nơi.',
+      placement: 'bottom',
+    },
+    {
+      target: '[data-tour="profile"]',
+      title: 'Hồ sơ của bạn',
+      content: 'Cập nhật ảnh và sở thích để kết quả kết nối chính xác hơn. Vậy là bạn sẵn sàng rồi!',
+      placement: 'bottom',
     },
   ];
 
   // Desktop steps follow the primary top navigation.
-  const desktopSteps: Step[] = [
+  const desktopSteps: Step[] = [welcomeStep,
     {
-      target: '[data-tour="home"]',
+      target: '[data-tour="desktop-home"]',
       title: 'Trang chủ',
       content: 'Điểm bắt đầu — xem tổng quan và chọn chế độ kết nối.',
       placement: 'bottom',
     },
     {
-      target: '[data-tour="students"]',
+      target: '[data-tour="desktop-students"]',
       title: 'Tìm bạn',
       content: 'Tìm sinh viên cùng ngành, cùng lớp hoặc ở gần bạn.',
       placement: 'bottom',
     },
     {
-      target: '[data-tour="messages"]',
-      title: 'Tin nhắn',
-      content: 'Trò chuyện riêng tư với những người bạn đã kết nối.',
+      target: '[data-tour="desktop-messages"]',
+      title: 'Tin nhắn và cuộc gọi',
+      content: 'Nhắn tin, gọi thoại, gọi video và tham gia phòng học nhóm.',
       placement: 'bottom',
     },
     {
-      target: '[data-tour="posts"]',
+      target: '[data-tour="desktop-posts"]',
       title: 'Cộng đồng',
       content: 'Đăng bài và tương tác với cộng đồng sinh viên TVU.',
       placement: 'bottom',
     },
     {
-      target: '[data-tour="documents"]',
+      target: '[data-tour="desktop-documents"]',
       title: 'Tài liệu',
-      content: 'Tìm và chia sẻ tài liệu học tập hữu ích.',
+      content: 'Đọc trực tiếp và chia sẻ học liệu được đồng bộ từ thư viện TVU Connect.',
       placement: 'bottom',
     },
     {
-      target: '[data-tour="explore"]',
-      title: 'Khám phá',
-      content: 'Tìm địa điểm, quán ăn và sự kiện thú vị quanh trường.',
+      target: '[data-tour="desktop-explore"]',
+      title: 'Khám phá và bản đồ',
+      content: 'Xem bạn bè công khai vị trí, tìm địa điểm và nhận chỉ đường theo thời gian thực.',
+      placement: 'bottom',
+    },
+    {
+      target: '[data-tour="notifications"]',
+      title: 'Trung tâm thông báo',
+      content: 'Tin nhắn, cuộc gọi, kết bạn và những cập nhật phù hợp đều nằm ở đây.',
       placement: 'bottom',
     },
     {
@@ -125,7 +167,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     },
   ];
 
-  const steps = isMobile ? mobileSteps : desktopSteps;
+  const steps = isCompactNavigation ? mobileSteps : desktopSteps;
 
   const handleEvent = (data: EventData, _controls: Controls) => {
     const { status, type, index, action } = data;
@@ -161,40 +203,41 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
         primaryColor: '#6366f1',
         zIndex: 10000,
         arrowColor: theme === 'dark' ? '#1f2937' : '#ffffff',
-        overlayColor: theme === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.45)',
-        backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
-        textColor: theme === 'dark' ? '#f3f4f6' : '#111827',
+        overlayColor: theme === 'dark' ? 'rgba(2,6,23,0.82)' : 'rgba(15,23,42,0.58)',
+        backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+        textColor: theme === 'dark' ? '#f8fafc' : '#0f172a',
         showProgress: true,
         buttons: ['back', 'skip', 'primary'],
         overlayClickAction: false,
-        offset: isMobile ? 6 : 10,
+        offset: isCompactNavigation ? 8 : 12,
       }}
       floatingOptions={{ hideArrow: false }}
       styles={{
         tooltip: {
-          borderRadius: '16px',
-          padding: isMobile ? '16px 18px' : '20px 24px',
+          borderRadius: '22px',
+          padding: isCompactNavigation ? '18px' : '22px 24px',
           fontSize: '14px',
-          maxWidth: isMobile ? '290px' : '360px',
+          maxWidth: isCompactNavigation ? 'min(330px, calc(100vw - 24px))' : '380px',
+          border: theme === 'dark' ? '1px solid rgba(129,140,248,0.34)' : '1px solid rgba(99,102,241,0.18)',
           boxShadow: theme === 'dark'
-            ? '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.2)'
-            : '0 20px 60px rgba(0,0,0,0.15)',
+            ? '0 24px 70px rgba(0,0,0,0.62), 0 0 38px rgba(99,102,241,0.16)'
+            : '0 24px 70px rgba(30,41,59,0.24), 0 0 32px rgba(99,102,241,0.12)',
         },
         tooltipTitle: {
-          fontSize: isMobile ? '15px' : '16px',
-          fontWeight: '800',
+          fontSize: isCompactNavigation ? '16px' : '18px',
+          fontWeight: '900',
           marginBottom: '8px',
         },
         tooltipContent: {
           padding: '4px 0 0',
-          fontSize: isMobile ? '13px' : '14px',
-          lineHeight: '1.5',
-          color: theme === 'dark' ? '#d1d5db' : '#374151',
+          fontSize: isCompactNavigation ? '13px' : '14px',
+          lineHeight: '1.6',
+          color: theme === 'dark' ? '#cbd5e1' : '#475569',
         },
         buttonPrimary: {
-          backgroundColor: '#6366f1',
-          borderRadius: '10px',
-          padding: isMobile ? '8px 18px' : '8px 20px',
+          background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+          borderRadius: '12px',
+          padding: isCompactNavigation ? '9px 18px' : '10px 22px',
           fontSize: '13px',
           fontWeight: '700',
           letterSpacing: '0.01em',
@@ -205,8 +248,9 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
           fontSize: '13px',
         },
         buttonSkip: {
-          color: theme === 'dark' ? '#6b7280' : '#9ca3af',
+          color: theme === 'dark' ? '#94a3b8' : '#64748b',
           fontSize: '13px',
+          fontWeight: '700',
         },
       }}
       locale={{
@@ -214,6 +258,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
         close: 'Đóng',
         last: 'Bắt đầu',
         next: 'Tiếp →',
+        nextWithProgress: 'Tiếp ({current}/{total}) →',
         skip: 'Bỏ qua',
         open: 'Mở',
       }}

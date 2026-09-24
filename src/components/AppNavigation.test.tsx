@@ -10,6 +10,7 @@ describe('AppNavigation', () => {
     labels.forEach((label) => expect(screen.getAllByRole('button', { name: label })).toHaveLength(1));
     expect(screen.queryByRole('button', { name: 'Tiện ích' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang chủ' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Trang chủ' })).toHaveAttribute('data-tour', 'desktop-home');
   });
 
   it('keeps the compact navigation focused and opens secondary destinations through More', () => {
@@ -26,6 +27,8 @@ describe('AppNavigation', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Tìm bạn' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Tìm bạn' })).toHaveAttribute('data-tour', 'mobile-students');
+    expect(screen.getByRole('button', { name: 'Thêm' })).toHaveAttribute('data-tour', 'mobile-more');
     expect(screen.queryByRole('button', { name: 'Cộng đồng' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tài liệu' })).not.toBeInTheDocument();
 

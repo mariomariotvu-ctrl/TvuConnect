@@ -358,14 +358,6 @@ export default function App() {
       duration: 3000,
     });
     
-    // Check if user wants to see onboarding tour
-    const hasSeenTour = localStorage.getItem(`onboarding_seen_${user.uid}`);
-    if (!hasSeenTour) {
-      setTimeout(() => {
-        setShowOnboarding(true);
-      }, 1000);
-    }
-    
     // Continue with profile check
     if (!hasProfile) {
       setView('profile');
@@ -544,6 +536,33 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Run the product tour exactly once after a new member has accepted the
+  // terms and finished a usable profile. Firestore keeps this decision in
+  // sync across devices; localStorage makes subsequent loads instant.
+  useEffect(() => {
+    if (!user || !hasAcceptedTerms || isLoadingProfile || !profileComplete || showTermsModal || showOnboarding) return;
+    if (currentProfile?.onboardingPending !== true) return;
+    const localSeen = localStorage.getItem(`onboarding_seen_${user.uid}`);
+    if (localSeen || currentProfile?.onboardingCompletedAt) return;
+
+    const timer = window.setTimeout(() => {
+      setShowMobileMenu(false);
+      setView('home');
+      setShowOnboarding(true);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [
+    currentProfile?.onboardingCompletedAt,
+    currentProfile?.onboardingPending,
+    hasAcceptedTerms,
+    isLoadingProfile,
+    profileComplete,
+    setView,
+    showOnboarding,
+    showTermsModal,
+    user,
+  ]);
 
   // Guard against accessing features without complete profile
   useEffect(() => {
@@ -877,11 +896,6 @@ export default function App() {
                 document.getElementById('blocked-users')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }, 250);
             }} onShowTour={() => {
-          // Clear the seen flag so tour can run again
-          if (user) {
-            localStorage.removeItem(`onboarding_seen_${user.uid}`);
-          }
-          
           // Navigate to home first so nav elements are visible
           setView('home');
           
@@ -1568,6 +1582,12 @@ export default function App() {
               setShowOnboarding(false);
               if (user) {
                 localStorage.setItem(`onboarding_seen_${user.uid}`, 'true');
+                void updateDoc(doc(db, 'profiles', user.uid), {
+                  onboardingPending: false,
+                  onboardingCompletedAt: serverTimestamp(),
+                }).catch((error) => {
+                  logger.warn('Could not sync onboarding completion:', error);
+                });
               }
             }}
           />

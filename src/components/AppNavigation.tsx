@@ -49,7 +49,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({ view, mobile = fal
           <button
             key={itemView}
             type="button"
-            data-tour={itemView === 'conversations' ? 'messages' : itemView}
+            data-tour={`${mobile ? 'mobile' : 'desktop'}-${itemView === 'conversations' ? 'messages' : itemView}`}
             className={active ? 'is-active' : undefined}
             aria-current={active ? 'page' : undefined}
             onMouseEnter={() => preloadName[itemView] && preloadRoute(preloadName[itemView]!)}
@@ -65,7 +65,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({ view, mobile = fal
         <button
           type="button"
           data-menu-toggle="true"
-          data-tour="more"
+          data-tour="mobile-more"
           className={moreOpen || ['profile', 'notifications', 'settings', 'documents', 'posts'].includes(view) ? 'is-active' : undefined}
           aria-expanded={moreOpen}
           aria-controls="mobile-menu-container"

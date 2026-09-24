@@ -345,6 +345,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onSave }) => {
       // Or better: check if we already have it in the local state
       if (!profile.createdAt) {
         cleanData.createdAt = serverTimestamp();
+        // Only brand-new profiles should auto-open the first-use tour.
+        // Existing members can still replay it manually from Settings.
+        cleanData.onboardingPending = true;
       }
 
       // Add optional string fields (only if they have a value)
