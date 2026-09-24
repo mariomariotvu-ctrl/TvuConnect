@@ -84,7 +84,8 @@ export function extractRecognizedLibraryQueries(userMessage: string, answer: str
   collect(/["“”]([^"“”\n]{3,140})["“”]/g);
   collect(/^\s*\d+[.)]\s+(?:\*\*)?([^\n*]{3,140})(?:\*\*)?/gm);
 
-  if (isLibrarySearchQuery(userMessage) && hasSpecificLibrarySearchTerms(userMessage)) {
+  const genericImagePrompt = /doc chu trong anh|xac dinh mon hoc|trang sach nay/i.test(normalizeLibraryText(userMessage));
+  if (!genericImagePrompt && isLibrarySearchQuery(userMessage) && hasSpecificLibrarySearchTerms(userMessage)) {
     candidates.push(userMessage);
   }
 

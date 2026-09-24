@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  buildLibraryUnavailableResult,
   buildGeminiRequest,
   extractAcademicSearchQuery,
   extractGroundingSources,
@@ -158,6 +159,16 @@ test('tells students whether verified links were actually found', () => {
     finalizeLibraryAnswer('Đây là sách Vi Khuẩn Y Học.', []),
     /chưa xác minh được link đọc công khai/i,
   );
+});
+
+test('keeps library search usable when the AI provider quota is exhausted', () => {
+  assert.deepEqual(buildLibraryUnavailableResult([
+    { title: 'Giáo trình', url: 'https://drive.google.com/file/d/abc/view' },
+  ], true), {
+    answer: 'Mình đã tìm được 1 nguồn học liệu đã kiểm tra. Phần phân tích AI đang tạm hết lượt, nhưng bạn vẫn có thể mở các nguồn bên dưới ngay.',
+    sources: [{ title: 'Giáo trình', url: 'https://drive.google.com/file/d/abc/view' }],
+  });
+  assert.match(buildLibraryUnavailableResult([], true).answer, /nhập thêm tên sách/i);
 });
 
 test('retries temporary Gemini overload responses', async () => {

@@ -80,5 +80,9 @@ describe('AI public Drive library search', () => {
       'Virus Y Học',
       'Đọc ảnh và tìm tài liệu phù hợp',
     ]);
+    expect(extractRecognizedLibraryQueries(
+      'Đọc chữ trong ảnh, xác định môn học và tìm tài liệu công khai phù hợp để mình đọc tiếp.',
+      'Phần nhận diện ảnh đang tạm hết lượt.',
+    )).toEqual([]);
   });
 });

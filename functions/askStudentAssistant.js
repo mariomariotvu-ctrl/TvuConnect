@@ -334,6 +334,15 @@ const finalizeLibraryAnswer = (answer, sources) => {
   return `${cleanAnswer}\n\nHiện mình chưa xác minh được link đọc công khai khớp chính xác với tài liệu bạn cần, nên mình không tạo link phỏng đoán.`;
 };
 
+const buildLibraryUnavailableResult = (sources, hasImage) => ({
+  answer: sources.length
+    ? `Mình đã tìm được ${sources.length} nguồn học liệu đã kiểm tra. Phần phân tích AI đang tạm hết lượt, nhưng bạn vẫn có thể mở các nguồn bên dưới ngay.`
+    : hasImage
+      ? 'Phần nhận diện ảnh đang tạm hết lượt. Bạn hãy nhập thêm tên sách nhìn thấy trên bìa; BuBu vẫn sẽ dò Thư viện Drive và trả link nếu có file khớp.'
+      : 'Phần phân tích AI đang tạm hết lượt và mình chưa tìm được nguồn khớp đủ rõ. Bạn hãy thêm tên sách, tác giả hoặc chuyên ngành để dò chính xác hơn.',
+  sources,
+});
+
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function fetchGeminiWithRetry(url, options, dependencies = {}) {
@@ -451,6 +460,7 @@ exports.askStudentAssistant = onCall(
     }
 
     if (!response) {
+      if (mode === 'library-search') return buildLibraryUnavailableResult(sources, Boolean(image));
       throw new HttpsError('unavailable', 'Dịch vụ AI đang tạm bận. Hãy thử lại sau.');
     }
 
@@ -458,12 +468,7 @@ exports.askStudentAssistant = onCall(
       const providerError = await response.text();
       console.error('Gemini request failed', response.status, modelUsed, providerError.slice(0, 500));
 
-      if (mode === 'library-search' && sources.length) {
-        return {
-          answer: `Mình đã tìm được ${sources.length} nguồn học liệu mở để bạn kiểm tra. AI đang hết lượt phản hồi tạm thời, nhưng các nguồn bên dưới vẫn có thể mở và đọc ngay.`,
-          sources,
-        };
-      }
+      if (mode === 'library-search') return buildLibraryUnavailableResult(sources, Boolean(image));
 
       if (response.status === 429) {
         throw new HttpsError('resource-exhausted', 'Dịch vụ AI đang quá tải. Hãy thử lại sau ít phút.');
@@ -523,6 +528,7 @@ exports.fetchGeminiWithRetry = fetchGeminiWithRetry;
 exports.extractGroundingSources = extractGroundingSources;
 exports.extractAcademicSearchQuery = extractAcademicSearchQuery;
 exports.normalizeImage = normalizeImage;
+exports.buildLibraryUnavailableResult = buildLibraryUnavailableResult;
 exports.finalizeLibraryAnswer = finalizeLibraryAnswer;
 exports.searchOpenAcademicSources = searchOpenAcademicSources;
 exports.selectModelCandidates = selectModelCandidates;
