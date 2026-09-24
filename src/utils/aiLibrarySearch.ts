@@ -115,6 +115,9 @@ export function rankPublicDriveFiles(
       const normalizedTitle = normalizeLibraryText(title);
       const normalizedFolders = normalizeLibraryText(file.folderPath.join(' '));
       const normalizedDescription = normalizeLibraryText(file.description || '');
+      const titleWords = new Set(normalizedTitle.split(/\s+/).filter(Boolean));
+      const folderWords = new Set(normalizedFolders.split(/\s+/).filter(Boolean));
+      const descriptionWords = new Set(normalizedDescription.split(/\s+/).filter(Boolean));
       let score = 0;
       const matchedTokens = new Set<string>();
       const structuredMatches = new Set<string>();
@@ -125,17 +128,17 @@ export function rankPublicDriveFiles(
           score += 80;
           matchedTokens.add(token);
           structuredMatches.add(token);
-        } else if (normalizedTitle.includes(token)) {
+        } else if (titleWords.has(token)) {
           score += 32;
           matchedTokens.add(token);
           structuredMatches.add(token);
         }
-        if (normalizedFolders.includes(token)) {
+        if (folderWords.has(token)) {
           score += 20;
           matchedTokens.add(token);
           structuredMatches.add(token);
         }
-        if (normalizedDescription.includes(token)) {
+        if (descriptionWords.has(token)) {
           score += 8;
           matchedTokens.add(token);
         }

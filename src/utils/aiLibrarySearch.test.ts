@@ -52,6 +52,21 @@ describe('AI public Drive library search', () => {
       .toBe('https://drive.google.com/file/d/medicine/view');
   });
 
+  it('does not confuse short Vietnamese words with prefixes of unrelated words', () => {
+    const mixedFiles = [
+      ...files,
+      {
+        id: 'unrelated',
+        name: 'Trọng tâm ôn tập.pdf',
+        mimeType: 'application/pdf',
+        folderPath: ['Logic học'],
+      },
+    ];
+
+    expect(rankPublicDriveFiles('Tìm tài liệu A_UniS Hỗ trợ học tập', mixedFiles).map((file) => file.id))
+      .toEqual(['student-support']);
+  });
+
   it('extracts exact book titles recognized from an uploaded image', () => {
     const answer = [
       'Hình ảnh hiển thị hai giáo trình:',
