@@ -21,7 +21,7 @@ const CACHED_RESPONSES: CacheEntry[] = [
   },
   {
     question: 'tài liệu và sách',
-    keywords: ['tài liệu', 'giáo trình', 'sách', 'sách pdf'],
+    keywords: ['tài liệu', 'giáo trình', 'tìm sách', 'sách pdf', 'thư viện'],
     answer: 'Vào Tài liệu, chọn ngành học rồi lọc Sách/Giáo trình. Chỉ sử dụng tài liệu mở, liên kết chính thức hoặc tài liệu bạn được phép chia sẻ; đừng đăng bản sao có bản quyền khi chưa được phép.',
   },
   {
@@ -59,8 +59,24 @@ export const findCachedResponse = (userQuestion: string): string | null => {
 };
 
 export const shouldUseCache = (userQuestion: string): boolean => {
-  const words = userQuestion.trim().split(/\s+/);
-  return words.length >= 2 && !/\b(hôm nay|bây giờ|hiện tại|mới nhất)\b/i.test(userQuestion);
+  const question = normalizeText(userQuestion);
+  const asksForAppGuidance = [
+    'cach ',
+    'lam sao',
+    'nhu the nao',
+    'o dau',
+    'huong dan',
+    'su dung',
+    'trong tvu connect',
+    'tren tvu connect',
+    'trong app',
+    'tren app',
+    'bat thong bao',
+    'mo tien ich',
+  ].some((phrase) => question.includes(phrase));
+
+  return asksForAppGuidance
+    && !/\b(hom nay|bay gio|hien tai|moi nhat)\b/.test(question);
 };
 
 export const getCacheStats = () => ({
