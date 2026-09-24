@@ -147,7 +147,7 @@ const selectThinkingLevel = (message) => (
 );
 
 const selectModelCandidates = (message, hasImage = false, mode = 'normal') => {
-  if (mode === 'library-search') return [MODEL, FALLBACK_MODEL];
+  if (mode === 'library-search') return [MODEL, FALLBACK_MODEL, FAST_MODEL];
   if (hasImage) return [FALLBACK_MODEL, FAST_MODEL];
   if (selectThinkingLevel(message) === 'medium') return [MODEL, FAST_MODEL];
   return [FAST_MODEL, FALLBACK_MODEL];

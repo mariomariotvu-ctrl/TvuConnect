@@ -73,7 +73,10 @@ test('adds an inline image and verified source context for study mode', () => {
 });
 
 test('uses the grounded model for library searches', () => {
-  assert.deepEqual(selectModelCandidates('Tìm giáo trình vi sinh', false, 'library-search'), [MODEL, FALLBACK_MODEL]);
+  assert.deepEqual(
+    selectModelCandidates('Tìm giáo trình vi sinh', false, 'library-search'),
+    [MODEL, FALLBACK_MODEL, FAST_MODEL],
+  );
 });
 
 test('extracts the academic subject without generic search words', () => {
