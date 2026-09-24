@@ -27,7 +27,7 @@ const SYSTEM_INSTRUCTION = [
   'Bạn hỗ trợ nhiều khối ngành ở bậc đại học: sức khỏe, kỹ thuật, công nghệ, kinh tế, luật, nông nghiệp, xã hội, ngôn ngữ và sư phạm.',
   'Trả lời bằng tiếng Việt rõ ràng, đi thẳng vào câu hỏi. Với câu học thuật, hãy xác định khái niệm cốt lõi, giải thích từng bước, đưa ví dụ thực tế hoặc công thức khi cần, rồi chốt cách tự kiểm tra kết quả.',
   'Nếu đề bài thiếu dữ kiện quan trọng, hỏi đúng một câu ngắn để làm rõ. Không biến câu trả lời đơn giản thành bài viết dài.',
-  'Khi người dùng muốn tìm sách, giáo trình hoặc đề thi, nhắc họ dùng kết quả từ Thư viện Drive ngay trong TVU Connect; tuyệt đối không bịa tên file, tác giả, đường dẫn hay trích dẫn.',
+  'Khi người dùng muốn tìm sách, giáo trình hoặc đề thi, phải trả các nguồn đã được hệ thống xác minh; không đẩy người dùng sang Thư viện để tự tìm và tuyệt đối không bịa tên file, tác giả, đường dẫn hay trích dẫn.',
   'Không bịa địa điểm, sự kiện, học liệu, chính sách, con người hoặc dữ liệu thời gian thực. Nếu thiếu dữ liệu, nói rõ và chỉ cách kiểm tra nguồn chính thức.',
   'Không yêu cầu mật khẩu, mã OTP, địa chỉ chính xác, số điện thoại, MSSV hoặc dữ liệu nhạy cảm. Nhắc người dùng kiểm tra nguồn khi trả lời ảnh hưởng tới học tập, sức khỏe, pháp lý hoặc tài chính.',
   'Không hỗ trợ gian lận học thuật. Có thể giải thích, lập kế hoạch ôn tập, đưa ví dụ và khuyến khích tự làm.',
@@ -37,7 +37,8 @@ const LIBRARY_SEARCH_INSTRUCTION = [
   'Người dùng đang tìm học liệu. Hãy dựa trên các nguồn học liệu mở do hệ thống cung cấp và nội dung ảnh nếu có.',
   'Ưu tiên nguồn chính thức của trường đại học, thư viện, nhà xuất bản, OpenStax, DOAB, Internet Archive và file Google Drive được chủ sở hữu chia sẻ công khai.',
   'Chỉ giới thiệu tài liệu có thể đọc hợp pháp; không hướng dẫn vượt quyền truy cập hoặc tìm bản sao vi phạm bản quyền.',
-  'Trả lời ngắn gọn bằng tiếng Việt: xác định đúng môn/chủ đề, gợi ý tối đa 5 nguồn tốt nhất và nói rõ nguồn nào cần kiểm tra thêm. Không tự bịa đường dẫn.',
+  'Nếu ảnh chứa nhiều bìa sách, nhận diện từng tựa đề rồi dùng Google Search để kiểm tra từng sách; ưu tiên kết quả từ drive.google.com, website trường hoặc nhà xuất bản.',
+  'Trả lời ngắn gọn bằng tiếng Việt: xác định đúng môn/chủ đề, gợi ý tối đa 5 nguồn tốt nhất và nói rõ nguồn nào cần kiểm tra thêm. Không bảo người dùng tự tìm lại và không tự bịa đường dẫn.',
 ].join(' ');
 
 const IMAGE_STUDY_INSTRUCTION = [
@@ -145,7 +146,8 @@ const selectThinkingLevel = (message) => (
   COMPLEX_ACADEMIC_QUERY.test(normalizeForRouting(message)) ? 'medium' : 'low'
 );
 
-const selectModelCandidates = (message, hasImage = false) => {
+const selectModelCandidates = (message, hasImage = false, mode = 'normal') => {
+  if (mode === 'library-search') return [MODEL, FALLBACK_MODEL];
   if (hasImage) return [FALLBACK_MODEL, FAST_MODEL];
   if (selectThinkingLevel(message) === 'medium') return [MODEL, FAST_MODEL];
   return [FAST_MODEL, FALLBACK_MODEL];
@@ -197,6 +199,9 @@ const buildGeminiRequest = (key, message, history, requestOptions = {}) => {
       },
     },
   };
+  if (mode === 'library-search') {
+    body.tools = [{ google_search: {} }];
+  }
 
   return {
     url: `https://generativelanguage.googleapis.com/v1beta/models/${requestOptions.model || MODEL}:generateContent`,
@@ -320,6 +325,15 @@ const extractGroundingSources = (payload) => {
   }).slice(0, 8);
 };
 
+const finalizeLibraryAnswer = (answer, sources) => {
+  const cleanAnswer = asText(answer, 12_000);
+  if (!cleanAnswer) return cleanAnswer;
+  if (sources.length) {
+    return `${cleanAnswer}\n\nMình đã đính kèm ${sources.length} nguồn đã kiểm tra ở bên dưới để bạn mở trực tiếp.`;
+  }
+  return `${cleanAnswer}\n\nHiện mình chưa xác minh được link đọc công khai khớp chính xác với tài liệu bạn cần, nên mình không tạo link phỏng đoán.`;
+};
+
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function fetchGeminiWithRetry(url, options, dependencies = {}) {
@@ -409,16 +423,7 @@ exports.askStudentAssistant = onCall(
       })
       : [];
 
-    if (mode === 'library-search' && !image) {
-      return {
-        answer: sources.length
-          ? `Mình đã tìm được ${sources.length} nguồn học liệu mở, ưu tiên sách có thể đọc trực tuyến hợp pháp. Bạn chọn nguồn bên dưới để đọc trong TVU Connect.`
-          : 'Mình chưa tìm thấy nguồn mở đủ khớp. Bạn hãy thêm tên tác giả, chuyên ngành hoặc một phần tên sách để tìm chính xác hơn.',
-        sources,
-      };
-    }
-
-    const modelCandidates = selectModelCandidates(message, Boolean(image));
+    const modelCandidates = selectModelCandidates(message, Boolean(image), mode);
     let modelUsed = modelCandidates[0];
     let response;
     for (const candidate of modelCandidates) {
@@ -473,7 +478,7 @@ exports.askStudentAssistant = onCall(
     }
 
     const payload = await response.json();
-    const answer = payload?.candidates?.[0]?.content?.parts
+    let answer = payload?.candidates?.[0]?.content?.parts
       ?.map((part) => part.text || '')
       .join('')
       .trim();
@@ -489,6 +494,10 @@ exports.askStudentAssistant = onCall(
       sources = [...sources, ...imageSources].filter((source, index, list) => (
         list.findIndex((candidate) => candidate.url === source.url) === index
       )).slice(0, 8);
+    }
+
+    if (mode === 'library-search' && answer) {
+      answer = finalizeLibraryAnswer(answer, sources);
     }
 
     if (!answer) return {
@@ -514,6 +523,7 @@ exports.fetchGeminiWithRetry = fetchGeminiWithRetry;
 exports.extractGroundingSources = extractGroundingSources;
 exports.extractAcademicSearchQuery = extractAcademicSearchQuery;
 exports.normalizeImage = normalizeImage;
+exports.finalizeLibraryAnswer = finalizeLibraryAnswer;
 exports.searchOpenAcademicSources = searchOpenAcademicSources;
 exports.selectModelCandidates = selectModelCandidates;
 exports.selectThinkingLevel = selectThinkingLevel;

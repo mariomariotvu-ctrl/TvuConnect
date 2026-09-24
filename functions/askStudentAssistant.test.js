@@ -5,6 +5,7 @@ const {
   extractAcademicSearchQuery,
   extractGroundingSources,
   fetchGeminiWithRetry,
+  finalizeLibraryAnswer,
   normalizeImage,
   searchOpenAcademicSources,
   selectModelCandidates,
@@ -62,13 +63,17 @@ test('adds an inline image and verified source context for study mode', () => {
   const body = JSON.parse(request.options.body);
 
   assert.equal(request.url.includes(FALLBACK_MODEL), true);
-  assert.equal(body.tools, undefined);
+  assert.deepEqual(body.tools, [{ google_search: {} }]);
   assert.deepEqual(body.contents[0].parts, [
     { text: 'Đọc ảnh và tìm giáo trình sinh lý\n\nNguồn học liệu mở hệ thống đã kiểm tra:\n1. Open Physiology — https://example.edu/physiology' },
     { inlineData: { mimeType: 'image/jpeg', data: 'aGVsbG8=' } },
   ]);
   assert.match(body.systemInstruction.parts[0].text, /nguồn học liệu mở/i);
   assert.match(body.systemInstruction.parts[0].text, /đọc chữ trong ảnh/i);
+});
+
+test('uses the grounded model for library searches', () => {
+  assert.deepEqual(selectModelCandidates('Tìm giáo trình vi sinh', false, 'library-search'), [MODEL, FALLBACK_MODEL]);
 });
 
 test('extracts the academic subject without generic search words', () => {
@@ -139,6 +144,17 @@ test('returns unique safe grounding sources from Gemini metadata', () => {
   assert.deepEqual(extractGroundingSources(payload), [
     { title: 'Open textbook', url: 'https://example.edu/book.pdf' },
   ]);
+});
+
+test('tells students whether verified links were actually found', () => {
+  assert.match(
+    finalizeLibraryAnswer('Đây là sách Vi Khuẩn Y Học.', [{ title: 'Nguồn', url: 'https://drive.google.com/file/d/abc/view' }]),
+    /đính kèm 1 nguồn đã kiểm tra/i,
+  );
+  assert.match(
+    finalizeLibraryAnswer('Đây là sách Vi Khuẩn Y Học.', []),
+    /chưa xác minh được link đọc công khai/i,
+  );
 });
 
 test('retries temporary Gemini overload responses', async () => {

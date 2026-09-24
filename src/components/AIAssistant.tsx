@@ -8,9 +8,11 @@ import {
 } from '../utils/geminiAI';
 import { findCachedResponse, shouldUseCache } from '../utils/aiCache';
 import {
+  extractRecognizedLibraryQueries,
   hasSpecificLibrarySearchTerms,
   isLibrarySearchQuery,
   searchPublicDriveLibrary,
+  searchRecognizedDriveLibrary,
   type AILibraryResult,
 } from '../utils/aiLibrarySearch';
 import { prepareImageForAI, type PreparedAIImage } from '../utils/aiImage';
@@ -25,6 +27,7 @@ interface Message {
   timestamp: Date;
   imagePreview?: string;
   librarySources?: AILibraryResult[];
+  librarySearchPending?: boolean;
   webSources?: StudentAssistantSource[];
 }
 
@@ -261,15 +264,39 @@ export const AIAssistant: React.FC = () => {
         image: image ? { data: image.data, mimeType: image.mimeType } : undefined,
       });
 
+      const assistantId = (Date.now() + 1).toString();
+      const recognizedLibraryQueries = image
+        ? extractRecognizedLibraryQueries(cleanText, aiResponse.answer)
+        : [];
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: assistantId,
         role: 'assistant',
         content: aiResponse.answer,
         timestamp: new Date(),
+        librarySearchPending: recognizedLibraryQueries.length > 0,
         webSources: aiResponse.sources,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      if (recognizedLibraryQueries.length > 0) {
+        const updateLibraryMatches = (librarySources: AILibraryResult[], pending: boolean) => {
+          setMessages((current) => current.map((message) => (
+            message.id === assistantId
+              ? { ...message, librarySources, librarySearchPending: pending }
+              : message
+          )));
+        };
+
+        void searchRecognizedDriveLibrary(cleanText, aiResponse.answer, (librarySources) => {
+          updateLibraryMatches(librarySources, false);
+        }).then((librarySources) => {
+          updateLibraryMatches(librarySources, false);
+        }).catch((error) => {
+          console.warn('Could not match recognized books in TVU Drive:', error);
+          updateLibraryMatches([], false);
+        });
+      }
     } catch (error: any) {
       console.error('Error in handleSendMessage:', error);
 
@@ -397,23 +424,43 @@ export const AIAssistant: React.FC = () => {
                     <div className="mt-3 space-y-2">
                       <p className="text-[11px] font-extrabold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">Trong Thư viện TVU</p>
                       {message.librarySources.map((source) => (
-                        <a
+                        <div
                           key={source.id}
-                          href={`/library?q=${encodeURIComponent(source.title)}`}
                           className="flex min-h-14 items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/80 p-2.5 text-left text-slate-900 transition hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-white dark:hover:border-indigo-700"
                         >
-                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-indigo-600 shadow-sm dark:bg-slate-900 dark:text-indigo-300">
-                            <BookOpen className="h-4 w-4" aria-hidden="true" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="line-clamp-2 text-xs font-bold leading-snug">{source.title}</span>
-                            <span className="mt-0.5 block truncate text-[11px] text-slate-500 dark:text-slate-400">
-                              {source.folderPath.length ? source.folderPath.join(' / ') : source.category}
+                          <button
+                            type="button"
+                            onClick={() => setViewerSource({ title: source.title, url: source.url })}
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                          >
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-indigo-600 shadow-sm dark:bg-slate-900 dark:text-indigo-300">
+                              <BookOpen className="h-4 w-4" aria-hidden="true" />
                             </span>
-                          </span>
-                          <ExternalLink className="h-4 w-4 shrink-0 text-indigo-500" aria-hidden="true" />
-                        </a>
+                            <span className="min-w-0 flex-1">
+                              <span className="line-clamp-2 text-xs font-bold leading-snug">{source.title}</span>
+                              <span className="mt-0.5 block truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                {source.folderPath.length ? source.folderPath.join(' / ') : source.category} · Đọc trong TVU Connect
+                              </span>
+                            </span>
+                          </button>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Mở link Drive gốc: ${source.title}`}
+                            title="Mở link Drive gốc"
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-indigo-600 hover:bg-indigo-100 dark:text-indigo-300 dark:hover:bg-indigo-900/40"
+                          >
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                          </a>
+                        </div>
                       ))}
+                    </div>
+                  )}
+                  {message.librarySearchPending && (
+                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-xs font-semibold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-200">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      Đang đối chiếu tên sách với thư mục Drive TVU…
                     </div>
                   )}
                   {message.webSources && message.webSources.length > 0 && (

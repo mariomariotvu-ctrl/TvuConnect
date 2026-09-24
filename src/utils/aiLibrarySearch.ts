@@ -1,5 +1,6 @@
 import { inferDriveDocumentCategory } from './driveLibrary';
 import {
+  buildGoogleDriveShareUrl,
   listGoogleDriveLibraryFiles,
   type GoogleDriveLibraryFile,
 } from './googleDriveClient';
@@ -11,6 +12,7 @@ export interface AILibraryResult {
   subject: string;
   folderPath: string[];
   mimeType: string;
+  url: string;
 }
 
 const LIBRARY_INTENT = /\b(tim|kiem|tra|goi y|can|muon|co)\b.*\b(sach|ebook|tai lieu|giao trinh|slide|bai giang|de thi|bai tap|hoc lieu)\b|\b(sach|ebook|tai lieu|giao trinh|hoc lieu)\b.*\b(mon|nganh|khoa|drive|thu vien)\b/i;
@@ -41,6 +43,13 @@ export const normalizeLibraryText = (value: string): string => value
 
 const cleanFileTitle = (name: string) => name.replace(/\.[a-z0-9]{1,8}$/i, '').trim() || name;
 
+const cleanRecognizedTitle = (value: string): string => value
+  .replace(/^\s*(?:\d+[.)]|[-•])\s*/, '')
+  .replace(/^\*\*|\*\*$/g, '')
+  .split(/\s+[–—]\s+|\s*:\s+/)[0]
+  .replace(/[.。]+$/, '')
+  .trim();
+
 const meaningfulTokens = (query: string): string[] => {
   const rawTokens = normalizeLibraryText(query).split(/\s+/).filter(Boolean);
   const expanded = rawTokens.flatMap((token) => [token, ...(QUERY_ALIASES[token] || [])]);
@@ -54,6 +63,41 @@ export function hasSpecificLibrarySearchTerms(query: string): boolean {
 
 export function isLibrarySearchQuery(query: string): boolean {
   return LIBRARY_INTENT.test(normalizeLibraryText(query));
+}
+
+/**
+ * Pull book titles out of an image-reading answer before searching Drive.
+ * Vision responses commonly return titles as bold text, quotes or a numbered
+ * list; keeping these short queries avoids diluting the match with the whole
+ * explanatory answer.
+ */
+export function extractRecognizedLibraryQueries(userMessage: string, answer: string): string[] {
+  const candidates: string[] = [];
+  const collect = (pattern: RegExp) => {
+    for (const match of answer.matchAll(pattern)) {
+      const title = cleanRecognizedTitle(match[1] || '');
+      if (title) candidates.push(title);
+    }
+  };
+
+  collect(/\*\*([^*\n]{3,140})\*\*/g);
+  collect(/["“”]([^"“”\n]{3,140})["“”]/g);
+  collect(/^\s*\d+[.)]\s+(?:\*\*)?([^\n*]{3,140})(?:\*\*)?/gm);
+
+  if (isLibrarySearchQuery(userMessage) && hasSpecificLibrarySearchTerms(userMessage)) {
+    candidates.push(userMessage);
+  }
+
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const normalized = normalizeLibraryText(candidate);
+    if (!normalized || seen.has(normalized) || normalized.includes('thu vien drive') || normalized.includes('tvu connect')) {
+      return false;
+    }
+    if (!hasSpecificLibrarySearchTerms(candidate)) return false;
+    seen.add(normalized);
+    return true;
+  }).slice(0, 5);
 }
 
 export function rankPublicDriveFiles(
@@ -119,6 +163,7 @@ export function rankPublicDriveFiles(
       subject: file.folderPath.at(-1) || 'Học liệu chung',
       folderPath: [...file.folderPath],
       mimeType: file.mimeType,
+      url: buildGoogleDriveShareUrl(file),
     }));
 }
 
@@ -150,4 +195,29 @@ export async function searchPublicDriveLibrary(
   ]);
   if (timeoutId) clearTimeout(timeoutId);
   return firstUsefulResponse;
+}
+
+export async function searchRecognizedDriveLibrary(
+  userMessage: string,
+  answer: string,
+  onProgress?: (results: AILibraryResult[]) => void,
+): Promise<AILibraryResult[]> {
+  const queries = extractRecognizedLibraryQueries(userMessage, answer);
+  if (!queries.length) return [];
+
+  const matches = new Map<string, AILibraryResult>();
+  const merge = (results: AILibraryResult[]) => {
+    for (const result of results) matches.set(result.id, result);
+    const merged = [...matches.values()].slice(0, 8);
+    if (merged.length) onProgress?.(merged);
+    return merged;
+  };
+
+  const settled = await Promise.allSettled(
+    queries.map((query) => searchPublicDriveLibrary(query, merge)),
+  );
+  for (const result of settled) {
+    if (result.status === 'fulfilled') merge(result.value);
+  }
+  return [...matches.values()].slice(0, 8);
 }

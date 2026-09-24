@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  extractRecognizedLibraryQueries,
   hasSpecificLibrarySearchTerms,
   isLibrarySearchQuery,
   rankPublicDriveFiles,
@@ -47,5 +48,22 @@ describe('AI public Drive library search', () => {
     expect(rankPublicDriveFiles('tai lieu ke toan', files)[0].id).toBe('accounting');
     expect(rankPublicDriveFiles('sach sinh ly y khoa', files)[0].id).toBe('medicine');
     expect(rankPublicDriveFiles('tìm giáo trình sinh lý', files).some((file) => file.id === 'student-support')).toBe(false);
+    expect(rankPublicDriveFiles('sach sinh ly y khoa', files)[0].url)
+      .toBe('https://drive.google.com/file/d/medicine/view');
+  });
+
+  it('extracts exact book titles recognized from an uploaded image', () => {
+    const answer = [
+      'Hình ảnh hiển thị hai giáo trình:',
+      '1. **Vi Khuẩn Y Học** – Đại học Y Dược TP.HCM.',
+      '2. **Virus Y Học** – Chủ biên Cao Minh Nga.',
+      'Bạn có thể dùng **Thư viện Drive ngay trong TVU Connect**.',
+    ].join('\n');
+
+    expect(extractRecognizedLibraryQueries('Đọc ảnh và tìm tài liệu phù hợp', answer)).toEqual([
+      'Vi Khuẩn Y Học',
+      'Virus Y Học',
+      'Đọc ảnh và tìm tài liệu phù hợp',
+    ]);
   });
 });
