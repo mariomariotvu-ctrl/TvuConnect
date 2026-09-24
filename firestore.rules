@@ -523,7 +523,11 @@ service cloud.firestore {
         && request.resource.data.subject.size() <= 80
         && request.resource.data.status == 'open'
         && request.resource.data.maxParticipants == 8
-        && request.resource.data.participantCount == 0;
+        && request.resource.data.participantCount == 0
+        && request.resource.data.roomLocked == false
+        && request.resource.data.audioLocked == false
+        && request.resource.data.videoLocked == false
+        && request.resource.data.screenShareLocked == false;
       allow update: if isAuthenticated()
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid
@@ -531,7 +535,8 @@ service cloud.firestore {
           .hasOnly([
             'ownerLastSeenAt', 'status', 'closedAt',
             'youtubeVideoId', 'youtubeUpdatedAt',
-            'youtubePlaybackState', 'youtubePlaybackTime', 'youtubePlaybackUpdatedAt'
+            'youtubePlaybackState', 'youtubePlaybackTime', 'youtubePlaybackUpdatedAt',
+            'roomLocked', 'audioLocked', 'videoLocked', 'screenShareLocked', 'controlsUpdatedAt'
           ])
         && request.resource.data.status in ['open', 'closed']
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['youtubeVideoId'])
@@ -542,7 +547,15 @@ service cloud.firestore {
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['youtubePlaybackTime'])
           || (request.resource.data.youtubePlaybackTime is number
             && request.resource.data.youtubePlaybackTime >= 0
-            && request.resource.data.youtubePlaybackTime <= 864000));
+            && request.resource.data.youtubePlaybackTime <= 864000))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['roomLocked'])
+          || request.resource.data.roomLocked is bool)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['audioLocked'])
+          || request.resource.data.audioLocked is bool)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['videoLocked'])
+          || request.resource.data.videoLocked is bool)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['screenShareLocked'])
+          || request.resource.data.screenShareLocked is bool);
       allow delete: if false;
 
       match /participants/{uid} {
@@ -554,7 +567,15 @@ service cloud.firestore {
           && resource.data.uid == request.auth.uid
           && request.resource.data.uid == resource.data.uid
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['updatedAt']);
+            .hasOnly(['updatedAt', 'handRaised', 'handRaisedAt', 'muted', 'cameraOn', 'sharingScreen'])
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaised'])
+            || request.resource.data.handRaised is bool)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['muted'])
+            || request.resource.data.muted is bool)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['cameraOn'])
+            || request.resource.data.cameraOn is bool)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['sharingScreen'])
+            || request.resource.data.sharingScreen is bool);
       }
 
       match /signals/{signalId} {
@@ -564,14 +585,37 @@ service cloud.firestore {
           && request.resource.data.fromUid == request.auth.uid
           && request.resource.data.toUid is string
           && request.resource.data.toUid != request.auth.uid
-          && request.resource.data.type in ['offer', 'answer', 'candidate']
           && get(/databases/$(database)/documents/studyRooms/$(roomId)).data.status == 'open'
           && exists(/databases/$(database)/documents/studyRooms/$(roomId)/participants/$(request.auth.uid))
           && exists(/databases/$(database)/documents/studyRooms/$(roomId)/participants/$(request.resource.data.toUid))
+          && (request.resource.data.type in ['offer', 'answer', 'candidate']
+            || (request.resource.data.type == 'host-mute'
+              && get(/databases/$(database)/documents/studyRooms/$(roomId)).data.ownerUid == request.auth.uid))
           && isNotBlocked(request.auth.uid, request.resource.data.toUid);
         allow update: if false;
         allow delete: if isAuthenticated()
           && resource.data.toUid == request.auth.uid;
+      }
+
+      match /reactions/{reactionId} {
+        allow read: if isAuthenticated()
+          && exists(/databases/$(database)/documents/studyRooms/$(roomId)/participants/$(request.auth.uid));
+        allow create: if isAuthenticated()
+          && exists(/databases/$(database)/documents/studyRooms/$(roomId)/participants/$(request.auth.uid))
+          && request.resource.data.keys().hasOnly([
+            'fromUid', 'displayName', 'emoji', 'clientCreatedAt', 'createdAt'
+          ])
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.displayName
+            == get(/databases/$(database)/documents/studyRooms/$(roomId)/participants/$(request.auth.uid)).data.displayName
+          && request.resource.data.displayName is string
+          && request.resource.data.displayName.size() <= 80
+          && request.resource.data.emoji in ['👍', '❤️', '😂', '🎉', '👏', '😮']
+          && request.resource.data.clientCreatedAt is number;
+        allow update: if false;
+        allow delete: if isAuthenticated()
+          && (resource.data.fromUid == request.auth.uid
+            || get(/databases/$(database)/documents/studyRooms/$(roomId)).data.ownerUid == request.auth.uid);
       }
     }
 

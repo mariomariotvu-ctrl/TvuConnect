@@ -51,6 +51,12 @@ exports.joinStudyRoom = onCall(async (request) => {
     }
 
     const participantSnapshot = await transaction.get(participantRef);
+    if (!participantSnapshot.exists && room.roomLocked === true) {
+      throw new HttpsError('permission-denied', 'Chủ phòng đã khóa, chưa thể nhận thêm thành viên.');
+    }
+    if (!participantSnapshot.exists && Array.isArray(room.removedUids) && room.removedUids.includes(uid)) {
+      throw new HttpsError('permission-denied', 'Bạn đã được chủ phòng mời rời khỏi phòng này.');
+    }
     const participantsSnapshot = await transaction.get(
       roomRef.collection('participants'),
     );
@@ -71,7 +77,14 @@ exports.joinStudyRoom = onCall(async (request) => {
       uid,
       displayName: profile.fullName || profile.nickname || 'Sinh viên TVU',
       photoURL: profile.photoURL || null,
-      ...(participantSnapshot.exists ? {} : { joinedAt: now }),
+      ...(participantSnapshot.exists ? {} : {
+        joinedAt: now,
+        handRaised: false,
+        handRaisedAt: null,
+        muted: false,
+        cameraOn: false,
+        sharingScreen: false,
+      }),
       updatedAt: now,
     }, { merge: true });
     transaction.update(roomRef, {
@@ -87,7 +100,49 @@ exports.joinStudyRoom = onCall(async (request) => {
         : participantsSnapshot.size + 1,
       maxParticipants,
       alreadyJoined: participantSnapshot.exists,
+      roomLocked: room.roomLocked === true,
+      audioLocked: room.audioLocked === true,
+      videoLocked: room.videoLocked === true,
+      screenShareLocked: room.screenShareLocked === true,
     };
+  });
+});
+
+exports.removeStudyRoomParticipant = onCall(async (request) => {
+  const uid = requireUid(request);
+  const roomId = requireRoomId(request);
+  const participantUid = typeof request.data?.participantUid === 'string'
+    ? request.data.participantUid.trim()
+    : '';
+  if (!participantUid || participantUid.length > 160 || participantUid === uid) {
+    throw new HttpsError('invalid-argument', 'Thành viên cần mời rời phòng không hợp lệ.');
+  }
+
+  const firestore = getFirestore();
+  const roomRef = firestore.collection('studyRooms').doc(roomId);
+  const participantRef = roomRef.collection('participants').doc(participantUid);
+
+  return firestore.runTransaction(async (transaction) => {
+    const roomSnapshot = await transaction.get(roomRef);
+    if (!roomSnapshot.exists) throw new HttpsError('not-found', 'Phòng họp không còn tồn tại.');
+    const room = roomSnapshot.data();
+    if (room.ownerUid !== uid) {
+      throw new HttpsError('permission-denied', 'Chỉ chủ phòng mới có thể mời thành viên rời phòng.');
+    }
+
+    const participantSnapshot = await transaction.get(participantRef);
+    const participantsSnapshot = await transaction.get(roomRef.collection('participants'));
+    const nextCount = participantSnapshot.exists
+      ? Math.max(1, participantsSnapshot.size - 1)
+      : Math.max(1, participantsSnapshot.size);
+
+    if (participantSnapshot.exists) transaction.delete(participantRef);
+    transaction.update(roomRef, {
+      participantCount: nextCount,
+      removedUids: FieldValue.arrayUnion(participantUid),
+      controlsUpdatedAt: FieldValue.serverTimestamp(),
+    });
+    return { participantCount: nextCount };
   });
 });
 

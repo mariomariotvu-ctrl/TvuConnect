@@ -26,6 +26,10 @@ export interface StudyRoom {
   youtubePlaybackState?: 'playing' | 'paused';
   youtubePlaybackTime?: number;
   youtubePlaybackUpdatedAt?: unknown;
+  roomLocked?: boolean;
+  audioLocked?: boolean;
+  videoLocked?: boolean;
+  screenShareLocked?: boolean;
   createdAt?: unknown;
   ownerLastSeenAt?: unknown;
 }
@@ -34,11 +38,16 @@ export interface StudyRoomParticipant {
   uid: string;
   displayName: string;
   photoURL?: string;
+  handRaised?: boolean;
+  handRaisedAt?: unknown;
+  muted?: boolean;
+  cameraOn?: boolean;
+  sharingScreen?: boolean;
   joinedAt?: unknown;
   updatedAt?: unknown;
 }
 
-export type StudySignalType = 'offer' | 'answer' | 'candidate';
+export type StudySignalType = 'offer' | 'answer' | 'candidate' | 'host-mute';
 
 export interface StudySignal {
   id: string;
@@ -47,5 +56,14 @@ export interface StudySignal {
   type: StudySignalType;
   description?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
+  createdAt?: unknown;
+}
+
+export interface StudyReaction {
+  id: string;
+  fromUid: string;
+  displayName: string;
+  emoji: string;
+  clientCreatedAt: number;
   createdAt?: unknown;
 }

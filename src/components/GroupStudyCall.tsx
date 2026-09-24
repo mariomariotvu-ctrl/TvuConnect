@@ -3,6 +3,10 @@ import { User } from 'firebase/auth';
 import {
   Camera,
   CameraOff,
+  Copy,
+  Grid2X2,
+  Hand,
+  LayoutPanelTop,
   Loader2,
   Maximize2,
   Mic,
@@ -11,19 +15,33 @@ import {
   PhoneOff,
   ScreenShare,
   ScreenShareOff,
+  Settings2,
   ShieldCheck,
+  Smile,
   Users,
   X,
   Youtube,
 } from 'lucide-react';
-import { StudyRoom, StudyRoomParticipant, StudySignal } from '../types/socialAudio';
+import { toast } from 'sonner';
+import {
+  StudyReaction,
+  StudyRoom,
+  StudyRoomParticipant,
+  StudySignal,
+} from '../types/socialAudio';
 import { getCallIceServersForSession } from '../services/callService';
 import {
   joinStudyRoom,
   leaveStudyRoom,
+  removeStudyRoomParticipant,
   removeStudySignal,
+  sendStudyReaction,
   sendStudySignal,
+  setStudyParticipantState,
+  setStudyRoomControl,
   setStudyRoomYouTube,
+  StudyRoomControl,
+  subscribeToStudyReactions,
   subscribeToStudyRoom,
   subscribeToStudyRoomParticipants,
   subscribeToStudySignals,
@@ -38,6 +56,7 @@ import {
   getYouTubeWatchUrl,
   supportsDisplayCapture,
 } from '../utils/meetingMedia';
+import { MeetingSidePanel } from './MeetingSidePanel';
 
 interface GroupStudyCallProps {
   room: StudyRoom;
@@ -125,6 +144,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
   onClose,
 }) => {
   const [participants, setParticipants] = useState<StudyRoomParticipant[]>([]);
+  const [currentRoom, setCurrentRoom] = useState(room);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [status, setStatus] = useState<'joining' | 'active' | 'error'>('joining');
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +161,12 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
   const [youtubePlaybackTime, setYoutubePlaybackTime] = useState(room.youtubePlaybackTime || 0);
   const [youtubePlaybackUpdatedAt, setYoutubePlaybackUpdatedAt] = useState(room.youtubePlaybackUpdatedAt);
   const [savingYouTube, setSavingYouTube] = useState(false);
+  const [panel, setPanel] = useState<'people' | 'controls' | null>(null);
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'focus'>('grid');
+  const [spotlightUid, setSpotlightUid] = useState<string | null>(null);
+  const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
+  const [liveReactions, setLiveReactions] = useState<Array<StudyReaction & { expiresAt: number }>>([]);
+  const [busyParticipantUid, setBusyParticipantUid] = useState<string | null>(null);
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -152,6 +178,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
   const cleanupRef = useRef<((leaveImmediately?: boolean) => Promise<void>) | null>(null);
   const leaveTimerRef = useRef<number | null>(null);
   const lifecycleRef = useRef(0);
+  const joinedRef = useRef(false);
 
   const participantByUid = useMemo(
     () => new Map(participants.map((participant) => [participant.uid, participant])),
@@ -160,6 +187,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
 
   const currentParticipant = participantByUid.get(currentUser.uid);
   const currentName = currentParticipant?.displayName || currentUser.displayName || 'Bạn';
+  const isOwner = currentRoom.ownerUid === currentUser.uid;
   const featuredRemoteEntry = useMemo(
     () => [...remoteStreams.entries()].find(([, stream]) => hasLiveVideo(stream)),
     [remoteStreams],
@@ -186,12 +214,13 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
     track.onended = null;
     track.stop();
     setSharingScreen(false);
+    void setStudyParticipantState(room.id, currentUser.uid, { sharingScreen: false }).catch(() => undefined);
 
     const cameraTrack = cameraTrackRef.current?.readyState === 'live'
       ? cameraTrackRef.current
       : null;
     await setOutgoingVideoTrack(cameraTrack);
-  }, [setOutgoingVideoTrack]);
+  }, [currentUser.uid, room.id, setOutgoingVideoTrack]);
 
   useEffect(() => {
     const lifecycle = ++lifecycleRef.current;
@@ -275,6 +304,14 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
     const handleSignal = async (signal: StudySignal) => {
       if (disposed || signal.fromUid === currentUser.uid) return;
       try {
+        if (signal.type === 'host-mute') {
+          localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = false; });
+          setMuted(true);
+          await setStudyParticipantState(room.id, currentUser.uid, { muted: true });
+          toast.info('Chủ phòng đã tắt micro của bạn.');
+          return;
+        }
+
         if (signal.type === 'candidate' && signal.candidate) {
           const connection = connectionsRef.current.get(signal.fromUid);
           if (!connection?.remoteDescription) {
@@ -332,6 +369,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
       cameraTrackRef.current = null;
       activeVideoTrackRef.current = null;
       localStreamRef.current = null;
+      joinedRef.current = false;
       if (leaveImmediately) {
         await leaveStudyRoom(room);
       } else {
@@ -346,7 +384,8 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
     const initialize = async () => {
       try {
         activeIceServers = await getCallIceServersForSession();
-        await joinStudyRoom(room.id);
+        const joinState = await joinStudyRoom(room.id);
+        joinedRef.current = true;
         if (disposed) {
           if (lifecycleRef.current === lifecycle) await leaveStudyRoom(room);
           return;
@@ -360,6 +399,23 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
         }
         localStreamRef.current = stream;
         applyCallTrackHints(stream);
+        const startsMuted = joinState.audioLocked && room.ownerUid !== currentUser.uid;
+        if (startsMuted) {
+          stream.getAudioTracks().forEach((track) => { track.enabled = false; });
+          setMuted(true);
+        }
+        setCurrentRoom((current) => ({
+          ...current,
+          roomLocked: joinState.roomLocked,
+          audioLocked: joinState.audioLocked,
+          videoLocked: joinState.videoLocked,
+          screenShareLocked: joinState.screenShareLocked,
+        }));
+        await setStudyParticipantState(room.id, currentUser.uid, {
+          muted: startsMuted,
+          cameraOn: false,
+          sharingScreen: false,
+        }).catch(() => undefined);
 
         roomUnsubscribe = subscribeToStudyRoom(room.id, (latestRoom) => {
           if (disposed) return;
@@ -368,10 +424,34 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
             void cleanup(true).finally(onClose);
             return;
           }
+          setCurrentRoom(latestRoom);
           setSharedYouTubeId(latestRoom.youtubeVideoId || '');
           setYoutubePlaybackState(latestRoom.youtubePlaybackState || 'paused');
           setYoutubePlaybackTime(latestRoom.youtubePlaybackTime || 0);
           setYoutubePlaybackUpdatedAt(latestRoom.youtubePlaybackUpdatedAt);
+          if (latestRoom.ownerUid !== currentUser.uid) {
+            const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+            if (latestRoom.audioLocked && audioTrack?.enabled) {
+              audioTrack.enabled = false;
+              setMuted(true);
+              void setStudyParticipantState(room.id, currentUser.uid, { muted: true }).catch(() => undefined);
+              toast.info('Chủ phòng đã khóa micro thành viên.');
+            }
+            if (latestRoom.videoLocked && cameraTrackRef.current) {
+              const track = cameraTrackRef.current;
+              cameraTrackRef.current = null;
+              track.onended = null;
+              track.stop();
+              setCameraOn(false);
+              if (!screenTrackRef.current) void setOutgoingVideoTrack(null);
+              void setStudyParticipantState(room.id, currentUser.uid, { cameraOn: false }).catch(() => undefined);
+              toast.info('Chủ phòng đã khóa camera thành viên.');
+            }
+            if (latestRoom.screenShareLocked && screenTrackRef.current) {
+              void stopScreenShare();
+              toast.info('Chủ phòng chỉ cho phép chủ phòng chia sẻ màn hình.');
+            }
+          }
         }, (roomError) => {
           console.warn('Meeting room status listener failed:', roomError);
         });
@@ -387,6 +467,12 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
           if (disposed) return;
           setParticipants(nextParticipants);
           const peerUids = new Set(nextParticipants.map((participant) => participant.uid));
+          if (joinedRef.current && !peerUids.has(currentUser.uid)) {
+            joinedRef.current = false;
+            toast.error('Chủ phòng đã mời bạn rời khỏi phòng.');
+            void cleanup(true).finally(onClose);
+            return;
+          }
 
           connectionsRef.current.forEach((connection, peerUid) => {
             if (!peerUids.has(peerUid)) {
@@ -431,12 +517,34 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
 
     void initialize();
     return () => { void cleanup(); };
-  }, [currentUser.uid, onClose, room]);
+  }, [currentUser.uid, onClose, room, setOutgoingVideoTrack, stopScreenShare]);
+
+  useEffect(() => {
+    if (status !== 'active') return undefined;
+    const unsubscribe = subscribeToStudyReactions(room.id, (reaction) => {
+      const expiresAt = Date.now() + 4_200;
+      setLiveReactions((current) => [
+        ...current.filter((item) => item.id !== reaction.id && item.expiresAt > Date.now()),
+        { ...reaction, expiresAt },
+      ].slice(-8));
+      window.setTimeout(() => {
+        setLiveReactions((current) => current.filter((item) => item.id !== reaction.id));
+      }, 4_300);
+    }, (reactionError) => console.warn('Meeting reaction listener failed:', reactionError));
+    return unsubscribe;
+  }, [room.id, status]);
 
   const toggleMute = () => {
+    if (muted && currentRoom.audioLocked && !isOwner) {
+      toast.info('Chủ phòng đang khóa micro thành viên.');
+      return;
+    }
     const next = !muted;
     localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; });
     setMuted(next);
+    void setStudyParticipantState(room.id, currentUser.uid, { muted: next }).catch(() => {
+      toast.error('Chưa cập nhật được trạng thái micro.');
+    });
   };
 
   const toggleCamera = async () => {
@@ -450,7 +558,13 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
         existingTrack.onended = null;
         existingTrack.stop();
         setCameraOn(false);
+        await setStudyParticipantState(room.id, currentUser.uid, { cameraOn: false }).catch(() => undefined);
         if (!screenTrackRef.current) await setOutgoingVideoTrack(null);
+        return;
+      }
+
+      if (currentRoom.videoLocked && !isOwner) {
+        toast.info('Chủ phòng đang khóa camera thành viên.');
         return;
       }
 
@@ -463,10 +577,12 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
         if (cameraTrackRef.current !== track) return;
         cameraTrackRef.current = null;
         setCameraOn(false);
+        void setStudyParticipantState(room.id, currentUser.uid, { cameraOn: false }).catch(() => undefined);
         if (!screenTrackRef.current) void setOutgoingVideoTrack(null);
       };
       cameraTrackRef.current = track;
       setCameraOn(true);
+      await setStudyParticipantState(room.id, currentUser.uid, { cameraOn: true }).catch(() => undefined);
       if (!screenTrackRef.current) await setOutgoingVideoTrack(track);
     } catch (cameraError) {
       console.error('Could not open meeting camera:', cameraError);
@@ -481,6 +597,10 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
     setError(null);
     if (screenTrackRef.current) {
       await stopScreenShare();
+      return;
+    }
+    if (currentRoom.screenShareLocked && !isOwner) {
+      toast.info('Chỉ chủ phòng đang được phép chia sẻ màn hình.');
       return;
     }
     if (!supportsDisplayCapture()) {
@@ -498,6 +618,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
       if ('contentHint' in track) track.contentHint = 'detail';
       screenTrackRef.current = track;
       setSharingScreen(true);
+      await setStudyParticipantState(room.id, currentUser.uid, { sharingScreen: true }).catch(() => undefined);
       track.onended = () => { void stopScreenShare(); };
       await setOutgoingVideoTrack(track);
     } catch (shareError) {
@@ -542,19 +663,99 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
     }
   };
 
+  const copyInviteLink = async () => {
+    const inviteUrl = `${window.location.origin}/connect/study?room=${encodeURIComponent(room.id)}`;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      toast.success('Đã sao chép link mời vào phòng.');
+    } catch {
+      window.prompt('Sao chép link mời này:', inviteUrl);
+    }
+  };
+
+  const toggleHand = async () => {
+    const handRaised = !Boolean(currentParticipant?.handRaised);
+    try {
+      await setStudyParticipantState(room.id, currentUser.uid, { handRaised });
+      if (handRaised) toast.success('Bạn đã giơ tay.');
+    } catch (handError) {
+      console.error('Could not update hand raise:', handError);
+      toast.error('Chưa thể cập nhật trạng thái giơ tay.');
+    }
+  };
+
+  const react = async (emoji: string) => {
+    setReactionMenuOpen(false);
+    try {
+      await sendStudyReaction(room.id, currentUser.uid, currentName, emoji);
+    } catch (reactionError) {
+      console.error('Could not send meeting reaction:', reactionError);
+      toast.error('Chưa gửi được cảm xúc.');
+    }
+  };
+
+  const muteParticipant = async (participant: StudyRoomParticipant) => {
+    if (!isOwner || participant.uid === currentUser.uid) return;
+    try {
+      await sendStudySignal(room.id, currentUser.uid, participant.uid, 'host-mute');
+      toast.success(`Đã tắt micro của ${participant.displayName}.`);
+    } catch (muteError) {
+      console.error('Could not mute participant:', muteError);
+      toast.error('Chưa thể tắt micro thành viên này.');
+    }
+  };
+
+  const removeParticipant = async (participant: StudyRoomParticipant) => {
+    if (!isOwner || participant.uid === currentUser.uid || busyParticipantUid) return;
+    setBusyParticipantUid(participant.uid);
+    try {
+      await removeStudyRoomParticipant(room.id, participant.uid);
+      toast.success(`Đã mời ${participant.displayName} rời phòng.`);
+    } catch (removeError) {
+      console.error('Could not remove participant:', removeError);
+      toast.error(getStudyRoomErrorMessage(removeError));
+    } finally {
+      setBusyParticipantUid(null);
+    }
+  };
+
+  const toggleControl = async (control: StudyRoomControl, enabled: boolean) => {
+    if (!isOwner) return;
+    const previous = currentRoom[control];
+    setCurrentRoom((current) => ({ ...current, [control]: enabled }));
+    try {
+      await setStudyRoomControl(room.id, control, enabled);
+      if (control === 'audioLocked' && enabled) {
+        await Promise.allSettled(participants
+          .filter((participant) => participant.uid !== currentUser.uid)
+          .map((participant) => sendStudySignal(room.id, currentUser.uid, participant.uid, 'host-mute')));
+      }
+    } catch (controlError) {
+      console.error('Could not update room controls:', controlError);
+      setCurrentRoom((current) => ({ ...current, [control]: previous }));
+      toast.error('Chưa thể cập nhật quyền phòng họp.');
+    }
+  };
+
   const close = async () => {
     await cleanupRef.current?.(true);
     onClose();
   };
 
-  const renderParticipantTile = (participant: StudyRoomParticipant) => {
+  const renderParticipantTile = (participant: StudyRoomParticipant, featured = false) => {
     const isCurrentUser = participant.uid === currentUser.uid;
     const stream = isCurrentUser ? localPreviewStream : remoteStreams.get(participant.uid);
     const hasVideo = hasLiveVideo(stream);
-    const isPresenting = isCurrentUser && sharingScreen;
+    const isPresenting = isCurrentUser ? sharingScreen : Boolean(participant.sharingScreen);
 
     return (
-      <div key={participant.uid} className="relative min-h-[13rem] overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-xl">
+      <button
+        type="button"
+        key={participant.uid}
+        onClick={() => { setSpotlightUid(participant.uid); setLayoutMode('focus'); }}
+        className={`relative w-full overflow-hidden rounded-3xl border bg-slate-950 text-left shadow-xl transition hover:border-indigo-400/60 ${featured ? 'min-h-[min(62vh,38rem)] border-indigo-400/40' : 'min-h-[13rem] border-white/10'}`}
+        aria-label={`Tập trung vào ${isCurrentUser ? 'bạn' : participant.displayName}`}
+      >
         {hasVideo && stream ? (
           <StreamVideo
             stream={stream}
@@ -569,11 +770,20 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
         )}
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent px-4 pb-3 pt-10">
           <span className="truncate text-sm font-bold text-white">{isCurrentUser ? 'Bạn' : participant.displayName}</span>
-          {isPresenting && <span className="rounded-full bg-sky-500/90 px-2 py-1 text-[10px] font-black">Đang chia sẻ</span>}
+          <span className="flex items-center gap-1.5">
+            {participant.handRaised && <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-slate-950"><Hand className="h-4 w-4" /></span>}
+            {participant.muted && <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white"><MicOff className="h-4 w-4" /></span>}
+            {isPresenting && <span className="rounded-full bg-sky-500/90 px-2 py-1 text-[10px] font-black">Đang chia sẻ</span>}
+          </span>
         </div>
-      </div>
+      </button>
     );
   };
+
+  const focusedParticipant = participantByUid.get(spotlightUid || '')
+    || (featuredRemoteEntry ? participantByUid.get(featuredRemoteEntry[0]) : undefined)
+    || currentParticipant
+    || participants[0];
 
   const miniStream = featuredRemoteEntry?.[1] || localPreviewStream;
   const miniPeer = featuredRemoteEntry ? participantByUid.get(featuredRemoteEntry[0]) : currentParticipant;
@@ -582,6 +792,17 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
   return (
     <>
       {[...remoteStreams.entries()].map(([uid, stream]) => <StreamAudio key={uid} stream={stream} />)}
+
+      <div className="pointer-events-none fixed inset-0 z-[230] flex items-center justify-center overflow-hidden" aria-live="polite">
+        <div className="flex max-w-[90vw] flex-wrap items-center justify-center gap-3">
+          {liveReactions.map((reaction) => (
+            <div key={reaction.id} className="animate-bounce rounded-3xl border border-white/20 bg-slate-950/80 px-4 py-3 text-center shadow-2xl backdrop-blur-xl">
+              <div className="text-4xl">{reaction.emoji}</div>
+              <div className="mt-1 max-w-28 truncate text-[10px] font-black text-white">{reaction.displayName}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {isMinimized && (
         <aside className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-3 z-[10001] w-[min(21rem,calc(100vw-1.5rem))] overflow-hidden rounded-3xl border border-white/15 bg-slate-950 text-white shadow-2xl sm:bottom-5 sm:right-5" aria-label="Phòng họp đang thu nhỏ">
@@ -595,7 +816,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
               <Maximize2 className="h-4 w-4" />
             </button>
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-4 pb-3 pt-8">
-              <p className="truncate text-sm font-black">{room.title}</p>
+              <p className="truncate text-sm font-black">{currentRoom.title}</p>
               <p className="text-[11px] text-slate-300">{participants.length} người · vẫn đang kết nối</p>
             </div>
           </div>
@@ -614,12 +835,18 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
       <div className={`${isMinimized ? 'hidden' : 'meeting-room-dialog fixed'} inset-0 z-[210] flex h-[100dvh] w-screen flex-col overflow-hidden bg-slate-950 text-white`} role="dialog" aria-modal="true" aria-label="Phòng họp học nhóm">
         <header className="flex flex-none items-center justify-between gap-3 border-b border-white/10 bg-slate-950/95 px-3 py-3 sm:px-5">
           <div className="min-w-0">
-            <p className="truncate text-sm font-black sm:text-base">{room.title}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400"><Users className="h-3.5 w-3.5" /> {participants.length}/{room.maxParticipants} người · {room.subject || 'Học chung'}</p>
+            <p className="truncate text-sm font-black sm:text-base">{currentRoom.title}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400"><Users className="h-3.5 w-3.5" /> {participants.length}/{currentRoom.maxParticipants} người · {currentRoom.subject || 'Học chung'}</p>
           </div>
           <div className="flex flex-none items-center gap-2">
+            <button onClick={() => void copyInviteLink()} className="hidden rounded-full bg-white/10 p-2.5 hover:bg-white/20 sm:block" aria-label="Sao chép link mời"><Copy className="h-5 w-5" /></button>
+            <button onClick={() => setLayoutMode((current) => current === 'grid' ? 'focus' : 'grid')} className="hidden rounded-full bg-white/10 p-2.5 hover:bg-white/20 sm:block" aria-label={layoutMode === 'grid' ? 'Chuyển sang bố cục tập trung' : 'Chuyển sang bố cục lưới'}>
+              {layoutMode === 'grid' ? <LayoutPanelTop className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
+            </button>
+            <button onClick={() => setPanel('people')} className={`rounded-full p-2.5 ${panel === 'people' ? 'bg-indigo-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label="Người tham gia"><Users className="h-5 w-5" /></button>
+            {isOwner && <button onClick={() => setPanel('controls')} className={`rounded-full p-2.5 ${panel === 'controls' ? 'bg-indigo-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label="Quyền chủ phòng"><Settings2 className="h-5 w-5" /></button>}
             <button onClick={() => setIsMinimized(true)} className="rounded-full bg-white/10 p-2.5 hover:bg-white/20" aria-label="Thu nhỏ phòng họp"><Minimize2 className="h-5 w-5" /></button>
-            <button onClick={() => void close()} className="rounded-full bg-rose-600 p-2.5 hover:bg-rose-500" aria-label={room.ownerUid === currentUser.uid ? 'Đóng phòng' : 'Rời phòng'}><PhoneOff className="h-5 w-5" /></button>
+            <button onClick={() => void close()} className="rounded-full bg-rose-600 p-2.5 hover:bg-rose-500" aria-label={isOwner ? 'Đóng phòng' : 'Rời phòng'}><PhoneOff className="h-5 w-5" /></button>
           </div>
         </header>
 
@@ -643,31 +870,46 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
             <section className="mx-auto mb-4 max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
               <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-slate-900 px-4 py-3">
                 <p className="flex items-center gap-2 text-sm font-black"><Youtube className="h-5 w-5 text-red-500" /> Cùng xem YouTube</p>
-                {room.ownerUid === currentUser.uid && (
+                {isOwner && (
                   <button onClick={() => void clearYouTube()} disabled={savingYouTube} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold hover:bg-white/20">Đóng video</button>
                 )}
               </div>
               <div className="aspect-video bg-black">
                 <SynchronizedYouTubePlayer
-                  key={`${sharedYouTubeId}-${room.ownerUid === currentUser.uid ? 'controller' : 'viewer'}`}
+                  key={`${sharedYouTubeId}-${isOwner ? 'controller' : 'viewer'}`}
                   roomId={room.id}
                   videoId={sharedYouTubeId}
-                  isController={room.ownerUid === currentUser.uid}
+                  isController={isOwner}
                   playbackState={youtubePlaybackState}
                   playbackTime={youtubePlaybackTime}
                   playbackUpdatedAt={youtubePlaybackUpdatedAt}
                 />
               </div>
               <div className="flex items-center justify-between gap-3 bg-slate-900 px-4 py-2 text-xs text-slate-400">
-                <span>{room.ownerUid === currentUser.uid ? 'Bạn điều khiển; mọi người tự đồng bộ theo thời gian thực.' : 'Phát, dừng và tua đang theo chủ phòng.'}</span>
+                <span>{isOwner ? 'Bạn điều khiển; mọi người tự đồng bộ theo thời gian thực.' : 'Phát, dừng và tua đang theo chủ phòng.'}</span>
                 <a href={getYouTubeWatchUrl(sharedYouTubeId)} target="_blank" rel="noopener noreferrer" className="flex-none rounded-full bg-white/10 px-3 py-1.5 font-bold text-white hover:bg-white/20">Mở YouTube</a>
               </div>
             </section>
           )}
 
-          {status !== 'joining' && (
+          {status !== 'joining' && layoutMode === 'grid' && (
             <div className={`mx-auto grid max-w-6xl gap-3 ${participants.length <= 1 ? 'max-w-xl grid-cols-1' : participants.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
-              {participants.map(renderParticipantTile)}
+              {participants.map((participant) => renderParticipantTile(participant))}
+            </div>
+          )}
+
+          {status !== 'joining' && layoutMode === 'focus' && focusedParticipant && (
+            <div className="mx-auto max-w-6xl">
+              {renderParticipantTile(focusedParticipant, true)}
+              <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-2">
+                {participants.map((participant) => (
+                  <button key={participant.uid} onClick={() => setSpotlightUid(participant.uid)} className={`flex min-w-[10rem] snap-start items-center gap-2 rounded-2xl border px-3 py-2 text-left ${focusedParticipant.uid === participant.uid ? 'border-indigo-400 bg-indigo-500/15' : 'border-white/10 bg-white/5'}`}>
+                    <ParticipantAvatar participant={participant} label={participant.displayName} compact />
+                    <span className="min-w-0 flex-1 truncate text-xs font-black">{participant.uid === currentUser.uid ? 'Bạn' : participant.displayName}</span>
+                    {participant.handRaised && <Hand className="h-4 w-4 flex-none text-amber-300" />}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -678,7 +920,7 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
             </div>
           )}
 
-          {youtubeComposerOpen && room.ownerUid === currentUser.uid && (
+          {youtubeComposerOpen && isOwner && (
             <div className="mx-auto mt-4 max-w-2xl rounded-2xl border border-white/10 bg-slate-900 p-4">
               <label className="text-sm font-bold" htmlFor="meeting-youtube-link">Dán link YouTube để cả phòng cùng xem</label>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
@@ -696,25 +938,50 @@ export const GroupStudyCall: React.FC<GroupStudyCallProps> = ({
         </main>
 
         <footer className="fixed inset-x-0 bottom-0 z-10 border-t border-white/10 bg-slate-950/95 px-2 pb-[calc(.6rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-3xl items-center justify-center gap-2 sm:gap-3">
-            <button onClick={toggleMute} disabled={status !== 'active'} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${muted ? 'bg-amber-500' : 'bg-white/10 hover:bg-white/20'}`} aria-label={muted ? 'Bật micro' : 'Tắt micro'}>
+          <div className="mx-auto flex max-w-4xl items-center justify-start gap-2 overflow-x-auto px-1 sm:justify-center sm:gap-3">
+            <button onClick={toggleMute} disabled={status !== 'active' || (muted && currentRoom.audioLocked && !isOwner)} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${muted ? 'bg-amber-500' : 'bg-white/10 hover:bg-white/20'}`} aria-label={muted ? 'Bật micro' : 'Tắt micro'}>
               {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </button>
-            <button onClick={() => void toggleCamera()} disabled={status !== 'active' || cameraBusy || sharingScreen} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${cameraOn ? 'bg-indigo-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label={cameraOn ? 'Tắt camera' : 'Bật camera'}>
+            <button onClick={() => void toggleCamera()} disabled={status !== 'active' || cameraBusy || sharingScreen || (!cameraOn && currentRoom.videoLocked && !isOwner)} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${cameraOn ? 'bg-indigo-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label={cameraOn ? 'Tắt camera' : 'Bật camera'}>
               {cameraBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : cameraOn ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
             </button>
-            <button onClick={() => void toggleScreenShare()} disabled={status !== 'active'} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${sharingScreen ? 'bg-sky-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label={sharingScreen ? 'Dừng chia sẻ màn hình' : 'Chia sẻ màn hình'}>
+            <button onClick={() => void toggleScreenShare()} disabled={status !== 'active' || (!sharingScreen && currentRoom.screenShareLocked && !isOwner)} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${sharingScreen ? 'bg-sky-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label={sharingScreen ? 'Dừng chia sẻ màn hình' : 'Chia sẻ màn hình'}>
               {sharingScreen ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
             </button>
-            {room.ownerUid === currentUser.uid && (
+            <button onClick={() => void toggleHand()} disabled={status !== 'active'} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${currentParticipant?.handRaised ? 'bg-amber-500 text-slate-950' : 'bg-white/10 hover:bg-white/20'}`} aria-label={currentParticipant?.handRaised ? 'Hạ tay' : 'Giơ tay'}><Hand className="h-5 w-5" /></button>
+            <div className="relative flex-none">
+              {reactionMenuOpen && (
+                <div className="absolute bottom-14 left-1/2 flex -translate-x-1/2 gap-1 rounded-2xl border border-white/10 bg-slate-900 p-2 shadow-2xl">
+                  {['👍', '❤️', '😂', '🎉', '👏', '😮'].map((emoji) => <button key={emoji} onClick={() => void react(emoji)} className="rounded-xl p-2 text-2xl hover:bg-white/10" aria-label={`Gửi ${emoji}`}>{emoji}</button>)}
+                </div>
+              )}
+              <button onClick={() => setReactionMenuOpen((current) => !current)} disabled={status !== 'active'} className={`flex h-12 min-w-12 items-center justify-center rounded-full disabled:opacity-40 ${reactionMenuOpen ? 'bg-violet-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label="Gửi cảm xúc"><Smile className="h-5 w-5" /></button>
+            </div>
+            <button onClick={() => void copyInviteLink()} className="flex h-12 min-w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 sm:hidden" aria-label="Sao chép link mời"><Copy className="h-5 w-5" /></button>
+            <button onClick={() => setLayoutMode((current) => current === 'grid' ? 'focus' : 'grid')} className="flex h-12 min-w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 sm:hidden" aria-label={layoutMode === 'grid' ? 'Bố cục tập trung' : 'Bố cục lưới'}>{layoutMode === 'grid' ? <LayoutPanelTop className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}</button>
+            {isOwner && (
               <button onClick={() => setYoutubeComposerOpen((current) => !current)} className={`flex h-12 min-w-12 items-center justify-center rounded-full ${youtubeComposerOpen ? 'bg-red-600' : 'bg-white/10 hover:bg-white/20'}`} aria-label="Cùng xem YouTube"><Youtube className="h-5 w-5" /></button>
             )}
-            <button onClick={() => void close()} className="flex h-12 items-center justify-center gap-2 rounded-full bg-rose-600 px-4 font-black hover:bg-rose-500" aria-label={room.ownerUid === currentUser.uid ? 'Đóng phòng' : 'Rời phòng'}>
-              <PhoneOff className="h-5 w-5" /><span className="hidden sm:inline">{room.ownerUid === currentUser.uid ? 'Đóng phòng' : 'Rời phòng'}</span>
+            <button onClick={() => void close()} className="flex h-12 flex-none items-center justify-center gap-2 rounded-full bg-rose-600 px-4 font-black hover:bg-rose-500" aria-label={isOwner ? 'Đóng phòng' : 'Rời phòng'}>
+              <PhoneOff className="h-5 w-5" /><span className="hidden sm:inline">{isOwner ? 'Đóng phòng' : 'Rời phòng'}</span>
             </button>
           </div>
         </footer>
       </div>
+
+      {panel && !isMinimized && (
+        <MeetingSidePanel
+          panel={panel}
+          room={currentRoom}
+          participants={participants}
+          currentUserUid={currentUser.uid}
+          busyParticipantUid={busyParticipantUid}
+          onClose={() => setPanel(null)}
+          onMuteParticipant={(participant) => { void muteParticipant(participant); }}
+          onRemoveParticipant={(participant) => { void removeParticipant(participant); }}
+          onToggleControl={(control, enabled) => { void toggleControl(control, enabled); }}
+        />
+      )}
     </>
   );
 };

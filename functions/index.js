@@ -24,6 +24,7 @@ exports.askStudentAssistant = askStudentAssistant.askStudentAssistant;
 exports.matchVoicePartner = matchVoicePartner.matchVoicePartner;
 exports.joinStudyRoom = manageStudyRoom.joinStudyRoom;
 exports.leaveStudyRoom = manageStudyRoom.leaveStudyRoom;
+exports.removeStudyRoomParticipant = manageStudyRoom.removeStudyRoomParticipant;
 exports.recordDatingDecision = recordDatingDecision.recordDatingDecision;
 exports.createDirectCall = manageDirectCall.createDirectCall;
 exports.releaseDirectCallLocks = manageDirectCall.releaseDirectCallLocks;

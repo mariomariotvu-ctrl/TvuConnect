@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -14,7 +15,13 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import { StudentProfile } from '../types';
-import { StudyRoom, StudyRoomParticipant, StudySignal, StudySignalType } from '../types/socialAudio';
+import {
+  StudyReaction,
+  StudyRoom,
+  StudyRoomParticipant,
+  StudySignal,
+  StudySignalType,
+} from '../types/socialAudio';
 
 const MAX_ROOM_PARTICIPANTS = 8;
 
@@ -31,9 +38,18 @@ const mapRoom = (id: string, data: Record<string, unknown>): StudyRoom => ({
   youtubePlaybackState: data.youtubePlaybackState === 'playing' ? 'playing' : 'paused',
   youtubePlaybackTime: Math.max(0, Number(data.youtubePlaybackTime || 0)),
   youtubePlaybackUpdatedAt: data.youtubePlaybackUpdatedAt,
+  roomLocked: data.roomLocked === true,
+  audioLocked: data.audioLocked === true,
+  videoLocked: data.videoLocked === true,
+  screenShareLocked: data.screenShareLocked === true,
   createdAt: data.createdAt,
   ownerLastSeenAt: data.ownerLastSeenAt,
 });
+
+export async function getStudyRoom(roomId: string): Promise<StudyRoom | null> {
+  const snapshot = await getDoc(doc(db, 'studyRooms', roomId));
+  return snapshot.exists() ? mapRoom(snapshot.id, snapshot.data()) : null;
+}
 
 export function subscribeToStudyRooms(
   onChange: (rooms: StudyRoom[]) => void,
@@ -75,6 +91,10 @@ export async function createStudyRoom(
     youtubeVideoId: '',
     youtubePlaybackState: 'paused',
     youtubePlaybackTime: 0,
+    roomLocked: false,
+    audioLocked: false,
+    videoLocked: false,
+    screenShareLocked: false,
     createdAt: serverTimestamp(),
     ownerLastSeenAt: serverTimestamp(),
   });
@@ -99,6 +119,10 @@ export async function createStudyRoom(
     youtubeVideoId: '',
     youtubePlaybackState: 'paused',
     youtubePlaybackTime: 0,
+    roomLocked: false,
+    audioLocked: false,
+    videoLocked: false,
+    screenShareLocked: false,
   };
 }
 
@@ -124,8 +148,86 @@ export async function setStudyRoomYouTubePlayback(
   });
 }
 
+export type StudyRoomControl = 'roomLocked' | 'audioLocked' | 'videoLocked' | 'screenShareLocked';
+
+export async function setStudyRoomControl(
+  roomId: string,
+  control: StudyRoomControl,
+  enabled: boolean,
+) {
+  await updateDoc(doc(db, 'studyRooms', roomId), {
+    [control]: enabled,
+    controlsUpdatedAt: serverTimestamp(),
+  });
+}
+
+export async function setStudyParticipantState(
+  roomId: string,
+  uid: string,
+  state: Partial<Pick<StudyRoomParticipant, 'handRaised' | 'muted' | 'cameraOn' | 'sharingScreen'>>,
+) {
+  const update: Record<string, unknown> = { ...state, updatedAt: serverTimestamp() };
+  if ('handRaised' in state) {
+    update.handRaisedAt = state.handRaised ? serverTimestamp() : null;
+  }
+  await updateDoc(doc(db, 'studyRooms', roomId, 'participants', uid), update);
+}
+
+export async function removeStudyRoomParticipant(roomId: string, participantUid: string) {
+  const callable = httpsCallable<
+    { roomId: string; participantUid: string },
+    { participantCount: number }
+  >(functions, 'removeStudyRoomParticipant', { timeout: 20_000 });
+  return (await callable({ roomId, participantUid })).data;
+}
+
+export async function sendStudyReaction(
+  roomId: string,
+  fromUid: string,
+  displayName: string,
+  emoji: string,
+) {
+  const reactionRef = await addDoc(collection(db, 'studyRooms', roomId, 'reactions'), {
+    fromUid,
+    displayName: displayName.slice(0, 80),
+    emoji,
+    clientCreatedAt: Date.now(),
+    createdAt: serverTimestamp(),
+  });
+  window.setTimeout(() => {
+    void deleteDoc(reactionRef).catch(() => undefined);
+  }, 15_000);
+}
+
+export function subscribeToStudyReactions(
+  roomId: string,
+  onReaction: (reaction: StudyReaction) => void,
+  onError?: (error: Error) => void,
+) {
+  const reactionsQuery = query(
+    collection(db, 'studyRooms', roomId, 'reactions'),
+    orderBy('createdAt', 'desc'),
+    limit(30),
+  );
+  return onSnapshot(reactionsQuery, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type !== 'added') return;
+      const reaction = { id: change.doc.id, ...change.doc.data() } as StudyReaction;
+      if (Date.now() - Number(reaction.clientCreatedAt || 0) <= 12_000) onReaction(reaction);
+    });
+  }, (error) => onError?.(error));
+}
+
 export async function joinStudyRoom(roomId: string) {
-  const callable = httpsCallable<{ roomId: string }, { participantCount: number }>(
+  const callable = httpsCallable<{ roomId: string }, {
+    participantCount: number;
+    maxParticipants: number;
+    alreadyJoined: boolean;
+    roomLocked: boolean;
+    audioLocked: boolean;
+    videoLocked: boolean;
+    screenShareLocked: boolean;
+  }>(
     functions,
     'joinStudyRoom',
     { timeout: 20_000 },
@@ -166,7 +268,7 @@ export async function sendStudySignal(
   fromUid: string,
   toUid: string,
   type: StudySignalType,
-  payload: { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit },
+  payload: { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit } = {},
 ) {
   await addDoc(collection(db, 'studyRooms', roomId, 'signals'), {
     fromUid,

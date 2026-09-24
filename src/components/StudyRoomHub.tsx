@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { BookOpen, Headphones, Loader2, Plus, Users, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { BookOpen, Headphones, Loader2, Lock, Plus, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { StudentProfile } from '../types';
 import { StudyRoom } from '../types/socialAudio';
-import { createStudyRoom, subscribeToStudyRooms } from '../services/studyRoomService';
+import { createStudyRoom, getStudyRoom, subscribeToStudyRooms } from '../services/studyRoomService';
 import { getStudyRoomErrorMessage } from '../utils/userFacingErrors';
 
 interface StudyRoomHubProps {
@@ -18,6 +18,7 @@ export const StudyRoomHub: React.FC<StudyRoomHubProps> = ({ currentProfile, onOp
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
+  const handledInviteRef = useRef<string | null>(null);
 
   useEffect(() => subscribeToStudyRooms((nextRooms) => {
     setRooms(nextRooms);
@@ -27,6 +28,31 @@ export const StudyRoomHub: React.FC<StudyRoomHubProps> = ({ currentProfile, onOp
     setLoading(false);
     toast.error(getStudyRoomErrorMessage(error));
   }), []);
+
+  useEffect(() => {
+    if (!currentProfile) return;
+    const roomId = new URLSearchParams(window.location.search).get('room')?.trim();
+    if (!roomId || handledInviteRef.current === roomId) return;
+    handledInviteRef.current = roomId;
+    void getStudyRoom(roomId).then((room) => {
+      if (!room || room.status !== 'open') {
+        toast.error('Phòng họp trong link mời đã đóng hoặc không tồn tại.');
+        return;
+      }
+      if (room.roomLocked && room.ownerUid !== currentProfile.uid) {
+        toast.error('Chủ phòng đang khóa phòng này.');
+        return;
+      }
+      if (room.participantCount >= room.maxParticipants) {
+        toast.error('Phòng trong link mời đã đủ người.');
+        return;
+      }
+      onOpenRoom(room);
+    }).catch((error) => {
+      console.error('Could not open invited study room:', error);
+      toast.error(getStudyRoomErrorMessage(error));
+    });
+  }, [currentProfile, onOpenRoom]);
 
   const createRoom = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -83,8 +109,14 @@ export const StudyRoomHub: React.FC<StudyRoomHubProps> = ({ currentProfile, onOp
               </div>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-300 inline-flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {room.participantCount}/{room.maxParticipants} người</span>
-              <button onClick={() => onOpenRoom(room)} disabled={!currentProfile || room.participantCount >= room.maxParticipants} className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black disabled:opacity-50">{room.participantCount >= room.maxParticipants ? 'Đã đầy' : 'Vào phòng'}</button>
+              <span className={`text-xs font-bold inline-flex items-center gap-1 ${room.roomLocked ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300'}`}>{room.roomLocked ? <Lock className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />} {room.participantCount}/{room.maxParticipants} người</span>
+              <button
+                onClick={() => onOpenRoom(room)}
+                disabled={!currentProfile || room.participantCount >= room.maxParticipants || (room.roomLocked && room.ownerUid !== currentProfile.uid)}
+                className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black disabled:opacity-50"
+              >
+                {room.participantCount >= room.maxParticipants ? 'Đã đầy' : room.roomLocked && room.ownerUid !== currentProfile?.uid ? 'Đã khóa' : 'Vào phòng'}
+              </button>
             </div>
           </article>
         ))}

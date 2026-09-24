@@ -225,9 +225,16 @@ describeWithEmulator('Firestore security rules for social features', () => {
 
   it('chặn ghi sai phạm vi phòng học, đánh giá và vị trí trọ', async () => {
     await seed([
-      ['studyRooms/room-1', { ownerUid: 'student-a', status: 'open' }],
-      ['studyRooms/room-1/participants/student-a', { uid: 'student-a' }],
-      ['studyRooms/room-1/participants/student-b', { uid: 'student-b' }],
+      ['studyRooms/room-1', {
+        ownerUid: 'student-a',
+        status: 'open',
+        roomLocked: false,
+        audioLocked: false,
+        videoLocked: false,
+        screenShareLocked: false,
+      }],
+      ['studyRooms/room-1/participants/student-a', { uid: 'student-a', displayName: 'Sinh viên A' }],
+      ['studyRooms/room-1/participants/student-b', { uid: 'student-b', displayName: 'Sinh viên B' }],
       ['places/place-1', { name: 'Quán ăn TVU' }],
     ]);
     const studentA = environment.authenticatedContext('student-a').firestore();
@@ -254,6 +261,51 @@ describeWithEmulator('Firestore security rules for social features', () => {
       youtubePlaybackState: 'playing',
       youtubePlaybackTime: 42.5,
       youtubePlaybackUpdatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(updateDoc(doc(studentA, 'studyRooms/room-1'), {
+      roomLocked: true,
+      audioLocked: true,
+      controlsUpdatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(studentB, 'studyRooms/room-1'), {
+      roomLocked: false,
+      controlsUpdatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(updateDoc(doc(studentB, 'studyRooms/room-1/participants/student-b'), {
+      handRaised: true,
+      handRaisedAt: serverTimestamp(),
+      muted: true,
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(studentB, 'studyRooms/room-1/participants/student-a'), {
+      muted: true,
+      updatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(setDoc(doc(studentA, 'studyRooms/room-1/signals/host-mute-1'), {
+      fromUid: 'student-a',
+      toUid: 'student-b',
+      type: 'host-mute',
+      createdAt: serverTimestamp(),
+    }));
+    await assertFails(setDoc(doc(studentB, 'studyRooms/room-1/signals/host-mute-forged'), {
+      fromUid: 'student-b',
+      toUid: 'student-a',
+      type: 'host-mute',
+      createdAt: serverTimestamp(),
+    }));
+    await assertSucceeds(setDoc(doc(studentB, 'studyRooms/room-1/reactions/reaction-1'), {
+      fromUid: 'student-b',
+      displayName: 'Sinh viên B',
+      emoji: '👏',
+      clientCreatedAt: Date.now(),
+      createdAt: serverTimestamp(),
+    }));
+    await assertFails(setDoc(doc(studentB, 'studyRooms/room-1/reactions/reaction-forged'), {
+      fromUid: 'student-a',
+      displayName: 'Sinh viên A',
+      emoji: '❤️',
+      clientCreatedAt: Date.now(),
+      createdAt: serverTimestamp(),
     }));
     await assertFails(updateDoc(doc(studentB, 'studyRooms/room-1'), {
       youtubeVideoId: 'M7lc1UVf-VE',
