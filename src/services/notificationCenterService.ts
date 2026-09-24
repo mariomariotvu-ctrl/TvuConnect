@@ -10,7 +10,14 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { AppNotification } from '../types';
+import type { AppNotification, AppNotificationType } from '../types';
+
+const MESSAGE_CHANNEL_TYPES = new Set<AppNotificationType>(['message', 'call']);
+
+/** Messages and calls belong to the inbox, not the general activity feed. */
+export function isGeneralNotification(notification: Pick<AppNotification, 'type'>) {
+  return !MESSAGE_CHANNEL_TYPES.has(notification.type);
+}
 
 export function subscribeToNotifications(
   uid: string,
@@ -21,14 +28,19 @@ export function subscribeToNotifications(
   const notificationsQuery = query(
     collection(db, 'users', uid, 'notifications'),
     orderBy('createdAt', 'desc'),
-    limit(resultLimit),
+    // Legacy message/call rows may still exist. Read a wider window so they
+    // cannot push genuine activity notifications out of the visible result.
+    limit(Math.min(Math.max(resultLimit * 4, 120), 300)),
   );
 
   return onSnapshot(notificationsQuery, (snapshot) => {
-    onChange(snapshot.docs.map((notification) => ({
-      id: notification.id,
-      ...notification.data(),
-    } as AppNotification)));
+    onChange(snapshot.docs
+      .map((notification) => ({
+        id: notification.id,
+        ...notification.data(),
+      } as AppNotification))
+      .filter(isGeneralNotification)
+      .slice(0, resultLimit));
   }, (error) => onError?.(error));
 }
 

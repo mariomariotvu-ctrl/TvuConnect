@@ -38,4 +38,11 @@ describe('AppNavigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Khám phá' }));
     expect(onNavigate).toHaveBeenCalledWith('explore');
   });
+
+  it('shows unread messages on the inbox destination instead of the notification bell', () => {
+    render(<AppNavigation view="home" messageUnreadCount={7} onNavigate={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Tin nhắn, 7 chưa đọc' })).toBeInTheDocument();
+    expect(screen.getByText('7')).toBeInTheDocument();
+  });
 });

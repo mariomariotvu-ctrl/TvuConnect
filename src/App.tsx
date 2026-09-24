@@ -98,6 +98,7 @@ export default function App() {
   const activeStudyRoomRef = useRef<StudyRoom | null>(null);
   const seenUnreadMessageIdsRef = useRef<Set<string>>(new Set());
   const unreadListenerReadyRef = useRef(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
@@ -193,7 +194,10 @@ export default function App() {
    * Requirements: 6.2, 6.3
    */
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setUnreadMessageCount(0);
+      return;
+    }
 
     const warmCache = async () => {
       try {
@@ -663,10 +667,11 @@ export default function App() {
       where('receiverUid', '==', user.uid),
       where('read', '==', false),
       orderBy('createdAt', 'desc'),
-      limit(10)
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
+      setUnreadMessageCount(snapshot.size);
       const currentView = viewRef.current;
       const currentChatReceiver = chatReceiverUidRef.current;
 
@@ -709,6 +714,7 @@ export default function App() {
         }
       }
     }, (error) => {
+      setUnreadMessageCount(0);
       handleFirestoreError(error, OperationType.LIST, 'messages', true);
     });
 
@@ -1436,7 +1442,7 @@ export default function App() {
 
             {user && (
               <div className="hidden xl:flex flex-1 justify-center px-4">
-                <AppNavigation view={view} onNavigate={handleViewChange} />
+                <AppNavigation view={view} messageUnreadCount={unreadMessageCount} onNavigate={handleViewChange} />
               </div>
             )}
 
@@ -1555,6 +1561,7 @@ export default function App() {
             view={view}
             mobile
             moreOpen={showMobileMenu}
+            messageUnreadCount={unreadMessageCount}
             onNavigate={(nextView) => {
               setShowMobileMenu(false);
               handleViewChange(nextView);

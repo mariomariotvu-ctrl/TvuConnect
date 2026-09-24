@@ -147,7 +147,7 @@ export const MobileMoreMenu: React.FC<MobileMoreMenuProps> = ({
                 <MenuItem title="Trợ lý học tập AI" description="Học tập và hướng dẫn sử dụng ứng dụng" icon={Sparkles} tone="violet" onClick={() => openExplore('ai')} />
                 <MenuItem title="Cộng đồng" description="Bài viết và hoạt động sinh viên" icon={FileText} onClick={() => navigate('posts')} />
                 <MenuItem title="Thư viện học liệu" description="Sách, giáo trình và tài liệu theo ngành" icon={BookOpen} onClick={() => navigate('documents')} />
-                <MenuItem title="Thông báo" description="Tin nhắn, cuộc gọi và kết nối mới" icon={Bell} onClick={() => navigate('notifications')} />
+                <MenuItem title="Thông báo" description="Kết bạn, hoạt động và phát hiện mới" icon={Bell} onClick={() => navigate('notifications')} />
                 <MenuItem title="Hồ sơ cá nhân" description="Thông tin, quyền riêng tư và vị trí" icon={User} onClick={() => navigate('profile')} />
               </section>
 

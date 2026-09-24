@@ -7,6 +7,7 @@ interface AppNavigationProps {
   view: View;
   mobile?: boolean;
   moreOpen?: boolean;
+  messageUnreadCount?: number;
   onNavigate: (view: View) => void;
   onMore?: () => void;
 }
@@ -38,7 +39,14 @@ const preloadName: Partial<Record<View, string>> = {
   explore: 'map',
 };
 
-export const AppNavigation: React.FC<AppNavigationProps> = ({ view, mobile = false, moreOpen = false, onNavigate, onMore }) => {
+export const AppNavigation: React.FC<AppNavigationProps> = ({
+  view,
+  mobile = false,
+  moreOpen = false,
+  messageUnreadCount = 0,
+  onNavigate,
+  onMore,
+}) => {
   const items = mobile ? mobileItems : desktopItems;
 
   return (
@@ -49,8 +57,11 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({ view, mobile = fal
           <button
             key={itemView}
             type="button"
+            aria-label={itemView === 'conversations' && messageUnreadCount > 0
+              ? `${label}, ${messageUnreadCount > 99 ? 'hơn 99' : messageUnreadCount} chưa đọc`
+              : label}
             data-tour={`${mobile ? 'mobile' : 'desktop'}-${itemView === 'conversations' ? 'messages' : itemView}`}
-            className={active ? 'is-active' : undefined}
+            className={`relative ${active ? 'is-active' : ''}`}
             aria-current={active ? 'page' : undefined}
             onMouseEnter={() => preloadName[itemView] && preloadRoute(preloadName[itemView]!)}
             onFocus={() => preloadName[itemView] && preloadRoute(preloadName[itemView]!)}
@@ -58,6 +69,16 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({ view, mobile = fal
           >
             <Icon aria-hidden="true" />
             <span>{label}</span>
+            {itemView === 'conversations' && messageUnreadCount > 0 && (
+              <span
+                aria-hidden="true"
+                className={mobile
+                  ? 'absolute right-2 top-1 min-w-5 rounded-full bg-rose-600 px-1.5 py-0.5 text-center text-[10px] font-extrabold leading-4 text-white ring-2 ring-white dark:ring-slate-950'
+                  : 'min-w-5 rounded-full bg-rose-600 px-1.5 py-0.5 text-center text-[10px] font-extrabold leading-4 text-white'}
+              >
+                {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
+              </span>
+            )}
           </button>
         );
       })}

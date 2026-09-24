@@ -10,6 +10,11 @@ const INVALID_TOKEN_CODES = new Set([
   'messaging/invalid-registration-token',
   'messaging/registration-token-not-registered',
 ]);
+const MESSAGE_CHANNEL_TYPES = new Set(['message', 'call']);
+
+const shouldStoreInInbox = (data = {}) => (
+  data.storeInInbox !== false && !MESSAGE_CHANNEL_TYPES.has(data.type)
+);
 
 const chunk = (items, size) => {
   const chunks = [];
@@ -121,8 +126,29 @@ async function createInboxNotification(recipientUid, notificationId, data) {
   }
 }
 
+/** Reserve a push-only delivery without adding it to the general activity feed. */
+async function claimPushOnlyNotification(recipientUid, notificationId, data) {
+  const reference = getFirestore()
+    .collection('_notificationEvents')
+    .doc(cleanNotificationId(`push_${notificationId}`));
+
+  try {
+    await reference.create({
+      recipientUid,
+      type: data.type || 'system',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    if (error?.code === 6 || error?.code === 'already-exists') return false;
+    throw error;
+  }
+}
+
 async function deliverNotification(recipientUid, notificationId, data) {
-  const created = await createInboxNotification(recipientUid, notificationId, data);
+  const created = shouldStoreInInbox(data)
+    ? await createInboxNotification(recipientUid, notificationId, data)
+    : await claimPushOnlyNotification(recipientUid, notificationId, data);
   if (!created) return { created: false, successCount: 0, failureCount: 0 };
 
   const pushResult = await sendDataNotification(recipientUid, {
@@ -141,7 +167,9 @@ async function deliverNotification(recipientUid, notificationId, data) {
 
 module.exports = {
   cleanNotificationId,
+  claimPushOnlyNotification,
   createInboxNotification,
   deliverNotification,
   sendDataNotification,
+  shouldStoreInInbox,
 };

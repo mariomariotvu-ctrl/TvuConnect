@@ -29,6 +29,7 @@ exports.sendCallNotification = onDocumentCreated('calls/{callId}', async (event)
         actorPhotoURL: caller?.photoURL || null,
         entityId: event.params.callId,
         route: `/messages/${encodeURIComponent(call.callerUid)}`,
+        storeInInbox: false,
         pushData: {
           callId: event.params.callId,
           callerUid: call.callerUid,

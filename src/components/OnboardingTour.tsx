@@ -104,7 +104,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     {
       target: '[data-tour="notifications"]',
       title: 'Thông báo tập trung',
-      content: 'Tin nhắn, cuộc gọi, kết bạn và hoạt động gần bạn được gom về một nơi.',
+      content: 'Lời mời kết bạn, tương tác cộng đồng và phát hiện gần bạn được gom về một nơi.',
       placement: 'bottom',
     },
     {
@@ -156,7 +156,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({ run = false, onComplete
     {
       target: '[data-tour="notifications"]',
       title: 'Trung tâm thông báo',
-      content: 'Tin nhắn, cuộc gọi, kết bạn và những cập nhật phù hợp đều nằm ở đây.',
+      content: 'Kết bạn, tương tác cộng đồng và những phát hiện phù hợp đều nằm ở đây.',
       placement: 'bottom',
     },
     {

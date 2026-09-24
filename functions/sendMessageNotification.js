@@ -100,6 +100,7 @@ exports.sendMessageNotification = onDocumentCreated('messages/{messageId}', asyn
         actorPhotoURL: sender?.photoURL || null,
         entityId: messageId,
         route: `/messages/${encodeURIComponent(senderUid)}`,
+        storeInInbox: false,
         pushData: {
           conversationId,
           senderUid,

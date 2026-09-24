@@ -23,6 +23,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onStartCha
   const [loading, setLoading] = useState(!isConversationsLoaded);
   const [searchTerm, setSearchTerm] = useState('');
   const [blockedUids, setBlockedUids] = useState<string[]>([]);
+  const [unreadByConversation, setUnreadByConversation] = useState<Record<string, number>>({});
   const profileCacheRef = useRef(new LRUCache<string, StudentProfile>(50)); // LRU Cache với max 50 profiles
 
   // Scroll momentum tracking refs
@@ -54,6 +55,32 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onStartCha
       listEl.removeEventListener('scroll', handleScroll);
       if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const currentUid = auth.currentUser.uid;
+    const unreadQuery = query(
+      collection(db, 'messages'),
+      where('receiverUid', '==', currentUid),
+      where('read', '==', false),
+      limit(200),
+    );
+
+    return onSnapshot(unreadQuery, (snapshot) => {
+      const nextCounts: Record<string, number> = {};
+      snapshot.docs.forEach((messageDoc) => {
+        const message = messageDoc.data();
+        const conversationId = message.conversationId
+          || [message.senderUid, message.receiverUid].filter(Boolean).sort().join('_');
+        if (conversationId) nextCounts[conversationId] = (nextCounts[conversationId] || 0) + 1;
+      });
+      setUnreadByConversation(nextCounts);
+    }, (error) => {
+      setUnreadByConversation({});
+      handleFirestoreError(error, OperationType.LIST, 'messages', true);
+    });
   }, []);
 
   useEffect(() => {
@@ -266,17 +293,24 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onStartCha
         </div>
       ) : (
         <div className="space-y-3" ref={listRef}>
-          {filteredConversations.map((conv) => (
-            <button
-              key={conv.id}
-              onClick={() => handleConversationClick(conv.otherUser.uid)}
-              className="w-full p-3 md:p-4 rounded-3xl shadow-sm border transition-all flex items-center gap-3 md:gap-4 group text-left hover:shadow-md"
-              style={{
-                backgroundColor: theme === 'dark' ? 'rgba(31,41,55,0.7)' : '#ffffff',
-                borderColor: theme === 'dark' ? 'rgba(55,65,81,0.8)' : '#f3f4f6',
-                touchAction: 'manipulation',
-              }}
-            >
+          {filteredConversations.map((conv) => {
+            const unreadCount = unreadByConversation[conv.id] || 0;
+            return (
+              <button
+                key={conv.id}
+                onClick={() => handleConversationClick(conv.otherUser.uid)}
+                aria-label={`${conv.otherUser.fullName}${unreadCount ? `, ${unreadCount} tin nhắn chưa đọc` : ''}`}
+                className={`w-full p-3 md:p-4 rounded-3xl shadow-sm border transition-all flex items-center gap-3 md:gap-4 group text-left hover:shadow-md ${unreadCount ? 'ring-1 ring-indigo-200 dark:ring-indigo-800' : ''}`}
+                style={{
+                  backgroundColor: unreadCount
+                    ? (theme === 'dark' ? 'rgba(49,46,129,0.24)' : 'rgba(238,242,255,0.72)')
+                    : (theme === 'dark' ? 'rgba(31,41,55,0.7)' : '#ffffff'),
+                  borderColor: unreadCount
+                    ? (theme === 'dark' ? 'rgba(99,102,241,0.45)' : '#c7d2fe')
+                    : (theme === 'dark' ? 'rgba(55,65,81,0.8)' : '#f3f4f6'),
+                  touchAction: 'manipulation',
+                }}
+              >
               <div className="relative flex-shrink-0">
                 {conv.otherUser.photoURL ? (
                   <img
@@ -308,7 +342,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onStartCha
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline gap-2 mb-1">
                   <h4
-                    className="font-bold transition-colors flex-1 min-w-0 group-hover:text-indigo-500 truncate"
+                    className={`${unreadCount ? 'font-black' : 'font-bold'} transition-colors flex-1 min-w-0 group-hover:text-indigo-500 truncate`}
                     style={{
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -326,14 +360,20 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({ onStartCha
                     </span>
                   )}
                 </div>
-                <p className="text-sm truncate text-gray-500 dark:text-gray-400">
+                <p className={`text-sm truncate ${unreadCount ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-gray-500 dark:text-gray-400'}`}>
                   {conv.lastMessage || 'Bắt đầu cuộc trò chuyện mới'}
                 </p>
               </div>
 
+              {unreadCount > 0 && (
+                <span className="grid min-h-6 min-w-6 shrink-0 place-items-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-black text-white shadow-sm" aria-hidden="true">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
               <ChevronRight className="w-5 h-5 group-hover:text-blue-400 transition-colors flex-shrink-0 text-gray-300 dark:text-gray-600" />
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
