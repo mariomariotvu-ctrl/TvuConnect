@@ -18,6 +18,7 @@ import {
 import { prepareImageForAI, type PreparedAIImage } from '../utils/aiImage';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { ImageSourcePicker } from './ImageSourcePicker';
+import { AIMessageContent } from './AIMessageContent';
 import { toast } from 'sonner';
 
 interface Message {
@@ -392,7 +393,7 @@ export const AIAssistant: React.FC = () => {
                     }`}
                   style={{
                     wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap',
+                    whiteSpace: message.role === 'user' ? 'pre-wrap' : 'normal',
                     backgroundColor: message.role === 'user'
                       ? undefined
                       : theme === 'dark'
@@ -417,9 +418,11 @@ export const AIAssistant: React.FC = () => {
                       className="mb-2 max-h-56 w-full rounded-xl object-contain bg-black/10"
                     />
                   )}
-                  <div className="text-sm leading-relaxed">
-                    {message.content}
-                  </div>
+                  {message.role === 'assistant' ? (
+                    <AIMessageContent content={message.content} />
+                  ) : (
+                    <div className="text-sm leading-relaxed">{message.content}</div>
+                  )}
                   {message.librarySources && message.librarySources.length > 0 && (
                     <div className="mt-3 space-y-2">
                       <p className="text-[11px] font-extrabold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">Trong Thư viện TVU</p>
