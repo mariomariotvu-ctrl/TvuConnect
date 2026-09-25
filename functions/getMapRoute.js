@@ -2,6 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { normalizeRouteResponse, projectedCoordinate } = require('./getStudentRoute');
+const { getRuntimeConfig } = require('./runtimeConfig');
 
 if (!getApps().length) initializeApp();
 
@@ -54,6 +55,7 @@ async function consumeRateLimit(firestore, uid) {
       requestCount: nextCount,
       windowStartedAt: Timestamp.fromMillis(withinWindow ? startedAt : now),
       updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(now + 25 * 60 * 60 * 1000),
     }, { merge: true });
   });
 }
@@ -61,6 +63,8 @@ async function consumeRateLimit(firestore, uid) {
 exports.getMapRoute = onCall(
   { timeoutSeconds: 20, memory: '256MiB' },
   async (request) => {
+    const runtime = await getRuntimeConfig();
+    if (!runtime.mapEnabled) throw new HttpsError('unavailable', 'Chỉ đường đang được bảo trì.');
     const input = requireMapRouteInput(request);
     await consumeRateLimit(getFirestore(), input.uid);
 

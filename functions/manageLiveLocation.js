@@ -4,6 +4,7 @@ const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { distanceBetween, geohashForLocation, geohashQueryBounds } = require('geofire-common');
 const { deliverNotification } = require('./notificationHelpers');
+const { getRuntimeConfig } = require('./runtimeConfig');
 
 if (!getApps().length) initializeApp();
 
@@ -208,6 +209,8 @@ async function createEncounterIfNeeded({ firestore, current, candidate, friendUi
 }
 
 exports.updateLiveLocation = onCall(async (request) => {
+  const runtime = await getRuntimeConfig();
+  if (!runtime.mapEnabled) throw new HttpsError('unavailable', 'Bản đồ đang được bảo trì.');
   const input = requireLocationUpdate(request);
   const firestore = getFirestore();
   const profileRef = firestore.collection('profiles').doc(input.uid);
@@ -341,6 +344,8 @@ exports.stopLiveLocation = onCall(async (request) => {
 });
 
 exports.getVisibleStudentLocations = onCall(async (request) => {
+  const runtime = await getRuntimeConfig();
+  if (!runtime.mapEnabled) throw new HttpsError('unavailable', 'Bản đồ đang được bảo trì.');
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập để xem bản đồ bạn bè.');
   const focusUid = typeof request.data?.focusUid === 'string'

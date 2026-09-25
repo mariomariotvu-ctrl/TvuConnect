@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
+import { requireRuntimeFeature } from '../config/runtimeConfig';
 import {
   CallCandidateSide,
   CallContext,
@@ -26,6 +27,10 @@ export interface CreateCallInput extends CallContext {
   kind: CallKind;
   offer: RTCSessionDescriptionInit;
 }
+
+const ACTIVE_CALL_TTL_MS = 12 * 60 * 60 * 1000;
+const ENDED_CALL_TTL_MS = 60 * 60 * 1000;
+const ICE_CANDIDATE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const candidateCollection = (side: CallCandidateSide) =>
   side === 'caller' ? 'callerCandidates' : 'calleeCandidates';
@@ -50,6 +55,7 @@ const toCallSession = (id: string, data: Record<string, unknown>): CallSession =
 });
 
 export async function createCall(input: CreateCallInput): Promise<string> {
+  requireRuntimeFeature('callsEnabled', 'Cuộc gọi đang được bảo trì. Vui lòng thử lại sau.');
   if (!input.calleeUid || input.calleeUid === input.callerUid) {
     throw new Error('Không tìm thấy người nhận cuộc gọi hợp lệ.');
   }
@@ -88,6 +94,7 @@ export async function answerCall(callId: string, answer: RTCSessionDescriptionIn
       answer,
       status: 'connecting' satisfies CallStatus,
       updatedAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + ACTIVE_CALL_TTL_MS),
     });
   });
 }
@@ -115,6 +122,9 @@ export async function updateCallStatus(callId: string, status: CallStatus, ended
     const updates: Record<string, unknown> = {
       status,
       updatedAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(
+        Date.now() + (terminalStatuses.includes(status) ? ENDED_CALL_TTL_MS : ACTIVE_CALL_TTL_MS),
+      ),
     };
     if (terminalStatuses.includes(status)) {
       updates.endedAt = serverTimestamp();
@@ -141,6 +151,7 @@ export async function addCallCandidate(
     sdpMLineIndex: candidateData.sdpMLineIndex ?? null,
     usernameFragment: candidateData.usernameFragment ?? null,
     createdAt: serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + ICE_CANDIDATE_TTL_MS),
   });
 }
 
@@ -253,6 +264,7 @@ let turnIceServerRequest: Promise<RTCIceServer[]> | null = null;
  * fall back to STUN when TURN has not been configured yet.
  */
 export async function getCallIceServersForSession(): Promise<RTCIceServer[]> {
+  requireRuntimeFeature('callsEnabled', 'Cuộc gọi đang được bảo trì. Vui lòng thử lại sau.');
   const fallbackServers = getCallIceServers();
   if (hasTurnRelayServer(fallbackServers)) return fallbackServers;
 

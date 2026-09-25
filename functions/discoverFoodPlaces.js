@@ -196,6 +196,7 @@ async function consumeRateLimit(uid) {
       requestCount: nextCount,
       windowStartedAt: Timestamp.fromMillis(withinWindow ? startedAt : now),
       updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(now + 25 * 60 * 60 * 1000),
     }, { merge: true });
   });
 }

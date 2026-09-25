@@ -74,6 +74,8 @@ export type AppNotificationType =
   | 'encounter'
   | 'new_profile'
   | 'dating_match'
+  | 'study_room_invite'
+  | 'music_station'
   | 'system';
 
 export interface AppNotification {

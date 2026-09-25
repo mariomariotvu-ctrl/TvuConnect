@@ -2,6 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { getRuntimeConfig } = require('./runtimeConfig');
 
 if (!getApps().length) initializeApp();
 
@@ -48,6 +49,7 @@ async function consumeRateLimit(firestore, uid) {
       requestCount: nextCount,
       windowStartedAt: Timestamp.fromMillis(withinWindow ? startedAt : now),
       updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(now + 25 * 60 * 60 * 1000),
     }, { merge: true });
   });
 }
@@ -59,6 +61,8 @@ exports.getTurnIceServers = onCall(
     secrets: [TURN_KEY_ID, TURN_KEY_API_TOKEN],
   },
   async (request) => {
+    const runtime = await getRuntimeConfig();
+    if (!runtime.callsEnabled) throw new HttpsError('unavailable', 'Cuộc gọi đang được bảo trì.');
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập để bắt đầu cuộc gọi.');
 

@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_DATABASE_ID?: string;
   readonly VITE_FIREBASE_VAPID_KEY?: string;
   readonly VITE_FIREBASE_FUNCTIONS_REGION?: string;
+  readonly VITE_FIREBASE_APPCHECK_SITE_KEY?: string;
+  readonly VITE_FIREBASE_APPCHECK_DEBUG_TOKEN?: string;
   readonly VITE_GOOGLE_DRIVE_API_KEY?: string;
   readonly VITE_GOOGLE_CLIENT_ID?: string;
   readonly VITE_GOOGLE_DRIVE_APP_ID?: string;

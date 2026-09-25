@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ChevronRight, Cloud, Folder, Home, Loader2, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
+import { BookOpen, ChevronRight, Cloud, Folder, FolderSearch2, Home, Loader2, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { toast } from 'sonner';
 import { CreateDocumentModal } from './CreateDocumentModal';
+import { MaterialCollectorModal, materialSourceToFormDefaults } from './MaterialCollectorModal';
 import { DocumentGrid } from './DocumentGrid';
 import { EditDocumentModal } from './EditDocumentModal';
 import { FilterPanel } from './FilterPanel';
@@ -10,6 +11,7 @@ import { SearchBar } from './SearchBar';
 import { useDocuments } from '../hooks/useDocuments';
 import { createDocument, deleteDocument, updateDocument } from '../services/documentService';
 import type { DocumentFormData, DocumentLink, FilterState } from '../types/documentLink';
+import type { CollectedAcademicSource } from '../utils/academicMaterialSearch';
 
 interface DocumentRepositoryProps {
   currentUser: User;
@@ -40,6 +42,7 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
     new URLSearchParams(window.location.search).get('q')?.trim() || ''
   ));
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCollectorModal, setShowCollectorModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDocument, setEditingDocument] = useState<DocumentLink | null>(null);
   const [selectedFolderPath, setSelectedFolderPath] = useState<string[]>([]);
@@ -107,6 +110,10 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
       toast.error(error.message || 'Không thể thêm tài liệu');
       throw error;
     }
+  };
+
+  const handleSaveCollectedSource = async (source: CollectedAcademicSource, query: string) => {
+    await handleCreateDocument(materialSourceToFormDefaults(source, query));
   };
 
   const handleUpdateDocument = async (id: string, data: DocumentFormData) => {
@@ -181,6 +188,14 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
           <button type="button" onClick={refresh} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><RefreshCw className="h-4 w-4" />Đồng bộ</button>
           <button
             type="button"
+            onClick={() => setShowCollectorModal(true)}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200"
+          >
+            <FolderSearch2 className="h-4 w-4" aria-hidden="true" />
+            Gom tài liệu
+          </button>
+          <button
+            type="button"
             onClick={() => setShowCreateModal(true)}
             className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
           >
@@ -200,6 +215,15 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
       <div className="mb-4">
         <SearchBar value={searchKeyword} onChange={setSearchKeyword} placeholder="Tìm theo tiêu đề, ngành học hoặc môn học" />
       </div>
+
+      <button
+        type="button"
+        onClick={() => setShowCollectorModal(true)}
+        className="mb-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-700 sm:hidden dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200"
+      >
+        <FolderSearch2 className="h-5 w-5" aria-hidden="true" />
+        Tìm bài đăng và gom nhiều link tài liệu
+      </button>
 
       <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/70" aria-label="Lọc loại học liệu">
         <div className="mb-2 flex items-center gap-2">
@@ -341,6 +365,13 @@ export function DocumentRepository({ currentUser, onProfileClick }: DocumentRepo
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateDocument}
         currentUser={currentUser}
+      />
+      <MaterialCollectorModal
+        open={showCollectorModal}
+        initialQuery={searchKeyword}
+        onClose={() => setShowCollectorModal(false)}
+        onSaveExternalSource={handleSaveCollectedSource}
+        onLibraryChanged={refresh}
       />
       <EditDocumentModal
         isOpen={showEditModal}

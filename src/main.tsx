@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { Toaster } from 'sonner';
 import { logger } from '@/utils/logger';
+import { initializeRuntimeConfig } from '@/config/runtimeConfig';
 import './index.css';
 import 'leaflet/dist/leaflet.css';
 import './styles/leaflet-custom.css';
@@ -45,6 +46,10 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>
 );
+
+// Operational switches load in the background. Checked-in defaults keep the
+// first paint fast and make the app resilient when Remote Config is unreachable.
+void initializeRuntimeConfig();
 
 // Register Service Worker for Push Notifications
 if ('serviceWorker' in navigator) {

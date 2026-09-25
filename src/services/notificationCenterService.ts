@@ -6,6 +6,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
@@ -13,6 +14,59 @@ import { db } from '../firebase';
 import type { AppNotification, AppNotificationType } from '../types';
 
 const MESSAGE_CHANNEL_TYPES = new Set<AppNotificationType>(['message', 'call']);
+
+export type NotificationPreferenceKey =
+  | 'messages'
+  | 'calls'
+  | 'connections'
+  | 'activity'
+  | 'nearby'
+  | 'rooms'
+  | 'stations'
+  | 'system';
+
+export type NotificationPreferences = Record<NotificationPreferenceKey, boolean>;
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  messages: true,
+  calls: true,
+  connections: true,
+  activity: true,
+  nearby: true,
+  rooms: true,
+  stations: true,
+  system: true,
+};
+
+const normalizePreferences = (value?: Record<string, unknown>): NotificationPreferences => (
+  Object.fromEntries(Object.entries(DEFAULT_NOTIFICATION_PREFERENCES).map(([key, fallback]) => [
+    key,
+    typeof value?.[key] === 'boolean' ? value[key] : fallback,
+  ])) as NotificationPreferences
+);
+
+export function subscribeNotificationPreferences(
+  uid: string,
+  onChange: (preferences: NotificationPreferences) => void,
+  onError?: (error: Error) => void,
+) {
+  return onSnapshot(
+    doc(db, 'users', uid, 'notificationPreferences', 'settings'),
+    (snapshot) => onChange(normalizePreferences(snapshot.data())),
+    (error) => onError?.(error),
+  );
+}
+
+export async function updateNotificationPreference(
+  uid: string,
+  key: NotificationPreferenceKey,
+  enabled: boolean,
+) {
+  await setDoc(doc(db, 'users', uid, 'notificationPreferences', 'settings'), {
+    [key]: enabled,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
 
 /** Messages and calls belong to the inbox, not the general activity feed. */
 export function isGeneralNotification(notification: Pick<AppNotification, 'type'>) {

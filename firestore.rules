@@ -48,6 +48,28 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Students control which push categories they receive. The in-app feed
+      // remains server-owned so browser clients cannot forge notifications.
+      match /notificationPreferences/{preferenceId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && preferenceId == 'settings'
+          && request.resource.data.keys().hasOnly([
+            'messages', 'calls', 'connections', 'activity', 'nearby',
+            'rooms', 'stations', 'system', 'updatedAt'
+          ])
+          && (!request.resource.data.keys().hasAny(['messages']) || request.resource.data.messages is bool)
+          && (!request.resource.data.keys().hasAny(['calls']) || request.resource.data.calls is bool)
+          && (!request.resource.data.keys().hasAny(['connections']) || request.resource.data.connections is bool)
+          && (!request.resource.data.keys().hasAny(['activity']) || request.resource.data.activity is bool)
+          && (!request.resource.data.keys().hasAny(['nearby']) || request.resource.data.nearby is bool)
+          && (!request.resource.data.keys().hasAny(['rooms']) || request.resource.data.rooms is bool)
+          && (!request.resource.data.keys().hasAny(['stations']) || request.resource.data.stations is bool)
+          && (!request.resource.data.keys().hasAny(['system']) || request.resource.data.system is bool)
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if isOwner(userId);
+      }
+
       // The server creates immutable inbox events. The owner may only mark an
       // event as read; clients cannot forge, edit, delete, or inspect another
       // student's notifications.
@@ -127,9 +149,12 @@ service cloud.firestore {
     // ===============================================================
     match /typing/{conversationId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && 
-        (request.resource.data.userId == request.auth.uid || 
-         request.resource.data.userId == null);
+      allow write: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['userId', 'timestamp', 'expiresAt'])
+        && (request.resource.data.userId == request.auth.uid || request.resource.data.userId == null)
+        && request.resource.data.timestamp == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time;
     }
     
     // ===============================================================
@@ -654,7 +679,9 @@ service cloud.firestore {
       allow update: if isAuthenticated()
         && request.auth.uid in resource.data.participantUids
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['answer', 'status', 'updatedAt', 'endedAt', 'endedBy'])
+          .hasOnly(['answer', 'status', 'updatedAt', 'endedAt', 'endedBy', 'expiresAt'])
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
         && (
           (resource.data.status == 'ringing'
             && request.resource.data.status == 'connecting'
@@ -673,7 +700,9 @@ service cloud.firestore {
         allow read: if isAuthenticated()
           && request.auth.uid in get(/databases/$(database)/documents/calls/$(callId)).data.participantUids;
         allow create: if isAuthenticated()
-          && request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.callerUid;
+          && request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.callerUid
+          && request.resource.data.expiresAt is timestamp
+          && request.resource.data.expiresAt > request.time;
         allow update, delete: if false;
       }
 
@@ -681,7 +710,9 @@ service cloud.firestore {
         allow read: if isAuthenticated()
           && request.auth.uid in get(/databases/$(database)/documents/calls/$(callId)).data.participantUids;
         allow create: if isAuthenticated()
-          && request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.calleeUid;
+          && request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.calleeUid
+          && request.resource.data.expiresAt is timestamp
+          && request.resource.data.expiresAt > request.time;
         allow update, delete: if false;
       }
     }

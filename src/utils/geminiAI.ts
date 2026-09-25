@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
+import { requireRuntimeFeature } from '../config/runtimeConfig';
 
 /** A compact, serializable chat history accepted by the callable function. */
 export interface ChatMessage {
@@ -17,6 +18,10 @@ export interface StudentAssistantImage {
 export interface StudentAssistantSource {
   title: string;
   url: string;
+  provider?: string;
+  driveFileId?: string;
+  kind?: 'document' | 'folder';
+  discoveredFrom?: string;
 }
 
 export interface StudentAssistantResult {
@@ -71,6 +76,10 @@ export async function sendMessageToAI(
 ): Promise<StudentAssistantResult> {
   const message = userText.trim();
   if (!message) throw new Error('Hãy nhập câu hỏi trước khi gửi.');
+  requireRuntimeFeature(
+    'aiEnabled',
+    'Trợ lý học tập đang được bảo trì. Bạn vẫn có thể dùng Thư viện để tìm tài liệu.',
+  );
 
   const askStudentAssistant = httpsCallable<
     {

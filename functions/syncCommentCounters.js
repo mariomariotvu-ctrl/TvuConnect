@@ -1,6 +1,6 @@
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { getApps, initializeApp } = require('firebase-admin/app');
-const { FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { cleanNotificationId } = require('./notificationHelpers');
 
 if (!getApps().length) initializeApp();
@@ -69,6 +69,7 @@ exports.syncCommentCounters = onDocumentWritten({
         commentId: event.params.commentId,
         delta,
         createdAt: FieldValue.serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
       if (!targetSnapshot.exists) return;
 

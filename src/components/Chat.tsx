@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { db, auth, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, handleFirestoreError, OperationType, storage, ref, uploadBytes, getDownloadURL, uploadBytesResumable, limit, getDocs, deleteDoc } from '../firebase';
 import { Message, StudentProfile, Conversation } from '../types';
 import { Send, User, ArrowLeft, Loader2, Phone, Video, Mail, GraduationCap, X, Mic, Square, Play, Pause, Trash2, ShieldOff, Smile, Check, CheckCheck, Clock } from 'lucide-react';
@@ -18,6 +19,8 @@ import { listenerRegistry } from '../utils/listenerRegistry';
 import { playAppSound } from '../utils/appSounds';
 
 import { useTheme } from '../contexts/ThemeContext';
+
+const typingExpiresAt = (seconds = 30) => Timestamp.fromMillis(Date.now() + seconds * 1000);
 
 interface ChatProps {
   receiverUid: string;
@@ -299,7 +302,11 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
       if (auth.currentUser) {
         const conversationId = [auth.currentUser.uid, receiverUid].sort().join('_');
         const typingRef = doc(db, 'typing', conversationId);
-        setDoc(typingRef, { userId: null, timestamp: serverTimestamp() }).catch((error) => {
+        setDoc(typingRef, {
+          userId: null,
+          timestamp: serverTimestamp(),
+          expiresAt: typingExpiresAt(5),
+        }).catch((error) => {
           logger.error('Error clearing typing status:', error);
         });
       }
@@ -333,7 +340,8 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
       // Set typing status
       await setDoc(typingRef, {
         userId: auth.currentUser.uid,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        expiresAt: typingExpiresAt(),
       });
 
       // Clear previous timeout
@@ -346,7 +354,8 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
         try {
           await setDoc(typingRef, {
             userId: null,
-            timestamp: serverTimestamp()
+            timestamp: serverTimestamp(),
+            expiresAt: typingExpiresAt(5),
           });
         } catch (error) {
           // Ignore errors
@@ -534,7 +543,11 @@ export const Chat: React.FC<ChatProps> = ({ receiverUid, onBack, onStartCall }) 
 
     // Fire-and-forget: clear typing status (non-blocking)
     const typingRef = doc(db, 'typing', conversationId);
-    setDoc(typingRef, { userId: null, timestamp: serverTimestamp() }).catch(() => {});
+    setDoc(typingRef, {
+      userId: null,
+      timestamp: serverTimestamp(),
+      expiresAt: typingExpiresAt(5),
+    }).catch(() => {});
 
     // ── FIRESTORE WRITE ──────────────────────────────────────────────────────
     try {

@@ -7,8 +7,11 @@ import {
   Heart,
   MapPin,
   MessageCircle,
+  Music2,
+  Settings2,
   UserPlus,
   Users,
+  Video,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppNotification, AppNotificationType } from '../types';
@@ -16,7 +19,12 @@ import {
   markNotificationRead,
   markNotificationsRead,
   safeNotificationRoute,
+  subscribeNotificationPreferences,
   subscribeToNotifications,
+  updateNotificationPreference,
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  type NotificationPreferenceKey,
+  type NotificationPreferences,
 } from '../services/notificationCenterService';
 
 interface NotificationCenterProps {
@@ -36,6 +44,8 @@ const CONNECTION_TYPES = new Set<AppNotificationType>([
 const ACTIVITY_TYPES = new Set<AppNotificationType>([
   'comment',
   'reply',
+  'music_station',
+  'study_room_invite',
 ]);
 
 const iconFor = (type: AppNotificationType) => {
@@ -45,6 +55,8 @@ const iconFor = (type: AppNotificationType) => {
   if (type === 'dating_match') return Heart;
   if (type === 'new_profile') return UserPlus;
   if (type === 'comment' || type === 'reply') return MessageCircle;
+  if (type === 'study_room_invite') return Video;
+  if (type === 'music_station') return Music2;
   return Bell;
 };
 
@@ -73,6 +85,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [markingAll, setMarkingAll] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [savingPreference, setSavingPreference] = useState<NotificationPreferenceKey | null>(null);
+  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
 
   useEffect(() => subscribeToNotifications(currentUser.uid, (items) => {
     setNotifications(items);
@@ -82,6 +97,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
     setLoading(false);
     toast.error('Chưa thể tải thông báo. Vui lòng thử lại.');
   }), [currentUser.uid]);
+
+  useEffect(() => subscribeNotificationPreferences(
+    currentUser.uid,
+    setPreferences,
+    (error) => console.warn('Could not load notification preferences:', error),
+  ), [currentUser.uid]);
 
   const unreadCount = notifications.filter((notification) => !notification.readAt).length;
   const visibleNotifications = useMemo(() => notifications.filter((notification) => {
@@ -124,6 +145,36 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
     { id: 'nearby', label: 'Gần bạn' },
   ];
 
+  const preferenceOptions: Array<{
+    key: NotificationPreferenceKey;
+    label: string;
+    description: string;
+  }> = [
+    { key: 'messages', label: 'Tin nhắn', description: 'Tin nhắn mới trong Hộp thư' },
+    { key: 'calls', label: 'Cuộc gọi', description: 'Cuộc gọi âm thanh và video đến' },
+    { key: 'connections', label: 'Kết nối', description: 'Kết bạn, ghép đôi và sinh viên phù hợp' },
+    { key: 'activity', label: 'Hoạt động', description: 'Bình luận và phản hồi cộng đồng' },
+    { key: 'nearby', label: 'Gần bạn', description: 'Phát hiện gặp nhau khi cả hai cùng bật' },
+    { key: 'rooms', label: 'Phòng học', description: 'Lời mời và cập nhật phòng học nhóm' },
+    { key: 'stations', label: 'Trạm cảm xúc', description: 'Ảnh, nhạc và cảm xúc quanh bạn' },
+    { key: 'system', label: 'Hệ thống', description: 'Bảo mật và thông tin quan trọng' },
+  ];
+
+  const changePreference = async (key: NotificationPreferenceKey, enabled: boolean) => {
+    const previous = preferences[key];
+    setPreferences((current) => ({ ...current, [key]: enabled }));
+    setSavingPreference(key);
+    try {
+      await updateNotificationPreference(currentUser.uid, key, enabled);
+    } catch (error) {
+      console.error('Could not save notification preference:', error);
+      setPreferences((current) => ({ ...current, [key]: previous }));
+      toast.error('Chưa thể lưu lựa chọn thông báo.');
+    } finally {
+      setSavingPreference(null);
+    }
+  };
+
   return (
     <section className="mx-auto max-w-3xl">
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between">
@@ -132,16 +183,53 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
           <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Kết nối và hoạt động mới</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Lời mời kết bạn, tương tác cộng đồng, người phù hợp và những phát hiện quanh bạn.</p>
         </div>
-        <button
-          type="button"
-          disabled={!unreadCount || markingAll}
-          onClick={() => void markAllRead()}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-        >
-          <CheckCheck className="h-4 w-4" />
-          Đánh dấu tất cả đã đọc
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setShowPreferences((current) => !current)}
+            aria-expanded={showPreferences}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            <Settings2 className="h-4 w-4" />
+            Tùy chọn
+          </button>
+          <button
+            type="button"
+            disabled={!unreadCount || markingAll}
+            onClick={() => void markAllRead()}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          >
+            <CheckCheck className="h-4 w-4" />
+            Đánh dấu tất cả đã đọc
+          </button>
+        </div>
       </header>
+
+      {showPreferences && (
+        <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900" aria-label="Tùy chọn thông báo đẩy">
+          <div>
+            <h2 className="font-black text-slate-900 dark:text-white">Bạn muốn nhận gì?</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Tắt một mục chỉ dừng thông báo đẩy trên thiết bị; hoạt động vẫn được lưu trong ứng dụng để bạn không bỏ lỡ.</p>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {preferenceOptions.map((option) => (
+              <label key={option.key} className="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-slate-100 px-3 py-2.5 dark:border-slate-800">
+                <input
+                  type="checkbox"
+                  checked={preferences[option.key]}
+                  disabled={savingPreference === option.key}
+                  onChange={(event) => void changePreference(option.key, event.target.checked)}
+                  className="h-5 w-5 accent-indigo-600"
+                />
+                <span>
+                  <strong className="block text-sm text-slate-900 dark:text-white">{option.label}</strong>
+                  <span className="mt-0.5 block text-xs leading-4 text-slate-500 dark:text-slate-400">{option.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/80 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/25 sm:flex-row sm:items-center sm:p-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">

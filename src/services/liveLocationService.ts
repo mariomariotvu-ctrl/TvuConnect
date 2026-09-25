@@ -16,6 +16,7 @@ import type {
   VisibleStudentLocation,
 } from '../types';
 import { requestFreshGeolocation } from '../utils/geolocation';
+import { requireRuntimeFeature } from '../config/runtimeConfig';
 
 export interface LiveLocationUpdate {
   latitude: number;
@@ -83,6 +84,7 @@ export async function requestPreciseLocation(): Promise<{
 }
 
 export async function updateLiveLocation(input: LiveLocationUpdate) {
+  requireRuntimeFeature('mapEnabled', 'Bản đồ đang được bảo trì. Vui lòng thử lại sau.');
   const callable = httpsCallable<LiveLocationUpdate, {
     updatedAt: number;
     expiresAt: number;
@@ -103,6 +105,7 @@ export async function stopLiveLocation() {
 }
 
 export async function getVisibleStudentLocations(focusUid?: string): Promise<VisibleStudentLocation[]> {
+  requireRuntimeFeature('mapEnabled', 'Bản đồ đang được bảo trì. Vui lòng thử lại sau.');
   const callable = httpsCallable<{ focusUid?: string }, { locations: VisibleStudentLocation[] }>(
     functions,
     'getVisibleStudentLocations',
@@ -117,6 +120,7 @@ export async function getStudentRoute(
   mode: StudentRouteMode,
   origin?: RouteOrigin,
 ) {
+  requireRuntimeFeature('mapEnabled', 'Chỉ đường đang được bảo trì. Vui lòng thử lại sau.');
   const callable = httpsCallable<
     { targetUid: string; mode: StudentRouteMode; origin?: RouteOrigin },
     StudentRoute
@@ -130,6 +134,7 @@ export async function getMapRoute(
   destination: { latitude: number; longitude: number },
   mode: StudentRouteMode,
 ) {
+  requireRuntimeFeature('mapEnabled', 'Chỉ đường đang được bảo trì. Vui lòng thử lại sau.');
   const callable = httpsCallable<{
     origin: { latitude: number; longitude: number };
     destination: { latitude: number; longitude: number };

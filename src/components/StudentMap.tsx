@@ -79,6 +79,10 @@ import {
   safeStudentMarkerPhotoURL,
   studentMarkerInitials,
 } from '../utils/studentMapMarkers';
+import {
+  getRuntimeConfig,
+  subscribeRuntimeConfig,
+} from '../config/runtimeConfig';
 
 interface StudentMapProps {
   currentUser: User;
@@ -88,9 +92,6 @@ interface StudentMapProps {
 }
 
 const DEFAULT_MAP_CENTER: [number, number] = [9.9345, 106.3461];
-const LOCATION_REFRESH_MS = 15_000;
-const FOCUSED_LOCATION_REFRESH_MS = 4_000;
-const ROUTE_REFRESH_MS = 20_000;
 const ROUTE_REFRESH_DISTANCE_METERS = 25;
 
 const ROUTE_MODES: Array<{
@@ -278,6 +279,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   onProfileClick,
 }) => {
   const { theme } = useTheme();
+  const [runtimeConfig, setRuntimeConfig] = useState(getRuntimeConfig);
   const [preferences, setPreferences] = useState<LocationPreferences>({
     uid: currentUser.uid,
     visibility: 'off',
@@ -315,6 +317,8 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const localPositionRef = useRef<PreciseGeolocation | null>(null);
 
   const sharingActive = preferences.visibility !== 'off';
+
+  useEffect(() => subscribeRuntimeConfig(setRuntimeConfig), []);
 
   useEffect(() => subscribeLocationPreferences(currentUser.uid, (next) => {
     setPreferences(next);
@@ -395,7 +399,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     if (!sharingActive) return;
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadLocations();
-    }, LOCATION_REFRESH_MS);
+    }, runtimeConfig.locationRefreshMs);
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') void loadLocations();
     };
@@ -404,7 +408,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadLocations, sharingActive]);
+  }, [loadLocations, runtimeConfig.locationRefreshMs, sharingActive]);
 
   useEffect(() => {
     if (!sharingActive || !navigator.geolocation) return;
@@ -445,9 +449,9 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     void loadFocusedLocation(selectedUid);
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadFocusedLocation(selectedUid);
-    }, FOCUSED_LOCATION_REFRESH_MS);
+    }, runtimeConfig.focusedLocationRefreshMs);
     return () => window.clearInterval(interval);
-  }, [loadFocusedLocation, selectedUid]);
+  }, [loadFocusedLocation, runtimeConfig.focusedLocationRefreshMs, selectedUid]);
 
   const saveSharing = async () => {
     setSaving(true);
@@ -622,14 +626,14 @@ export const StudentMap: React.FC<StudentMapProps> = ({
     const targetMoved = selectedLocation.updatedAt > studentRoute.targetUpdatedAt;
     if (!targetMoved && movedFromRouteStart < ROUTE_REFRESH_DISTANCE_METERS) return;
 
-    const delay = Math.max(0, ROUTE_REFRESH_MS - (Date.now() - studentRoute.generatedAt));
+    const delay = Math.max(0, runtimeConfig.routeRefreshMs - (Date.now() - studentRoute.generatedAt));
     const timeout = window.setTimeout(() => {
       if (document.visibilityState === 'visible') {
         void loadStudentRoute(selectedLocation, studentRoute.mode, true);
       }
     }, delay);
     return () => window.clearTimeout(timeout);
-  }, [loadStudentRoute, localPosition, selectedLocation, studentRoute]);
+  }, [loadStudentRoute, localPosition, runtimeConfig.routeRefreshMs, selectedLocation, studentRoute]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-3 pb-24 dark:bg-slate-950 sm:p-5">

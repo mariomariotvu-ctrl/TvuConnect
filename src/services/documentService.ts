@@ -54,6 +54,12 @@ export async function createDocument(
 ): Promise<string> {
   try {
     const sanitizedURL = sanitizeURL(data.url);
+    const existing = await getDocs(query(
+      collection(db, 'documentLinks'),
+      where('url', '==', sanitizedURL),
+      limit(1),
+    ));
+    if (!existing.empty) return existing.docs[0].id;
     
     const docRef = await addDoc(collection(db, 'documentLinks'), {
       title: data.title,

@@ -2,6 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { getRuntimeConfig } = require('./runtimeConfig');
 
 if (!getApps().length) {
   initializeApp();
@@ -395,6 +396,7 @@ async function consumeRateLimit(uid) {
       requestCount: nextCount,
       windowStartedAt: Timestamp.fromMillis(withinWindow ? startedAt : now),
       updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(now + 24 * 60 * 60 * 1000),
     }, { merge: true });
   });
 }
@@ -408,6 +410,11 @@ exports.askStudentAssistant = onCall(
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Bạn cần đăng nhập để dùng trợ lý học tập.');
+    }
+
+    const runtime = await getRuntimeConfig();
+    if (!runtime.aiEnabled) {
+      throw new HttpsError('unavailable', 'Trợ lý học tập đang được bảo trì.');
     }
 
     const key = geminiApiKey.value();
@@ -432,7 +439,13 @@ exports.askStudentAssistant = onCall(
       })
       : [];
 
-    const modelCandidates = selectModelCandidates(message, Boolean(image), mode);
+    const configuredModel = /^gemini-[a-z0-9.-]+$/i.test(runtime.aiModel || '')
+      ? runtime.aiModel
+      : '';
+    const modelCandidates = [...new Set([
+      configuredModel,
+      ...selectModelCandidates(message, Boolean(image), mode),
+    ].filter(Boolean))];
     let modelUsed = modelCandidates[0];
     let response;
     for (const candidate of modelCandidates) {

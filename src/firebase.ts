@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, serverTimestamp, Timestamp, addDoc, orderBy, limit, startAfter, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, getDocs, onSnapshot, serverTimestamp, Timestamp, addDoc, orderBy, limit, startAfter, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import { getDatabase, ref as dbRef, set as dbSet, update as dbUpdate, onValue, onDisconnect, serverTimestamp as dbServerTimestamp, get as dbGet, remove as dbRemove, query as dbQuery, orderByChild, equalTo } from 'firebase/database';
 import { getFunctions } from 'firebase/functions';
@@ -44,11 +45,54 @@ try {
   app = null as any;
 }
 
+// App Check must be initialized before Firestore/Functions start making calls.
+// Enforcement stays disabled server-side until this configuration reaches the
+// production web bundle, avoiding an accidental lockout of the current site.
+export let appCheck: ReturnType<typeof initializeAppCheck> | null = null;
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY
+  || (firebaseConfig.projectId === 'tvu-connect-1dc97'
+    ? '6LdOps0tAAAAAOLluSYsfTEmyHc-SVg1nikzqv2i'
+    : undefined);
+if (app && typeof window !== 'undefined' && appCheckSiteKey) {
+  try {
+    const debugToken = import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN;
+    if (import.meta.env.DEV && debugToken) {
+      (globalThis as typeof globalThis & { FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean })
+        .FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken === 'true' ? true : debugToken;
+    }
+    appCheck = initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+    logger.log('✅ Firebase App Check initialized');
+  } catch (error) {
+    logger.warn('Firebase App Check could not be initialized:', error);
+  }
+} else if (app && typeof window !== 'undefined') {
+  logger.warn('Firebase App Check site key is not configured for this build.');
+}
+
 // Use database ID from environment variable, fallback to default
 // Note: "(default)" string means use the default database, not a named database
 const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
 const isNamedDatabase = databaseId && databaseId !== '(default)' && databaseId.trim() !== '';
-export const db = isNamedDatabase ? getFirestore(app, databaseId) : getFirestore(app);
+const initializeOfflineFirestore = () => {
+  try {
+    const settings = {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    };
+    return isNamedDatabase
+      ? initializeFirestore(app, settings, databaseId)
+      : initializeFirestore(app, settings);
+  } catch (error) {
+    logger.warn('Persistent Firestore cache is unavailable; using memory cache:', error);
+    return isNamedDatabase ? getFirestore(app, databaseId) : getFirestore(app);
+  }
+};
+
+export const db = initializeOfflineFirestore();
 
 export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence);

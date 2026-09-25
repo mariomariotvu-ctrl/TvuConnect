@@ -1,10 +1,17 @@
-import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
+import { deleteToken as deleteMessagingToken, getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
 import { app } from '../firebase';
-import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logger } from '@/utils/logger';
+import { requireRuntimeFeature } from '@/config/runtimeConfig';
 
-const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+// Keep the production project's current public VAPID key in source as a safe
+// fallback. VAPID public keys are intentionally distributed to browsers. The
+// project-specific value takes precedence so a stale Vercel variable cannot
+// keep producing registration 401 responses after key rotation.
+const vapidKey = app.options.projectId === 'tvu-connect-1dc97'
+  ? 'BLCU4Lud3c0u7wCLnJW3FGwk5X56ockE82T_7MZQwz-BGjPKMw48iMSqJ6VJ5ogWy6bI1J6gOpaZZZsh2QYBdec'
+  : import.meta.env.VITE_FIREBASE_VAPID_KEY;
 const TOKEN_RETRY_DELAY_MS = 5 * 60 * 1000;
 const tokenRequests = new Map<string, Promise<string | null>>();
 
@@ -58,6 +65,10 @@ try {
  */
 export const requestNotificationPermission = async (userId: string): Promise<string | null> => {
   try {
+    requireRuntimeFeature(
+      'notificationsEnabled',
+      'Thông báo đẩy đang được bảo trì. Bạn vẫn xem được thông báo trong ứng dụng.',
+    );
     // Check if notifications supported
     if (!('Notification' in window)) {
       logger.log('Browser không hỗ trợ notifications');
@@ -160,6 +171,7 @@ const saveFCMToken = async (userId: string, token: string) => {
       deviceInfo: navigator.userAgent,
       createdAt: serverTimestamp(),
       lastUsed: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
       deleted: false
     }, { merge: true });
     
@@ -190,6 +202,7 @@ export const setupForegroundListener = (
  */
 export const deleteFCMToken = async (userId: string, token: string) => {
   try {
+    if (messaging) await deleteMessagingToken(messaging).catch(() => false);
     const tokenRef = doc(db, `users/${userId}/fcmTokens/${token}`);
     await deleteDoc(tokenRef);
     logger.log('✅ FCM token deleted');

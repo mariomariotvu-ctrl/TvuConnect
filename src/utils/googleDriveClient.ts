@@ -62,9 +62,29 @@ interface DriveFileMetadata {
   name: string;
   mimeType: string;
   size?: string;
+  webViewLink?: string;
   capabilities?: {
     canDownload?: boolean;
+    canCopy?: boolean;
   };
+}
+
+export interface GoogleDrivePublicMetadata {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: number;
+  webViewLink: string;
+  canDownload: boolean;
+  canCopy: boolean;
+}
+
+export interface GoogleDriveImportResult {
+  id: string;
+  name: string;
+  url: string;
+  location: 'tvu-library' | 'my-drive';
+  alreadyExists?: boolean;
 }
 
 export interface GoogleDriveLibraryFile {
@@ -370,9 +390,16 @@ function makeDriveRequestUrl(path: string, accessToken?: string): string {
   return path;
 }
 
-async function driveFetch(path: string, accessToken?: string): Promise<Response> {
+async function driveFetch(
+  path: string,
+  accessToken?: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
   const response = await fetch(makeDriveRequestUrl(path, accessToken), {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    ...init,
+    headers,
   });
 
   if (response.ok) return response;
@@ -382,6 +409,96 @@ async function driveFetch(path: string, accessToken?: string): Promise<Response>
     throw new GoogleDriveError('permission', message || 'File đang giới hạn quyền truy cập.');
   }
   throw new GoogleDriveError('network', message || 'Không thể tải file từ Google Drive.');
+}
+
+export async function getGoogleDrivePublicMetadata(fileId: string): Promise<GoogleDrivePublicMetadata> {
+  if (!/^[a-zA-Z0-9_-]{3,200}$/.test(fileId)) {
+    throw new GoogleDriveError('wrong-file', 'Mã file Google Drive không hợp lệ.');
+  }
+  const encodedId = encodeURIComponent(fileId);
+  const response = await driveFetch(
+    `https://www.googleapis.com/drive/v3/files/${encodedId}?fields=id,name,mimeType,size,webViewLink,capabilities(canDownload,canCopy)&supportsAllDrives=true`,
+  );
+  const metadata = await response.json() as DriveFileMetadata;
+  return {
+    id: metadata.id,
+    name: metadata.name || 'Tài liệu Google Drive',
+    mimeType: metadata.mimeType || 'application/octet-stream',
+    size: metadata.size ? Number(metadata.size) : undefined,
+    webViewLink: metadata.webViewLink || buildGoogleDriveShareUrl({
+      id: metadata.id,
+      mimeType: metadata.mimeType || 'application/octet-stream',
+    }),
+    canDownload: metadata.capabilities?.canDownload !== false,
+    canCopy: metadata.capabilities?.canCopy !== false,
+  };
+}
+
+async function createDriveShortcut(
+  fileId: string,
+  name: string,
+  accessToken: string,
+  parentId?: string,
+): Promise<GoogleDriveImportResult> {
+  const body: Record<string, unknown> = {
+    name: name.trim().slice(0, 180) || 'Tài liệu TVU Connect',
+    mimeType: GOOGLE_SHORTCUT_MIME_TYPE,
+    shortcutDetails: { targetId: fileId },
+  };
+  if (parentId) body.parents = [parentId];
+
+  const response = await driveFetch(
+    'https://www.googleapis.com/drive/v3/files?fields=id,name,mimeType,webViewLink',
+    accessToken,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+  const created = await response.json() as DriveFileMetadata;
+  return {
+    id: created.id,
+    name: created.name || name,
+    url: created.webViewLink || `https://drive.google.com/file/d/${created.id}/view`,
+    location: parentId ? 'tvu-library' : 'my-drive',
+  };
+}
+
+/**
+ * Adds a lightweight Drive shortcut instead of duplicating a potentially
+ * copyrighted or very large file. If the OAuth scope cannot write to the
+ * shared TVU folder, keep the shortcut useful by placing it in My Drive.
+ */
+export async function addGoogleDriveShortcutToLibrary(
+  fileId: string,
+  name: string,
+): Promise<GoogleDriveImportResult> {
+  if (!/^[a-zA-Z0-9_-]{3,200}$/.test(fileId)) {
+    throw new GoogleDriveError('wrong-file', 'Mã file Google Drive không hợp lệ.');
+  }
+  const existing = await listGoogleDriveLibraryFiles(false).catch(() => []);
+  const matched = existing.find((file) => file.id === fileId);
+  if (matched) {
+    return {
+      id: matched.id,
+      name: matched.name,
+      url: buildGoogleDriveShareUrl(matched),
+      location: 'tvu-library',
+      alreadyExists: true,
+    };
+  }
+
+  const accessToken = await requestGoogleDriveToken();
+  try {
+    const result = await createDriveShortcut(fileId, name, accessToken, TVU_LIBRARY_FOLDER_ID);
+    cachedLibraryFiles = null;
+    cachedLibraryFolders = [];
+    return result;
+  } catch (error) {
+    if (!(error instanceof GoogleDriveError) || error.code !== 'permission') throw error;
+    return createDriveShortcut(fileId, name, accessToken);
+  }
 }
 
 const chunksOf = <T,>(items: T[], size: number): T[][] => {

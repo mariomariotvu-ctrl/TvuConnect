@@ -95,6 +95,7 @@ describeWithEmulator('Firestore security rules for social features', () => {
         kind: 'video',
         status: 'ringing',
         offer: { type: 'offer', sdp: 'v=0' },
+        expiresAt: new Date(Date.now() + 60_000),
       }],
       ['activeCallLocks/student-a', { uid: 'student-a', callId: 'call-1' }],
     ]);
@@ -115,12 +116,15 @@ describeWithEmulator('Firestore security rules for social features', () => {
       answer: { type: 'answer', sdp: 'v=0' },
       status: 'connecting',
       updatedAt: serverTimestamp(),
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
     }));
     await assertSucceeds(setDoc(doc(studentA, 'calls/call-1/callerCandidates/ice-1'), {
       candidate: 'candidate:1',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     }));
     await assertFails(setDoc(doc(studentB, 'calls/call-1/callerCandidates/ice-2'), {
       candidate: 'candidate:2',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     }));
     await assertFails(getDoc(doc(studentA, 'activeCallLocks/student-a')));
   });

@@ -14,6 +14,14 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
+const SHELL_CACHE = 'tvu-shell-v4';
+const SHELL_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon-192.png?v=20260920',
+  '/icon-512.png?v=20260920',
+];
 
 const notificationFor = (data = {}) => {
   const isCall = data.type === 'call';
@@ -96,13 +104,60 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
+// The FCM worker is also the app's single root service worker. Handling page
+// requests here makes the web app installable and gives installed users a safe
+// offline shell without registering a second worker for the same scope.
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy));
+          }
+          return response;
+        })
+        .catch(async () => (
+          (await caches.match(request))
+          || (await caches.match('/index.html'))
+          || Response.error()
+        )),
+    );
+    return;
+  }
+
+  if (url.pathname === '/manifest.json' || /^\/icon-(192|512)\.png$/.test(url.pathname)) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })),
+    );
+  }
+});
+
 self.addEventListener('activate', (event) => event.waitUntil(
   caches.keys()
     .then((cacheNames) => Promise.all(
       cacheNames
-        .filter((cacheName) => cacheName.startsWith('tvu-'))
+        .filter((cacheName) => cacheName.startsWith('tvu-') && cacheName !== SHELL_CACHE)
         .map((cacheName) => caches.delete(cacheName)),
     ))
     .then(() => clients.claim()),
 ));
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('install', (event) => event.waitUntil(
+  caches.open(SHELL_CACHE)
+    .then((cache) => cache.addAll(SHELL_ASSETS))
+    .catch(() => undefined)
+    .then(() => self.skipWaiting()),
+));

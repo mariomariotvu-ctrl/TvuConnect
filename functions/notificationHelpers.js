@@ -1,6 +1,7 @@
 const { getApps, initializeApp } = require('firebase-admin/app');
-const { FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getRuntimeConfig } = require('./runtimeConfig');
 
 if (!getApps().length) {
   initializeApp();
@@ -11,6 +12,22 @@ const INVALID_TOKEN_CODES = new Set([
   'messaging/registration-token-not-registered',
 ]);
 const MESSAGE_CHANNEL_TYPES = new Set(['message', 'call']);
+const NOTIFICATION_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
+const DELIVERY_EVENT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+const PREFERENCE_CATEGORY_BY_TYPE = {
+  message: 'messages',
+  call: 'calls',
+  friend_request: 'connections',
+  friend_accepted: 'connections',
+  new_profile: 'connections',
+  dating_match: 'connections',
+  comment: 'activity',
+  reply: 'activity',
+  encounter: 'nearby',
+  study_room_invite: 'rooms',
+  music_station: 'stations',
+  system: 'system',
+};
 
 const shouldStoreInInbox = (data = {}) => (
   data.storeInInbox !== false && !MESSAGE_CHANNEL_TYPES.has(data.type)
@@ -44,7 +61,23 @@ async function activeTokenDocs(userId) {
     .where('deleted', '==', false)
     .get();
 
-  return snapshot.docs.filter((tokenDoc) => typeof tokenDoc.data().token === 'string');
+  const now = Date.now();
+  return snapshot.docs.filter((tokenDoc) => {
+    const data = tokenDoc.data();
+    const expiresAt = data.expiresAt?.toMillis?.();
+    return typeof data.token === 'string' && (!expiresAt || expiresAt > now);
+  });
+}
+
+async function pushIsEnabled(recipientUid, type) {
+  const category = PREFERENCE_CATEGORY_BY_TYPE[type] || 'system';
+  const snapshot = await getFirestore()
+    .collection('users')
+    .doc(recipientUid)
+    .collection('notificationPreferences')
+    .doc('settings')
+    .get();
+  return snapshot.data()?.[category] !== false;
 }
 
 async function removeInvalidTokens(tokenDocs, responses) {
@@ -61,6 +94,13 @@ async function removeInvalidTokens(tokenDocs, responses) {
 
 /** Send data-only messages so the service worker owns the visible notification. */
 async function sendDataNotification(recipientUid, data) {
+  const runtime = await getRuntimeConfig();
+  if (!runtime.notificationsEnabled) {
+    return { successCount: 0, failureCount: 0, disabledByRemoteConfig: true };
+  }
+  if (!await pushIsEnabled(recipientUid, data?.type)) {
+    return { successCount: 0, failureCount: 0, disabledByPreference: true };
+  }
   const tokenDocs = await activeTokenDocs(recipientUid);
   if (!tokenDocs.length) return { successCount: 0, failureCount: 0 };
 
@@ -117,6 +157,7 @@ async function createInboxNotification(recipientUid, notificationId, data) {
       reason: data.reason || null,
       readAt: null,
       createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + NOTIFICATION_EXPIRY_MS),
     });
     return true;
   } catch (error) {
@@ -137,6 +178,7 @@ async function claimPushOnlyNotification(recipientUid, notificationId, data) {
       recipientUid,
       type: data.type || 'system',
       createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + DELIVERY_EVENT_EXPIRY_MS),
     });
     return true;
   } catch (error) {

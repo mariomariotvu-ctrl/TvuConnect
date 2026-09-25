@@ -31,6 +31,23 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
     <style>html,body,#root{margin:0;min-height:100%;background:#050817}</style>
+
+    <!--
+      Capture Chrome's one-shot install event before React and the lazy app UI
+      finish loading. Without this early listener, the install card can miss the
+      event and incorrectly fall back to a passive "Đã hiểu" button.
+    -->
+    <script>
+      window.__tvuInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__tvuInstallPrompt = event;
+        window.dispatchEvent(new CustomEvent('tvu-connect:install-ready'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__tvuInstallPrompt = null;
+      });
+    </script>
     
     <!-- Dark Mode Script - Must run before page renders to prevent flash -->
     <script>

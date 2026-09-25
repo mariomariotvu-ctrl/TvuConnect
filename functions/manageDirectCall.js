@@ -2,6 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { getRuntimeConfig } = require('./runtimeConfig');
 
 if (!getApps().length) {
   initializeApp();
@@ -10,6 +11,7 @@ if (!getApps().length) {
 const RINGING_TTL_MS = 60 * 1000;
 const LOCK_TTL_MS = 2 * 60 * 1000;
 const ACTIVE_LOCK_TTL_MS = 12 * 60 * 60 * 1000;
+const ENDED_CALL_TTL_MS = 60 * 60 * 1000;
 const ACTIVE_STATUSES = new Set(['ringing', 'connecting', 'active']);
 const TERMINAL_STATUSES = new Set(['declined', 'ended', 'failed']);
 const ALLOWED_CALL_SOURCES = new Set(['direct', 'quick_voice', 'dating']);
@@ -53,6 +55,10 @@ function lockStillActive(lockSnapshot, callSnapshot, nowMillis) {
 }
 
 exports.createDirectCall = onCall(async (request) => {
+  const runtime = await getRuntimeConfig();
+  if (!runtime.callsEnabled) {
+    throw new HttpsError('unavailable', 'Cuộc gọi đang được bảo trì.');
+  }
   const callerUid = request.auth?.uid;
   const calleeUid = typeof request.data?.calleeUid === 'string'
     ? request.data.calleeUid.trim()
@@ -222,6 +228,12 @@ exports.releaseDirectCallLocks = onDocumentUpdated('calls/{callId}', async (even
       const lockRefs = participantUids.map((uid) => firestore.collection('activeCallLocks').doc(uid));
       const lockSnapshots = [];
       for (const lockRef of lockRefs) lockSnapshots.push(await transaction.get(lockRef));
+
+      transaction.update(change.after.ref, {
+        expiresAt: Timestamp.fromMillis(
+          Date.now() + (TERMINAL_STATUSES.has(after.status) ? ENDED_CALL_TTL_MS : ACTIVE_LOCK_TTL_MS),
+        ),
+      });
 
       lockSnapshots.forEach((lockSnapshot, index) => {
         if (!lockSnapshot.exists || lockSnapshot.data()?.callId !== event.params.callId) return;

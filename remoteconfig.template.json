@@ -1,0 +1,44 @@
+{
+  "parameters": {
+    "feature_ai_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Emergency switch for the student AI assistant."
+    },
+    "feature_library_search_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Emergency switch for academic material discovery."
+    },
+    "feature_map_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Emergency switch for live location and routing."
+    },
+    "feature_calls_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Emergency switch for direct audio and video calls."
+    },
+    "feature_notifications_enabled": {
+      "defaultValue": { "value": "true" },
+      "description": "Emergency switch for web push token registration."
+    },
+    "ai_model": {
+      "defaultValue": { "value": "gemini-3.8-flash" },
+      "description": "Public client hint. The trusted backend remains authoritative for the provider model."
+    },
+    "gps_location_refresh_ms": {
+      "defaultValue": { "value": "15000" },
+      "description": "Refresh interval for the visible student list."
+    },
+    "gps_focused_refresh_ms": {
+      "defaultValue": { "value": "4000" },
+      "description": "Refresh interval while following one selected friend."
+    },
+    "gps_route_refresh_ms": {
+      "defaultValue": { "value": "20000" },
+      "description": "Minimum delay before recalculating a moving route."
+    },
+    "upload_max_mb": {
+      "defaultValue": { "value": "10" },
+      "description": "Shared upload limit exposed to compatible web uploaders."
+    }
+  }
+}

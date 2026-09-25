@@ -16,6 +16,10 @@ import {
   type AILibraryResult,
 } from '../utils/aiLibrarySearch';
 import { prepareImageForAI, type PreparedAIImage } from '../utils/aiImage';
+import {
+  searchAcademicMaterials,
+  type AcademicDiscoveryLink,
+} from '../utils/academicMaterialSearch';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { ImageSourcePicker } from './ImageSourcePicker';
 import { AIMessageContent } from './AIMessageContent';
@@ -30,6 +34,7 @@ interface Message {
   librarySources?: AILibraryResult[];
   librarySearchPending?: boolean;
   webSources?: StudentAssistantSource[];
+  discoveryLinks?: AcademicDiscoveryLink[];
 }
 
 const QUICK_REPLIES = [
@@ -126,41 +131,35 @@ export const AIAssistant: React.FC = () => {
       return;
     }
 
-    setLoadingLabel('Đang tìm trong Thư viện TVU và nguồn công khai…');
+    setLoadingLabel('Đang quét Thư viện TVU và các nguồn học liệu công khai…');
     setIsLoading(true);
 
     try {
-      const history = getGeminiHistory();
-      const now = Date.now();
-      setMessageTimestamps((current) => [
-        ...current.filter((timestamp) => timestamp > now - 300_000),
-        now,
-      ]);
-
-      const [libraryResult, webResult] = await Promise.allSettled([
+      const sourceUrl = text.match(/https?:\/\/[^\s]+/i)?.[0] || '';
+      const [libraryResult, publicResult] = await Promise.allSettled([
         searchPublicDriveLibrary(text),
-        sendMessageToAI(text, history, { mode: 'library-search' }),
+        searchAcademicMaterials({ query: text, sourceText: text, sourceUrl }),
       ]);
       const librarySources = libraryResult.status === 'fulfilled' ? libraryResult.value : [];
-      const webAnswer = webResult.status === 'fulfilled' ? webResult.value.answer : '';
-      const webSources = webResult.status === 'fulfilled' ? webResult.value.sources : [];
+      const webSources = publicResult.status === 'fulfilled' ? publicResult.value.sources : [];
+      const discoveryLinks = publicResult.status === 'fulfilled' ? publicResult.value.discoveryLinks : [];
+      const sourceWarning = publicResult.status === 'fulfilled' ? publicResult.value.sourceWarning : '';
       if (libraryResult.status === 'rejected') console.warn('TVU library search failed:', libraryResult.reason);
-      if (webResult.status === 'rejected') console.warn('Open academic search failed:', webResult.reason);
+      if (publicResult.status === 'rejected') console.warn('Academic source collection failed:', publicResult.reason);
 
-      const summary = librarySources.length
-        ? `Mình tìm thấy ${librarySources.length} tài liệu trong Thư viện TVU. Bạn có thể mở và đọc ngay trong web.`
-        : webResult.status === 'fulfilled'
-          ? 'Thư viện TVU chưa có file khớp rõ, nên mình đã tìm thêm nguồn học liệu công khai trên Internet.'
-          : 'Thư viện TVU chưa có file khớp rõ và nguồn học liệu mở đang tạm bận.';
+      const total = librarySources.length + webSources.length;
+      const summary = total
+        ? `Đã tìm được ${total} nguồn có link thật: ${librarySources.length} tài liệu trong Thư viện TVU và ${webSources.length} nguồn công khai khác.`
+        : 'Chưa thấy link tài liệu khớp trực tiếp. Bạn có thể mở các hướng tìm bên dưới, sau đó dán bài viết hoặc bình luận có link vào công cụ “Gom tài liệu”.';
 
       setMessages((current) => [...current, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: [summary, webAnswer].filter(Boolean).join('\n\n')
-          || 'Mình chưa tìm được nguồn đủ rõ. Bạn thử thêm tên môn, tác giả hoặc một phần tên sách nhé.',
+        content: [summary, sourceWarning].filter(Boolean).join('\n\n'),
         timestamp: new Date(),
         librarySources,
         webSources,
+        discoveryLinks,
       }]);
     } catch (error) {
       console.error('Academic material search failed:', error);
@@ -498,6 +497,25 @@ export const AIAssistant: React.FC = () => {
                           </a>
                         </div>
                       ))}
+                    </div>
+                  )}
+                  {message.discoveryLinks && message.discoveryLinks.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-sky-700 dark:text-sky-300">Tìm tiếp ở nhiều nguồn</p>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {message.discoveryLinks.map((source) => (
+                          <a
+                            key={source.url}
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-200"
+                          >
+                            <span>{source.title}</span>
+                            <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          </a>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <p

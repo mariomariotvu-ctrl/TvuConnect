@@ -1,4 +1,11 @@
-// Export all Cloud Functions
+// Export all Cloud Functions. App Check starts in monitor mode so the current
+// production bundle keeps working; set ENFORCE_APP_CHECK=true only after the
+// App Check-enabled web build has been released and valid traffic is visible.
+const { setGlobalOptions } = require('firebase-functions/v2');
+const APP_CHECK_ENFORCEMENT_ENABLED = false;
+
+setGlobalOptions({ enforceAppCheck: APP_CHECK_ENFORCEMENT_ENABLED });
+
 const sendMessageNotification = require('./sendMessageNotification');
 const sendCallNotification = require('./sendCallNotification');
 const askStudentAssistant = require('./askStudentAssistant');
@@ -17,6 +24,8 @@ const sendCommentNotification = require('./sendCommentNotification');
 const syncCommentCounters = require('./syncCommentCounters');
 const deleteStudentAccount = require('./deleteStudentAccount');
 const getTurnIceServers = require('./getTurnIceServers');
+const searchAcademicMaterials = require('./searchAcademicMaterials');
+const maintenanceTasks = require('./maintenanceTasks');
 
 exports.sendMessageNotification = sendMessageNotification.sendMessageNotification;
 exports.sendCallNotification = sendCallNotification.sendCallNotification;
@@ -42,3 +51,6 @@ exports.sendCommentNotification = sendCommentNotification.sendCommentNotificatio
 exports.syncCommentCounters = syncCommentCounters.syncCommentCounters;
 exports.deleteStudentAccount = deleteStudentAccount.deleteStudentAccount;
 exports.getTurnIceServers = getTurnIceServers.getTurnIceServers;
+exports.searchAcademicMaterials = searchAcademicMaterials.searchAcademicMaterials;
+exports.deleteExpiredDocumentsTask = maintenanceTasks.deleteExpiredDocumentsTask;
+exports.scheduleFirebaseMaintenance = maintenanceTasks.scheduleFirebaseMaintenance;
