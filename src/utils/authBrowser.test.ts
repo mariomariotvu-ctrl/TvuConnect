@@ -3,6 +3,7 @@ import {
   buildExternalAuthBrowserUrl,
   isAppleMobileBrowser,
   isRestrictedAuthWebView,
+  shouldStartExternalGoogleLogin,
 } from './authBrowser';
 
 describe('auth browser detection', () => {
@@ -43,5 +44,11 @@ describe('auth browser detection', () => {
     );
     expect(target).toContain('intent://tvuconnect.vercel.app/?externalAuth=google#Intent;scheme=https;');
     expect(target).toContain('package=com.android.chrome');
+  });
+
+  it('does not restart Google login when the external browser already has a session', () => {
+    expect(shouldStartExternalGoogleLogin('google', true)).toBe(false);
+    expect(shouldStartExternalGoogleLogin('google', false)).toBe(true);
+    expect(shouldStartExternalGoogleLogin(null, false)).toBe(false);
   });
 });

@@ -3,7 +3,11 @@ import { auth, googleProvider, signInWithPopup, signInWithRedirect, signOut } fr
 import { LogIn, LogOut, AlertCircle, UserRound, ExternalLink } from 'lucide-react';
 import { User, getRedirectResult } from 'firebase/auth';
 import { logger } from '@/utils/logger';
-import { buildExternalAuthBrowserUrl, isRestrictedAuthWebView } from '@/utils/authBrowser';
+import {
+  buildExternalAuthBrowserUrl,
+  isRestrictedAuthWebView,
+  shouldStartExternalGoogleLogin,
+} from '@/utils/authBrowser';
 
 interface AuthProps {
   user: User | null;
@@ -32,11 +36,24 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
 
     const currentUrl = new URL(window.location.href);
     if (currentUrl.searchParams.get('externalAuth') === 'google') {
-      currentUrl.searchParams.delete('externalAuth');
-      window.history.replaceState({}, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
       setLocalLoading(true);
-      googleProvider.setCustomParameters({ prompt: 'select_account' });
-      void signInWithRedirect(auth, googleProvider).catch((redirectError) => {
+      void auth.authStateReady().then(async () => {
+        const externalAuthRequest = currentUrl.searchParams.get('externalAuth');
+        currentUrl.searchParams.delete('externalAuth');
+        window.history.replaceState(
+          {},
+          '',
+          `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+        );
+
+        if (!shouldStartExternalGoogleLogin(externalAuthRequest, Boolean(auth.currentUser))) {
+          setLocalLoading(false);
+          return;
+        }
+
+        googleProvider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithRedirect(auth, googleProvider);
+      }).catch((redirectError) => {
         console.error('External browser login error:', redirectError);
         setLocalLoading(false);
         setError('Không thể mở đăng nhập Google lúc này. Vui lòng thử lại.');

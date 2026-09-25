@@ -34,3 +34,10 @@ export function buildExternalAuthBrowserUrl(
 
   return httpsUrl;
 }
+
+export function shouldStartExternalGoogleLogin(
+  externalAuthRequest: string | null,
+  hasAuthenticatedUser: boolean,
+): boolean {
+  return externalAuthRequest === 'google' && !hasAuthenticatedUser;
+}
