@@ -1,8 +1,9 @@
 import React from 'react';
 import { auth, googleProvider, signInWithPopup, signInWithRedirect, signOut } from '../firebase';
-import { LogIn, LogOut, AlertCircle, UserRound } from 'lucide-react';
+import { LogIn, LogOut, AlertCircle, UserRound, ExternalLink } from 'lucide-react';
 import { User, getRedirectResult } from 'firebase/auth';
 import { logger } from '@/utils/logger';
+import { buildExternalAuthBrowserUrl, isRestrictedAuthWebView } from '@/utils/authBrowser';
 
 interface AuthProps {
   user: User | null;
@@ -13,7 +14,7 @@ interface AuthProps {
 
 export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userProfile }) => {
   const [error, setError] = React.useState<string | null>(null);
-  const [isWebView, setIsWebView] = React.useState(false);
+  const [isWebView] = React.useState(() => isRestrictedAuthWebView());
   const [localLoading, setLocalLoading] = React.useState(false);
 
   // Use profile photo if available, otherwise fall back to Firebase Auth photo
@@ -21,10 +22,27 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
   const displayName = userProfile?.fullName || user?.displayName;
 
   React.useEffect(() => {
-    // Detect if we are in a restrictive WebView (Zalo, FB, etc.)
-    const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
-    const isRestricted = /Zalo|FBAN|FBAV|Instagram|TikTok|Line/i.test(ua);
-    setIsWebView(isRestricted);
+    // Redirect login cannot preserve Firebase's initial state inside Zalo and
+    // similar storage-partitioned webviews. Never try to recover a redirect in
+    // those browsers; the login card below directs users to Safari/Chrome.
+    if (isWebView) {
+      setLocalLoading(false);
+      return undefined;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.get('externalAuth') === 'google') {
+      currentUrl.searchParams.delete('externalAuth');
+      window.history.replaceState({}, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
+      setLocalLoading(true);
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+      void signInWithRedirect(auth, googleProvider).catch((redirectError) => {
+        console.error('External browser login error:', redirectError);
+        setLocalLoading(false);
+        setError('Không thể mở đăng nhập Google lúc này. Vui lòng thử lại.');
+      });
+      return undefined;
+    }
 
     // Handle the redirect result when the component mounts
     let isMounted = true;
@@ -53,10 +71,20 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
     });
 
     return () => { isMounted = false; };
-  }, []);
+  }, [isWebView]);
+
+  const openExternalBrowserForLogin = () => {
+    window.location.assign(buildExternalAuthBrowserUrl(window.location.href));
+  };
 
   const handleLogin = async () => {
     setError(null);
+
+    if (isWebView) {
+      openExternalBrowserForLogin();
+      return;
+    }
+
     setLocalLoading(true);
     
     const hostname = window.location.hostname;
@@ -170,16 +198,6 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
   // === LOGIN SCREEN ===
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-[320px]">
-      {/* WebView Notice Banner - Clean amber info style */}
-      {isWebView && (
-        <div className="flex items-start gap-3 w-full px-4 py-3 mb-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
-          <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-[13px] font-semibold text-amber-900 dark:text-amber-200 leading-relaxed">
-            Nhấn <span className="inline-block px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-700 rounded font-black text-[12px] mx-0.5">···</span> ở góc trên, chọn <span className="font-black underline decoration-dotted">"Mở bằng trình duyệt"</span> để đăng nhập bằng Google.
-          </p>
-        </div>
-      )}
-      
       <div className="w-full">
         <button
           onClick={handleLogin}
@@ -188,11 +206,17 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
         >
           {localLoading ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true"></div>
+          ) : isWebView ? (
+            <ExternalLink className="h-5 w-5 text-white" aria-hidden="true" />
           ) : (
             <LogIn className="h-5 w-5 text-white" aria-hidden="true" />
           )}
           <span>
-            {localLoading ? 'Đang xử lý...' : 'Đăng nhập bằng Google'}
+            {localLoading
+              ? 'Đang xử lý...'
+              : isWebView
+                ? 'Mở TVU Connect để đăng nhập'
+                : 'Đăng nhập bằng Google'}
           </span>
         </button>
       </div>
