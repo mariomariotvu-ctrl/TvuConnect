@@ -12,6 +12,7 @@ export interface AILibraryResult {
   subject: string;
   folderPath: string[];
   mimeType: string;
+  size?: number;
   url: string;
 }
 
@@ -167,6 +168,7 @@ export function rankPublicDriveFiles(
       subject: file.folderPath.at(-1) || 'Học liệu chung',
       folderPath: [...file.folderPath],
       mimeType: file.mimeType,
+      size: file.size,
       url: buildGoogleDriveShareUrl(file),
     }));
 }

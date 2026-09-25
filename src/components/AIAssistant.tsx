@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Bot, Camera, ExternalLink, Globe2, Loader2, Send, X } from 'lucide-react';
+import { BookOpen, Bot, Camera, ExternalLink, Loader2, Send, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   sendMessageToAI,
@@ -9,17 +9,11 @@ import {
 import { findCachedResponse, shouldUseCache } from '../utils/aiCache';
 import {
   extractRecognizedLibraryQueries,
-  hasSpecificLibrarySearchTerms,
   isLibrarySearchQuery,
-  searchPublicDriveLibrary,
-  searchRecognizedDriveLibrary,
   type AILibraryResult,
 } from '../utils/aiLibrarySearch';
 import { prepareImageForAI, type PreparedAIImage } from '../utils/aiImage';
-import {
-  searchAcademicMaterials,
-  type AcademicDiscoveryLink,
-} from '../utils/academicMaterialSearch';
+import { retrieveDriveKnowledge } from '../utils/driveKnowledge';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { ImageSourcePicker } from './ImageSourcePicker';
 import { AIMessageContent } from './AIMessageContent';
@@ -33,8 +27,6 @@ interface Message {
   imagePreview?: string;
   librarySources?: AILibraryResult[];
   librarySearchPending?: boolean;
-  webSources?: StudentAssistantSource[];
-  discoveryLinks?: AcademicDiscoveryLink[];
 }
 
 const QUICK_REPLIES = [
@@ -111,79 +103,10 @@ export const AIAssistant: React.FC = () => {
     };
   };
 
-  const handleLibrarySearch = async (text: string) => {
-    const hasSpecificTerms = hasSpecificLibrarySearchTerms(text);
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    };
-    setMessages((current) => [...current, userMessage]);
-    setInputText('');
-    if (!hasSpecificTerms) {
-      setMessages((current) => [...current, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Bạn cho mình tên môn, ngành hoặc một phần tên sách nhé. Ví dụ: “Tìm giáo trình Sinh lý học” hoặc “Tìm tài liệu kế toán quản trị”.',
-        timestamp: new Date(),
-      }]);
-      return;
-    }
-
-    setLoadingLabel('Đang quét Thư viện TVU và các nguồn học liệu công khai…');
-    setIsLoading(true);
-
-    try {
-      const sourceUrl = text.match(/https?:\/\/[^\s]+/i)?.[0] || '';
-      const [libraryResult, publicResult] = await Promise.allSettled([
-        searchPublicDriveLibrary(text),
-        searchAcademicMaterials({ query: text, sourceText: text, sourceUrl }),
-      ]);
-      const librarySources = libraryResult.status === 'fulfilled' ? libraryResult.value : [];
-      const webSources = publicResult.status === 'fulfilled' ? publicResult.value.sources : [];
-      const discoveryLinks = publicResult.status === 'fulfilled' ? publicResult.value.discoveryLinks : [];
-      const sourceWarning = publicResult.status === 'fulfilled' ? publicResult.value.sourceWarning : '';
-      if (libraryResult.status === 'rejected') console.warn('TVU library search failed:', libraryResult.reason);
-      if (publicResult.status === 'rejected') console.warn('Academic source collection failed:', publicResult.reason);
-
-      const total = librarySources.length + webSources.length;
-      const summary = total
-        ? `Đã tìm được ${total} nguồn có link thật: ${librarySources.length} tài liệu trong Thư viện TVU và ${webSources.length} nguồn công khai khác.`
-        : 'Chưa thấy link tài liệu khớp trực tiếp. Bạn có thể mở các hướng tìm bên dưới, sau đó dán bài viết hoặc bình luận có link vào công cụ “Gom tài liệu”.';
-
-      setMessages((current) => [...current, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: [summary, sourceWarning].filter(Boolean).join('\n\n'),
-        timestamp: new Date(),
-        librarySources,
-        webSources,
-        discoveryLinks,
-      }]);
-    } catch (error) {
-      console.error('Academic material search failed:', error);
-      setMessages((current) => [...current, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Nguồn học liệu đang phản hồi chậm. Bạn có thể mở Thư viện TVU để tìm trực tiếp hoặc thử lại sau.',
-        timestamp: new Date(),
-      }]);
-    } finally {
-      setIsLoading(false);
-      inputRef.current?.focus();
-    }
-  };
-
   const handleSendMessage = async (text: string) => {
     if ((!text.trim() && !selectedImage) || isLoading || isPreparingImage) return;
     const image = selectedImage;
     const cleanText = text.trim() || 'Đọc chữ trong ảnh, xác định môn học và tìm tài liệu công khai phù hợp để mình đọc tiếp.';
-
-    if (!image && isLibrarySearchQuery(cleanText)) {
-      await handleLibrarySearch(cleanText);
-      return;
-    }
 
     // Reuse only stable in-app guidance. Study questions always go to the
     // server-side model so the answer is not stale or fabricated locally.
@@ -257,11 +180,19 @@ export const AIAssistant: React.FC = () => {
     });
 
     try {
+      setLoadingLabel(image ? 'Đang đọc chữ trong ảnh…' : 'Đang đọc Thư viện Drive TVU…');
+      const driveKnowledge = image
+        ? { sources: [], context: [] }
+        : await retrieveDriveKnowledge(cleanText);
+      setLoadingLabel(driveKnowledge.context.length
+        ? 'Đang tổng hợp câu trả lời từ tài liệu Drive…'
+        : 'Đang phân tích câu hỏi…');
       const aiResponse = await sendMessageToAI(cleanText, history, {
         mode: image
           ? (isLibrarySearchQuery(cleanText) ? 'library-search' : 'image-study')
-          : 'normal',
+          : (isLibrarySearchQuery(cleanText) ? 'library-search' : 'normal'),
         image: image ? { data: image.data, mimeType: image.mimeType } : undefined,
+        driveContext: driveKnowledge.context,
       });
 
       const assistantId = (Date.now() + 1).toString();
@@ -273,28 +204,40 @@ export const AIAssistant: React.FC = () => {
         role: 'assistant',
         content: aiResponse.answer,
         timestamp: new Date(),
+        librarySources: driveKnowledge.sources,
         librarySearchPending: recognizedLibraryQueries.length > 0,
-        webSources: aiResponse.sources,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
       if (recognizedLibraryQueries.length > 0) {
-        const updateLibraryMatches = (librarySources: AILibraryResult[], pending: boolean) => {
+        void retrieveDriveKnowledge(recognizedLibraryQueries.join(' ')).then(async (recognizedKnowledge) => {
+          let groundedAnswer = aiResponse.answer;
+          if (recognizedKnowledge.context.length) {
+            const groundedResponse = await sendMessageToAI(cleanText, [
+              ...history,
+              { role: 'model', parts: [{ text: aiResponse.answer }] },
+            ], {
+              mode: 'library-search',
+              driveContext: recognizedKnowledge.context,
+            });
+            groundedAnswer = groundedResponse.answer;
+          }
           setMessages((current) => current.map((message) => (
             message.id === assistantId
-              ? { ...message, librarySources, librarySearchPending: pending }
+              ? {
+                  ...message,
+                  content: groundedAnswer,
+                  librarySources: recognizedKnowledge.sources,
+                  librarySearchPending: false,
+                }
               : message
           )));
-        };
-
-        void searchRecognizedDriveLibrary(cleanText, aiResponse.answer, (librarySources) => {
-          updateLibraryMatches(librarySources, false);
-        }).then((librarySources) => {
-          updateLibraryMatches(librarySources, false);
         }).catch((error) => {
-          console.warn('Could not match recognized books in TVU Drive:', error);
-          updateLibraryMatches([], false);
+          console.warn('Could not ground recognized books in TVU Drive:', error);
+          setMessages((current) => current.map((message) => (
+            message.id === assistantId ? { ...message, librarySearchPending: false } : message
+          )));
         });
       }
     } catch (error: any) {
@@ -465,59 +408,6 @@ export const AIAssistant: React.FC = () => {
                       Đang đối chiếu tên sách với thư mục Drive TVU…
                     </div>
                   )}
-                  {message.webSources && message.webSources.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Nguồn công khai trên web</p>
-                      {message.webSources.map((source) => (
-                        <div
-                          key={source.url}
-                          className="flex min-h-14 items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/80 p-2.5 text-slate-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-white"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setViewerSource(source)}
-                            className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                          >
-                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-emerald-700 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
-                              <Globe2 className="h-4 w-4" aria-hidden="true" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="line-clamp-2 text-xs font-bold leading-snug">{source.title}</span>
-                              <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Đọc trong TVU Connect</span>
-                            </span>
-                          </button>
-                          <a
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Mở nguồn gốc: ${source.title}`}
-                            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
-                          >
-                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {message.discoveryLinks && message.discoveryLinks.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-sky-700 dark:text-sky-300">Tìm tiếp ở nhiều nguồn</p>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {message.discoveryLinks.map((source) => (
-                          <a
-                            key={source.url}
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-200"
-                          >
-                            <span>{source.title}</span>
-                            <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   <p
                     className={`text-xs mt-1 ${message.role === 'user'
                         ? 'text-indigo-200'
@@ -549,14 +439,14 @@ export const AIAssistant: React.FC = () => {
                   }}
                 >
                   <div className="text-sm leading-relaxed" style={{ color: theme === 'dark' ? '#E5E7EB' : '#1F2937' }}>
-                    Xin chào! Tớ là TVU BuBu, trợ lý học tập của TVU Connect. Tớ có thể giúp bạn:
+                    Xin chào! Tớ là TVU BuBu, trợ lý học tập do Tín xây dựng cho TVU Connect. Tớ ưu tiên đọc Thư viện Drive TVU trước khi trả lời. Tớ có thể giúp bạn:
                     <br />
                     <br />
                     • Lập kế hoạch ôn tập và giải thích kiến thức
                     <br />
                     • Tìm bạn cùng ngành, tìm trọ và dùng cuộc gọi
                     <br />
-                    • Tìm tài liệu, sách và giáo trình hợp pháp
+                    • Đọc, giải thích và dẫn nguồn từ tài liệu Drive TVU
                     <br />
                     • Chụp trang sách để đọc chữ và tìm học liệu liên quan
                     <br />

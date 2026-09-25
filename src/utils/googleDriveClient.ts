@@ -91,6 +91,7 @@ export interface GoogleDriveLibraryFile {
   id: string;
   name: string;
   mimeType: string;
+  size?: number;
   createdTime?: string;
   modifiedTime?: string;
   description?: string;
@@ -618,6 +619,7 @@ async function walkGoogleDriveLibrary(): Promise<GoogleDriveLibraryFile[]> {
             id: targetId,
             name: entry.name,
             mimeType: targetMimeType,
+            size: entry.size ? Number(entry.size) : undefined,
             createdTime: entry.createdTime,
             modifiedTime: entry.modifiedTime,
             description: entry.description,
@@ -630,6 +632,7 @@ async function walkGoogleDriveLibrary(): Promise<GoogleDriveLibraryFile[]> {
           id: entry.id,
           name: entry.name,
           mimeType: entry.mimeType,
+          size: entry.size ? Number(entry.size) : undefined,
           createdTime: entry.createdTime,
           modifiedTime: entry.modifiedTime,
           description: entry.description,

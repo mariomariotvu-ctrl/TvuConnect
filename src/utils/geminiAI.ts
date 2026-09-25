@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 import { requireRuntimeFeature } from '../config/runtimeConfig';
+import type { DriveKnowledgeContext } from './driveKnowledge';
 
 /** A compact, serializable chat history accepted by the callable function. */
 export interface ChatMessage {
@@ -37,6 +38,7 @@ interface StudentAssistantResponse {
 interface StudentAssistantOptions {
   mode?: StudentAssistantMode;
   image?: StudentAssistantImage;
+  driveContext?: DriveKnowledgeContext[];
 }
 
 const errorMessageFor = (error: unknown): string => {
@@ -87,6 +89,7 @@ export async function sendMessageToAI(
       history: ChatMessage[];
       mode: StudentAssistantMode;
       image?: StudentAssistantImage;
+      driveContext?: DriveKnowledgeContext[];
     },
     StudentAssistantResponse
   >(functions, 'askStudentAssistant', { timeout: 35_000 });
@@ -97,6 +100,7 @@ export async function sendMessageToAI(
       history: chatHistory.slice(-8),
       mode: options.mode || 'normal',
       image: options.image,
+      driveContext: options.driveContext?.slice(0, 4),
     });
     const answer = result.data?.answer?.trim();
     if (!answer) throw new Error('Trợ lý chưa trả về nội dung hợp lệ.');
