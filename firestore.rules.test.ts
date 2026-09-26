@@ -8,6 +8,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -67,6 +68,27 @@ describeWithEmulator('Firestore security rules for social features', () => {
       location: { lat: 9.9419, lng: 106.33859 },
       showLocation: true,
     }, { merge: true }));
+  });
+
+  it('giữ danh sách hồ sơ đã lưu riêng cho từng người dùng', async () => {
+    const studentA = environment.authenticatedContext('student-a').firestore();
+    const studentB = environment.authenticatedContext('student-b').firestore();
+    const favorite = doc(studentA, 'favorites/student-a_student-b');
+
+    await assertSucceeds(setDoc(favorite, {
+      fromUid: 'student-a',
+      toUid: 'student-b',
+      createdAt: serverTimestamp(),
+    }));
+    await assertSucceeds(getDoc(favorite));
+    await assertFails(getDoc(doc(studentB, 'favorites/student-a_student-b')));
+    await assertFails(setDoc(doc(studentB, 'favorites/student-a_student-c'), {
+      fromUid: 'student-a',
+      toUid: 'student-c',
+      createdAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(favorite, { toUid: 'student-c' }));
+    await assertSucceeds(deleteDoc(favorite));
   });
 
   it('buộc hẹn hò đi qua transaction phía server', async () => {

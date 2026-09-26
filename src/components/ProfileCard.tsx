@@ -2,7 +2,7 @@ import React, { useState, useEffect, memo } from 'react';
 import { StudentProfile } from '../types';
 import { User, Phone, BookOpen, GraduationCap, Heart, Calendar, FileText, Mail, MapPin, AlertTriangle, ShieldOff, Check, Loader2, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, auth, doc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
+import { db, auth, doc, setDoc, serverTimestamp, getDoc, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
 import { ReportModal } from './ReportModal';
 import { ConfirmModal } from './ConfirmModal';
 import { OnlineStatus } from './OnlineStatus';
@@ -29,15 +29,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = memo(({ profile, onRematc
 
     const checkSaved = async () => {
       try {
-        const qSaved = query(
-          collection(db, 'favorites'),
-          where('fromUid', '==', auth.currentUser!.uid),
-          where('toUid', '==', profile.uid)
-        );
-        const savedSnap = await getDocs(qSaved);
-        setIsSaved(!savedSnap.empty);
+        const favoriteId = `${auth.currentUser!.uid}_${profile.uid}`;
+        const savedSnapshot = await getDoc(doc(db, 'favorites', favoriteId));
+        setIsSaved(savedSnapshot.exists());
       } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, 'favorites');
+        handleFirestoreError(error, OperationType.GET, `favorites/${auth.currentUser!.uid}_${profile.uid}`);
       }
     };
 
@@ -346,4 +342,3 @@ export const ProfileCard: React.FC<ProfileCardProps> = memo(({ profile, onRematc
     </motion.div>
   );
 });
-
