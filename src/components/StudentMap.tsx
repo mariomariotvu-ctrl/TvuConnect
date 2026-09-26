@@ -304,6 +304,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const [localPosition, setLocalPosition] = useState<PreciseGeolocation | null>(null);
   const [followUser, setFollowUser] = useState(true);
   const [recenterToken, setRecenterToken] = useState(0);
+  const [sharingSettingsOpen, setSharingSettingsOpen] = useState(false);
 
   // --- Music Station States ---
   const [musicStations, setMusicStations] = useState<MusicStation[]>([]);
@@ -323,6 +324,15 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const sharingActive = preferences.visibility !== 'off';
 
   useEffect(() => subscribeRuntimeConfig(setRuntimeConfig), []);
+
+  useEffect(() => {
+    if (!sharingSettingsOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSharingSettingsOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sharingSettingsOpen]);
 
   useEffect(() => subscribeLocationPreferences(currentUser.uid, (next) => {
     setPreferences(next);
@@ -482,6 +492,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
         encounterAlertsEnabled: draftEncounters,
       });
       toast.success(sharingActive ? 'Đã cập nhật phạm vi chia sẻ.' : 'Đã bắt đầu chia sẻ vị trí an toàn.');
+      setSharingSettingsOpen(false);
       await loadLocations();
     } catch (sharingError) {
       toast.error(sharingError instanceof Error ? sharingError.message : 'Chưa thể bật chia sẻ vị trí.');
@@ -499,6 +510,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
       setSelectedLocation(null);
       setStudentRoute(null);
       toast.success('Đã dừng chia sẻ và xóa vị trí sống khỏi bản đồ.');
+      setSharingSettingsOpen(false);
     } catch (sharingError) {
       console.error('Could not stop live location:', sharingError);
       toast.error('Chưa thể dừng chia sẻ. Vui lòng thử lại.');
@@ -557,6 +569,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   };
 
   const selectedDistance = selectedLocation ? distanceFor(selectedLocation) : null;
+  const mapAccessEnabled = sharingActive || localLocationInspectorEnabled;
 
   const loadStudentRoute = useCallback(async (
     target: VisibleStudentLocation,
@@ -640,101 +653,91 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   }, [loadStudentRoute, localPosition, runtimeConfig.routeRefreshMs, selectedLocation, studentRoute]);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 p-3 pb-24 dark:bg-slate-950 sm:p-5">
-      <div className="mx-auto max-w-6xl space-y-4">
-        <section className={`rounded-3xl border border-indigo-200 bg-white shadow-sm dark:border-indigo-900 dark:bg-slate-900 ${sharingActive ? 'p-3 sm:p-4' : 'p-5'}`}>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-indigo-50/70 via-slate-50 to-slate-100 p-2 pb-24 dark:from-indigo-950/20 dark:via-slate-950 dark:to-slate-950 sm:p-5">
+      <div className="mx-auto max-w-6xl space-y-3 sm:space-y-4">
+        <section className={`overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/90 shadow-[0_16px_50px_rgba(79,70,229,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90 ${sharingActive ? 'p-3 sm:p-4' : 'p-5'}`}>
+          <div className="flex items-center justify-between gap-3">
             <div className="max-w-2xl">
-              <div className="flex items-center gap-2 text-sm font-bold text-indigo-600 dark:text-indigo-300">
-                <ShieldCheck className="h-5 w-5" /> Bản đồ sinh viên có kiểm soát
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300">
+                <ShieldCheck className="h-4 w-4" /> TVU Live Map
               </div>
-              <h1 className={`${sharingActive ? 'mt-1 text-lg' : 'mt-2 text-2xl'} font-black text-slate-950 dark:text-white`}>Bạn bè đang chia sẻ vị trí</h1>
+              <h1 className={`${sharingActive ? 'mt-1 text-lg' : 'mt-2 text-2xl'} font-black tracking-tight text-slate-950 dark:text-white`}>Bạn bè quanh bạn</h1>
               {!sharingActive && <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                 Bản đồ hoạt động ở mọi nơi. Bạn quyết định ai được thấy mình; tọa độ gốc không được gửi cho trình duyệt của người khác và tự hết hạn nếu ứng dụng ngừng cập nhật.
               </p>}
             </div>
-            <div className={`rounded-2xl px-4 py-3 text-sm font-bold ${sharingActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
-              <span className="inline-flex items-center gap-2"><LocateFixed className="h-4 w-4" />{sharingActive ? 'Đang chia sẻ' : 'Đang ẩn vị trí'}</span>
+            <div className={`shrink-0 rounded-2xl px-3 py-2 text-xs font-black shadow-sm ${sharingActive ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900' : localLocationInspectorEnabled ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-900' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+              <span className="inline-flex items-center gap-2">
+                <span className={`relative flex h-2.5 w-2.5 ${sharingActive ? '' : 'opacity-70'}`}>
+                  {sharingActive && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
+                  <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${sharingActive ? 'bg-emerald-500' : localLocationInspectorEnabled ? 'bg-indigo-500' : 'bg-slate-400'}`} />
+                </span>
+                <span className="sm:hidden">{sharingActive ? 'LIVE' : localLocationInspectorEnabled ? 'DEV' : 'Ẩn'}</span>
+                <span className="hidden sm:inline">{sharingActive ? 'Đang chia sẻ trực tiếp' : localLocationInspectorEnabled ? 'Dev · xem vị trí chia sẻ' : 'Đang ẩn vị trí'}</span>
+              </span>
             </div>
           </div>
 
-          <details key={sharingActive ? 'sharing' : 'hidden'} open={!sharingActive} className={`${sharingActive ? 'mt-2' : 'mt-4'} group`}>
-            <summary className="cursor-pointer text-sm font-bold text-indigo-700 dark:text-indigo-300">{sharingActive ? 'Đổi phạm vi hoặc dừng chia sẻ vị trí' : 'Thiết lập chia sẻ vị trí'}</summary>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {VISIBILITY_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setDraftVisibility(option.value)}
-                className={`rounded-2xl border p-4 text-left transition ${draftVisibility === option.value ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/15 dark:bg-indigo-950/30' : 'border-slate-200 hover:border-indigo-300 dark:border-slate-700 dark:hover:border-indigo-700'}`}
-              >
-                <strong className="block text-sm text-slate-900 dark:text-white">{option.title}</strong>
-                <span className="mt-1 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{option.description}</span>
-                <span className="mt-2 block text-[11px] font-bold text-indigo-600 dark:text-indigo-300">{option.precision}</span>
-              </button>
-            ))}
-          </div>
-
-          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
-            <input
-              type="checkbox"
-              checked={draftEncounters}
-              onChange={(event) => setDraftEncounters(event.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              <strong className="flex items-center gap-2 text-sm text-slate-900 dark:text-white"><BellRing className="h-4 w-4 text-violet-600" /> Báo khi vừa chạm mặt</strong>
-              <span className="mt-1 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">Chỉ báo khi cả hai cùng bật, đều cho phép nhau xuất hiện và ở gần khoảng 35 m. Thiết bị hỗ trợ sẽ rung khi web đang hoạt động.</span>
-            </span>
-          </label>
-
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void saveSharing()}
-              className="min-h-12 flex-1 rounded-xl bg-indigo-600 px-5 text-sm font-black text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saving ? 'Đang cập nhật…' : sharingActive ? 'Lưu cài đặt chia sẻ' : 'Bắt đầu chia sẻ'}
-            </button>
-            {sharingActive && (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void stopSharing()}
-                className="min-h-12 rounded-xl border border-rose-200 px-5 text-sm font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900 dark:hover:bg-rose-950/30"
-              >
-                Dừng và xóa vị trí
-              </button>
-            )}
-          </div>
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Web chỉ cập nhật khi TVU Connect đang mở. Điểm cuối tự biến mất sau khoảng 15 phút nếu không còn cập nhật.</p>
-          </details>
+          <button
+            type="button"
+            onClick={() => setSharingSettingsOpen(true)}
+            className="mt-2 inline-flex min-h-8 items-center rounded-xl px-1 text-xs font-bold text-indigo-700 transition hover:bg-indigo-50 sm:px-3 sm:text-sm dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+          >
+            {sharingActive ? 'Quản lý chia sẻ và quyền riêng tư' : 'Thiết lập chia sẻ vị trí'}
+          </button>
         </section>
 
-        {!sharingActive ? (
+        {!mapAccessEnabled ? (
           <section className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center dark:border-slate-700 dark:bg-slate-900">
             <Navigation className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" />
             <h2 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Bản đồ đang khóa để bảo vệ riêng tư</h2>
             <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500 dark:text-slate-400">Bật một phạm vi chia sẻ ở trên để xem những người cũng đã tự nguyện xuất hiện. Không có chế độ xem ẩn danh vị trí của người khác.</p>
+            <button type="button" onClick={() => setSharingSettingsOpen(true)} className="mt-5 min-h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-500/20">Bắt đầu chia sẻ an toàn</button>
           </section>
         ) : (
-          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+          <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.14)] dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-2 pt-3.5 dark:border-slate-700">
               <div>
-                <h2 className="font-black text-slate-900 dark:text-white">Vị trí đang được chia sẻ</h2>
+                <h2 className="flex items-center gap-2 font-black tracking-tight text-slate-900 dark:text-white"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.12)]" />Đang hoạt động</h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {loading
                     ? 'Đang làm mới…'
                     : `${locations.length} người đang hiển thị${lastLoadedAt ? ` · ${formatLastShared(lastLoadedAt).toLowerCase()}` : ''}`}
                 </p>
               </div>
-              <button type="button" onClick={() => void loadLocations()} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">Làm mới</button>
+              <button type="button" onClick={() => void loadLocations()} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" aria-label="Làm mới vị trí" title="Làm mới vị trí"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
             </div>
             {error && <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{error}</p>}
-            <div className="relative h-[68dvh] min-h-[420px] w-full sm:h-[62vh]">
+            {locations.length > 0 && (
+              <div className="flex snap-x gap-2 overflow-x-auto px-3 pb-3 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button
+                  type="button"
+                  onClick={() => { setSelectedLocation(null); setFollowUser(true); setRecenterToken((value) => value + 1); }}
+                  className={`flex min-w-fit snap-start items-center gap-2 rounded-2xl border px-3 py-2 text-left transition ${!selectedLocation ? 'border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-200' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white"><Users className="h-4 w-4" /></span>
+                  <span><strong className="block text-xs">Tất cả</strong><span className="block text-[10px] opacity-70">{locations.length} người</span></span>
+                </button>
+                {locations.map((location) => {
+                  const selected = selectedLocation?.uid === location.uid;
+                  const distance = distanceFor(location);
+                  return (
+                    <button
+                      key={`person-strip-${location.uid}`}
+                      type="button"
+                      onClick={() => selectStudent(location)}
+                      className={`flex min-w-[9.5rem] snap-start items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${selected ? 'border-indigo-400 bg-indigo-50 shadow-md ring-2 ring-indigo-500/10 dark:border-indigo-700 dark:bg-indigo-950/50' : 'border-slate-200 bg-white hover:border-indigo-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-800'}`}
+                    >
+                      {location.photoURL ? <img src={location.photoURL} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-white dark:ring-slate-700" referrerPolicy="no-referrer" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-black text-white">{studentMarkerInitials(location.fullName)}</span>}
+                      <span className="min-w-0"><strong className="block truncate text-xs text-slate-900 dark:text-white">{location.isOwn ? 'Bạn' : location.fullName}</strong><span className="block truncate text-[10px] text-slate-500 dark:text-slate-400">{distance?.label || formatLastShared(location.updatedAt)}</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="relative h-[65dvh] min-h-[500px] w-full border-t border-slate-100 sm:h-[64vh] lg:h-[68vh] dark:border-slate-800">
               {selectedLocation && !selectedLocation.isOwn && (
-                <div className="absolute left-3 right-3 top-3 z-[500] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:right-auto sm:w-72">
+                <div className="absolute left-3 right-3 top-3 z-[500] hidden rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:block sm:right-auto sm:w-72">
                   <p className="truncate text-sm font-black text-slate-900 dark:text-white">{selectedLocation.fullName}</p>
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{selectedDistance?.label || 'Đang cập nhật khoảng cách'} · {formatLastShared(selectedLocation.updatedAt)}</p>
                   {selectedLocation.isFriend && (
@@ -930,15 +933,17 @@ export const StudentMap: React.FC<StudentMapProps> = ({
               >
                 <LocateFixed className="h-5 w-5" />
               </button>
-              <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex flex-wrap gap-2 rounded-xl bg-white/90 p-2 text-[11px] font-bold text-slate-600 shadow-md backdrop-blur dark:bg-slate-900/90 dark:text-slate-300">
-                <span className="text-indigo-600">Bạn</span><span className="text-emerald-600">Bạn bè</span><span className="text-violet-600">Cùng ngành</span><span>Sinh viên TVU</span>
+              <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex items-center gap-2 rounded-full bg-white/92 px-3 py-2 text-[10px] font-bold text-slate-600 shadow-lg backdrop-blur dark:bg-slate-900/92 dark:text-slate-300">
+                <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-emerald-500" />Bạn bè</span><span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-violet-500" />Cùng ngành</span><span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-slate-500" />TVU</span>
               </div>
             </div>
           </section>
         )}
 
         {selectedLocation && (
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="fixed inset-x-3 z-[1000] max-h-[58dvh] overflow-y-auto rounded-[2rem] border border-white/80 bg-white/95 p-5 pb-6 shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 sm:static sm:inset-auto sm:z-auto sm:max-h-none sm:overflow-visible sm:rounded-3xl sm:border-slate-200 sm:bg-white sm:shadow-sm sm:backdrop-blur-none dark:sm:border-slate-700 dark:sm:bg-slate-900" style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom))' }}>
+            <div className="mx-auto -mt-2 mb-3 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700" />
+            <button type="button" onClick={() => setSelectedLocation(null)} className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 sm:hidden dark:bg-slate-800 dark:text-slate-300" aria-label="Đóng thông tin vị trí"><X className="h-4 w-4" /></button>
             <div className="flex items-start gap-3">
               {selectedLocation.photoURL ? (
                 <img src={selectedLocation.photoURL} alt="" className="h-14 w-14 rounded-2xl object-cover" referrerPolicy="no-referrer" />
@@ -1053,12 +1058,58 @@ export const StudentMap: React.FC<StudentMapProps> = ({
           </section>
         )}
 
-        <section className="grid gap-3 text-xs text-slate-600 dark:text-slate-300 md:grid-cols-3">
-          <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><ShieldCheck className="mb-2 h-5 w-5 text-emerald-600" /><strong className="block text-slate-900 dark:text-white">Không đọc tọa độ gốc</strong><span>Trình duyệt chỉ nhận điểm đã làm mờ và được server cho phép.</span></div>
-          <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><Users className="mb-2 h-5 w-5 text-indigo-600" /><strong className="block text-slate-900 dark:text-white">Quan hệ hai chiều</strong><span>Chế độ bạn bè chỉ hoạt động sau khi lời mời được chấp nhận.</span></div>
-          <div className="rounded-2xl bg-white p-4 dark:bg-slate-900"><BellRing className="mb-2 h-5 w-5 text-violet-600" /><strong className="block text-slate-900 dark:text-white">Chạm mặt có đồng thuận</strong><span>Không tạo sự kiện nếu một trong hai người tắt tính năng hoặc chặn nhau.</span></div>
-        </section>
+        <details className="group rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300">
+          <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 font-black text-slate-800 dark:text-slate-100"><ShieldCheck className="h-4 w-4 text-emerald-600" />Cách TVU Connect bảo vệ vị trí của bạn</summary>
+          <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 dark:border-slate-800 md:grid-cols-3">
+            <div><strong className="block text-slate-900 dark:text-white">Vị trí được làm mờ</strong><span>Trình duyệt chỉ nhận khu vực theo đúng phạm vi bạn đã chọn.</span></div>
+            <div><strong className="block text-slate-900 dark:text-white">Quan hệ hai chiều</strong><span>Chế độ bạn bè chỉ hoạt động sau khi lời mời được chấp nhận.</span></div>
+            <div><strong className="block text-slate-900 dark:text-white">Chạm mặt có đồng thuận</strong><span>Không tạo sự kiện nếu một trong hai người tắt hoặc chặn nhau.</span></div>
+          </div>
+        </details>
       </div>
+
+      {sharingSettingsOpen && typeof document !== 'undefined' && createPortal((
+        <div className="fixed inset-0 z-[10020] flex items-end justify-center sm:items-center sm:p-5" role="dialog" aria-modal="true" aria-labelledby="location-sharing-title">
+          <button type="button" className="absolute inset-0 h-full w-full bg-slate-950/55 backdrop-blur-[3px]" onClick={() => setSharingSettingsOpen(false)} aria-label="Đóng quản lý chia sẻ" />
+          <div className="relative z-10 max-h-[88dvh] w-full overflow-y-auto overscroll-contain rounded-t-[2rem] bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-24px_80px_rgba(15,23,42,0.3)] dark:bg-slate-900 sm:max-w-2xl sm:rounded-[2rem] sm:p-6">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700" />
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-300">Quyền riêng tư vị trí</p>
+                <h2 id="location-sharing-title" className="mt-1 text-xl font-black tracking-tight text-slate-950 dark:text-white">Chia sẻ với ai?</h2>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Bạn có thể đổi phạm vi hoặc dừng chia sẻ bất kỳ lúc nào.</p>
+              </div>
+              <button type="button" onClick={() => setSharingSettingsOpen(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300" aria-label="Đóng quản lý chia sẻ"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
+              {VISIBILITY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setDraftVisibility(option.value)}
+                  className={`rounded-2xl border p-4 text-left transition ${draftVisibility === option.value ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/15 dark:bg-indigo-950/30' : 'border-slate-200 hover:border-indigo-300 dark:border-slate-700 dark:hover:border-indigo-700'}`}
+                >
+                  <span className="flex items-center justify-between gap-2"><strong className="block text-sm text-slate-900 dark:text-white">{option.title}</strong>{draftVisibility === option.value && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] text-white">✓</span>}</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{option.description}</span>
+                  <span className="mt-2 block text-[11px] font-bold text-indigo-600 dark:text-indigo-300">{option.precision}</span>
+                </button>
+              ))}
+            </div>
+
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/70">
+              <input type="checkbox" checked={draftEncounters} onChange={(event) => setDraftEncounters(event.target.checked)} className="mt-1" />
+              <span><strong className="flex items-center gap-2 text-sm text-slate-900 dark:text-white"><BellRing className="h-4 w-4 text-violet-600" /> Báo khi vừa chạm mặt</strong><span className="mt-1 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">Chỉ báo khi cả hai cùng bật và ở gần khoảng 35 m.</span></span>
+            </label>
+
+            <div className="sticky bottom-0 mt-4 grid gap-2 bg-white/95 pt-2 backdrop-blur dark:bg-slate-900/95 sm:grid-cols-[1fr_auto]">
+              <button type="button" disabled={saving} onClick={() => void saveSharing()} className="min-h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-black text-white shadow-lg shadow-indigo-500/20 disabled:opacity-60">{saving ? 'Đang cập nhật…' : sharingActive ? 'Lưu thay đổi' : 'Bắt đầu chia sẻ'}</button>
+              {sharingActive && <button type="button" disabled={saving} onClick={() => void stopSharing()} className="min-h-12 rounded-2xl border border-rose-200 px-5 text-sm font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900 dark:hover:bg-rose-950/30">Dừng chia sẻ</button>}
+            </div>
+            <p className="mt-3 text-center text-[11px] text-slate-500 dark:text-slate-400">Vị trí tự hết hạn sau khoảng 15 phút nếu TVU Connect ngừng cập nhật.</p>
+          </div>
+        </div>
+      ), document.body)}
 
       {isCreateStationModalOpen && (
         <CreateStationModal
