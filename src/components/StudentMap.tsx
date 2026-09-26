@@ -91,6 +91,10 @@ interface StudentMapProps {
   onProfileClick?: (uid: string) => void;
 }
 
+const localLocationInspectorEnabled = import.meta.env.DEV
+  && typeof window !== 'undefined'
+  && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
 const DEFAULT_MAP_CENTER: [number, number] = [9.9345, 106.3461];
 const ROUTE_REFRESH_DISTANCE_METERS = 25;
 
@@ -367,7 +371,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   }, [musicStations, selectedStation]);
 
   const loadLocations = useCallback(async () => {
-    if (!sharingActive) {
+    if (!sharingActive && !localLocationInspectorEnabled) {
       setLocations([]);
       return;
     }
@@ -396,7 +400,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
 
   useEffect(() => {
     void loadLocations();
-    if (!sharingActive) return;
+    if (!sharingActive && !localLocationInspectorEnabled) return;
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadLocations();
     }, runtimeConfig.locationRefreshMs);
@@ -423,7 +427,7 @@ export const StudentMap: React.FC<StudentMapProps> = ({
   const selectedUid = selectedLocation?.isOwn ? null : selectedLocation?.uid || null;
 
   const loadFocusedLocation = useCallback(async (focusUid: string) => {
-    if (!sharingActive || loadingFocusedLocationRef.current) return;
+    if ((!sharingActive && !localLocationInspectorEnabled) || loadingFocusedLocationRef.current) return;
     loadingFocusedLocationRef.current = true;
     try {
       const focusedLocations = await getVisibleStudentLocations(focusUid);

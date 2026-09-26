@@ -8,7 +8,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../firebase';
+import { auth, db, functions } from '../firebase';
 import type {
   LocationPreferences,
   LocationVisibility,
@@ -106,6 +106,21 @@ export async function stopLiveLocation() {
 
 export async function getVisibleStudentLocations(focusUid?: string): Promise<VisibleStudentLocation[]> {
   requireRuntimeFeature('mapEnabled', 'Bản đồ đang được bảo trì. Vui lòng thử lại sau.');
+  const localHost = typeof window !== 'undefined'
+    && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+  if (import.meta.env.DEV && localHost) {
+    const search = new URLSearchParams();
+    if (auth.currentUser?.uid) search.set('viewerUid', auth.currentUser.uid);
+    if (focusUid) search.set('focusUid', focusUid);
+    const response = await fetch(`/__dev/live-locations?${search.toString()}`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error('Local location inspector is unavailable.');
+    const payload = await response.json() as { locations?: VisibleStudentLocation[] };
+    return Array.isArray(payload.locations) ? payload.locations : [];
+  }
+
   const callable = httpsCallable<{ focusUid?: string }, { locations: VisibleStudentLocation[] }>(
     functions,
     'getVisibleStudentLocations',
