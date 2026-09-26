@@ -3,8 +3,10 @@ const assert = require('node:assert/strict');
 const {
   categoryForTypes,
   normalizeGooglePlace,
+  photoAttributionsFor,
   popularityScore,
   requireSearchInput,
+  resolveGooglePhotoUri,
   tagsForTypes,
 } = require('./discoverFoodPlaces');
 
@@ -15,7 +17,7 @@ test('food type mapping produces useful Vietnamese discovery groups', () => {
   assert.deepEqual(tagsForTypes(['vietnamese_restaurant', 'noodle_shop']), ['Món Việt', 'Bún, phở & mì']);
 });
 
-test('normalizes Google content without photos, reviews, or external map links', () => {
+test('normalizes Google content and includes a resolved provider photo when available', () => {
   const place = normalizeGooglePlace({
     id: 'google-place-1',
     displayName: { text: 'Quán Sinh Viên' },
@@ -28,15 +30,53 @@ test('normalizes Google content without photos, reviews, or external map links',
     userRatingCount: 125,
     businessStatus: 'OPERATIONAL',
     openingDate: { year: 2026, month: 9, day: 1 },
-  });
+    photos: [{
+      name: 'places/google-place-1/photos/photo-1',
+      authorAttributions: [{ displayName: 'Người dùng Google', uri: 'https://maps.google.com/profile' }],
+    }],
+  }, 'https://lh3.googleusercontent.com/place-photo');
 
   assert.equal(place.id, 'google:google-place-1');
   assert.equal(place.openingDate, '2026-09-01');
   assert.equal(place.category, 'restaurant');
   assert.ok(place.popularityScore > 0);
-  assert.equal('images' in place, false);
+  assert.deepEqual(place.images, ['https://lh3.googleusercontent.com/place-photo']);
+  assert.equal(place.photoAttributions[0].displayName, 'Người dùng Google');
   assert.equal('reviews' in place, false);
   assert.equal('googleMapsUri' in place, false);
+});
+
+test('keeps valid photo credits and removes unsafe attribution URLs', () => {
+  assert.deepEqual(photoAttributionsFor({
+    photos: [{ authorAttributions: [
+      { displayName: 'Tác giả A', uri: 'https://example.com/a' },
+      { displayName: 'Tác giả B', uri: 'javascript:alert(1)' },
+    ] }],
+  }), [
+    { displayName: 'Tác giả A', uri: 'https://example.com/a' },
+    { displayName: 'Tác giả B' },
+  ]);
+});
+
+test('resolves a short-lived photo URI without exposing the API key in the URL', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (url, options) => {
+    assert.equal(String(url).includes('server-secret'), false);
+    assert.equal(options.headers['X-Goog-Api-Key'], 'server-secret');
+    return {
+      ok: true,
+      json: async () => ({ photoUri: 'https://lh3.googleusercontent.com/resolved-photo' }),
+    };
+  };
+
+  try {
+    assert.equal(
+      await resolveGooglePhotoUri('places/place-1/photos/photo-1', 'server-secret'),
+      'https://lh3.googleusercontent.com/resolved-photo',
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test('search input trusts auth uid and accepts valid coordinates worldwide', () => {

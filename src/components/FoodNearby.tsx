@@ -98,7 +98,7 @@ const directFoodPlaces = (providerPlaces: Place[]) => providerPlaces
 
 const providerErrorMessage = (error: unknown) => {
   const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
-  if (code.includes('failed-precondition')) return 'Chưa cấu hình Google Places. Danh sách cộng đồng vẫn hoạt động bình thường.';
+  if (code.includes('failed-precondition')) return 'Nguồn Google Places chưa được cấu hình. Hãy thử lại sau.';
   if (code.includes('resource-exhausted')) return 'Đã đạt giới hạn làm mới tạm thời. Hãy dùng kết quả hiện tại.';
   return 'Nguồn địa điểm trực tiếp đang tạm bận. Đang hiển thị dữ liệu cộng đồng.';
 };
@@ -265,7 +265,7 @@ export const FoodNearby: React.FC<FoodNearbyProps> = ({
               return (
                 <article key={key} className="group relative flex min-h-40 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,.05)] transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 sm:min-h-48">
                   <div className="relative w-[36%] min-w-[118px] sm:w-[40%]">
-                    {place.images?.[0] && !isProviderPlace ? <img src={place.images[0]} alt={`Ảnh ${place.name}`} className="h-full w-full object-cover" /> : (
+                    {place.images?.[0] ? <img src={place.images[0]} alt={`Ảnh ${place.name}`} className="h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" /> : (
                       <div className="flex h-full min-h-40 items-center justify-center bg-[#fff4ed] dark:bg-orange-950/30"><Utensils className="h-9 w-9 text-orange-500" /></div>
                     )}
                     <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-slate-950/80 px-2 py-1 text-[10px] font-black text-white backdrop-blur"><Navigation className="h-3 w-3" /> {formatDistance(place.distance)}</span>
@@ -296,7 +296,11 @@ export const FoodNearby: React.FC<FoodNearbyProps> = ({
                     </div>
 
                     <div className="mt-auto flex items-end justify-between gap-2 pt-2">
-                      {isProviderPlace ? <span translate="no" style={{ fontFamily: 'Roboto, sans-serif' }} className="text-[10px] text-slate-400">Google Maps</span> : <span className="text-[10px] font-bold text-violet-600">TVU Connect</span>}
+                      {isProviderPlace ? (
+                        <span translate="no" style={{ fontFamily: 'Roboto, sans-serif' }} className="line-clamp-1 text-[10px] text-slate-400">
+                          Google Maps{place.photoAttributions?.[0]?.displayName ? ` · Ảnh: ${place.photoAttributions[0].displayName}` : ''}
+                        </span>
+                      ) : <span className="text-[10px] font-bold text-violet-600">TVU Connect</span>}
                       <button aria-label="Xem chi tiết trong TVU Connect" onClick={() => onSelect(place)} className="rounded-xl bg-violet-600 px-3 py-2 text-xs font-black text-white shadow-sm">Xem quán</button>
                     </div>
                   </div>

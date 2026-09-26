@@ -319,6 +319,8 @@ export interface Place {
   };
   description?: string;
   images?: string[];
+  /** Google photo credits are transient and shown beside provider imagery. */
+  photoAttributions?: Array<{ displayName: string; uri?: string; photoUri?: string }>;
   amenities?: string[]; // ["wifi", "parking", "ac", "quiet"]
   priceRange?: '$' | '$$' | '$$$';
   openHours?: string;

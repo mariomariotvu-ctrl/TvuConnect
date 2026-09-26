@@ -122,7 +122,25 @@ function dateToIso(value) {
   return date.toISOString().slice(0, 10);
 }
 
-function normalizeGooglePlace(place) {
+function photoAttributionsFor(place) {
+  const attributions = Array.isArray(place?.photos?.[0]?.authorAttributions)
+    ? place.photos[0].authorAttributions
+    : [];
+  return attributions
+    .filter((attribution) => typeof attribution?.displayName === 'string' && attribution.displayName.trim())
+    .slice(0, 3)
+    .map((attribution) => ({
+      displayName: attribution.displayName.trim(),
+      ...(typeof attribution.uri === 'string' && attribution.uri.startsWith('https://')
+        ? { uri: attribution.uri }
+        : {}),
+      ...(typeof attribution.photoUri === 'string' && attribution.photoUri.startsWith('https://')
+        ? { photoUri: attribution.photoUri }
+        : {}),
+    }));
+}
+
+function normalizeGooglePlace(place, photoUri = '') {
   const latitude = Number(place?.location?.latitude);
   const longitude = Number(place?.location?.longitude);
   const id = typeof place?.id === 'string' ? place.id : '';
@@ -137,6 +155,8 @@ function normalizeGooglePlace(place) {
   const primaryLabel = typeof place?.primaryTypeDisplayName?.text === 'string'
     ? place.primaryTypeDisplayName.text.trim()
     : '';
+
+  const photoAttributions = photoAttributionsFor(place);
 
   return {
     id: `google:${id}`,
@@ -168,7 +188,31 @@ function normalizeGooglePlace(place) {
     openingDate: dateToIso(place.openingDate),
     isOpenNow: place?.currentOpeningHours?.openNow === true,
     popularityScore: popularityScore(rating, reviewCount),
+    ...(typeof photoUri === 'string' && photoUri.startsWith('https://') ? { images: [photoUri] } : {}),
+    ...(photoAttributions.length ? { photoAttributions } : {}),
   };
+}
+
+async function resolveGooglePhotoUri(photoName, apiKey) {
+  if (typeof photoName !== 'string' || !/^places\/[^/]+\/photos\/[^/]+$/.test(photoName)) return '';
+
+  try {
+    const response = await fetch(
+      `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=900&maxHeightPx=700&skipHttpRedirect=true`,
+      {
+        headers: { 'X-Goog-Api-Key': apiKey },
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
+    if (!response.ok) return '';
+    const payload = await response.json();
+    return typeof payload?.photoUri === 'string' && payload.photoUri.startsWith('https://')
+      ? payload.photoUri
+      : '';
+  } catch (error) {
+    console.warn('Could not resolve a Google Place photo:', error?.message || error);
+    return '';
+  }
 }
 
 async function consumeRateLimit(uid) {
@@ -237,12 +281,13 @@ exports.discoverFoodPlaces = onCall(
             'places.userRatingCount',
             'places.currentOpeningHours.openNow',
             'places.priceLevel',
+            'places.photos',
           ].join(','),
         },
         body: JSON.stringify({
           includedTypes: FOOD_TYPES,
           maxResultCount: 20,
-          rankPreference: 'POPULARITY',
+          rankPreference: 'DISTANCE',
           includeFutureOpeningBusinesses: true,
           languageCode: 'vi',
           regionCode: 'VN',
@@ -273,8 +318,12 @@ exports.discoverFoodPlaces = onCall(
     }
 
     const payload = await response.json();
-    const places = (Array.isArray(payload.places) ? payload.places : [])
-      .map(normalizeGooglePlace)
+    const providerPlaces = Array.isArray(payload.places) ? payload.places : [];
+    const photoUris = await Promise.all(providerPlaces.map((place) => (
+      resolveGooglePhotoUri(place?.photos?.[0]?.name, apiKey)
+    )));
+    const places = providerPlaces
+      .map((place, index) => normalizeGooglePlace(place, photoUris[index]))
       .filter(Boolean);
 
     return {
@@ -288,6 +337,8 @@ exports.discoverFoodPlaces = onCall(
 
 exports.categoryForTypes = categoryForTypes;
 exports.normalizeGooglePlace = normalizeGooglePlace;
+exports.photoAttributionsFor = photoAttributionsFor;
 exports.popularityScore = popularityScore;
 exports.requireSearchInput = requireSearchInput;
+exports.resolveGooglePhotoUri = resolveGooglePhotoUri;
 exports.tagsForTypes = tagsForTypes;

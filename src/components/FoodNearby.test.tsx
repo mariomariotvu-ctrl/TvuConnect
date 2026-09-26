@@ -23,6 +23,8 @@ const providerPlaces = [
     dataSource: 'google_places' as const,
     foodTags: ['Cà phê & học bài'],
     popularityScore: 9.2,
+    images: ['https://lh3.googleusercontent.com/cafe-photo'],
+    photoAttributions: [{ displayName: 'Minh Anh' }],
   },
   {
     id: 'google:food-1',
@@ -79,7 +81,9 @@ describe('FoodNearby', () => {
     );
 
     expect(await screen.findByText('Cà phê Sinh Viên')).toBeInTheDocument();
-    expect(screen.getAllByText('Google Maps')).toHaveLength(2);
+    expect(screen.getByText('Google Maps')).toBeInTheDocument();
+    expect(screen.getByAltText('Ảnh Cà phê Sinh Viên')).toHaveAttribute('src', 'https://lh3.googleusercontent.com/cafe-photo');
+    expect(screen.getByText('Google Maps · Ảnh: Minh Anh')).toBeInTheDocument();
     expect(container.querySelector('a[href*="google"]')).toBeNull();
     fireEvent.click(screen.getAllByRole('button', { name: 'Xem chi tiết trong TVU Connect' })[0]);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'google:cafe-1' }));
