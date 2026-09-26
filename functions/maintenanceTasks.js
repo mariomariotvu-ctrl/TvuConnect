@@ -49,6 +49,15 @@ function chunk(items, size) {
   return result;
 }
 
+function shouldDeleteExpiredDocument(document, nowMillis = Date.now()) {
+  if (!document?.exists) return false;
+  const expiresAt = document.data()?.expiresAt;
+  const expiresAtMillis = typeof expiresAt?.toMillis === 'function'
+    ? expiresAt.toMillis()
+    : NaN;
+  return Number.isFinite(expiresAtMillis) && expiresAtMillis <= nowMillis;
+}
+
 exports.deleteExpiredDocumentsTask = onTaskDispatched(
   {
     retryConfig: {
@@ -70,10 +79,23 @@ exports.deleteExpiredDocumentsTask = onTaskDispatched(
     if (!paths.length) return { deleted: 0 };
 
     const firestore = getFirestore();
+    const references = paths.map((path) => firestore.doc(path));
+    const snapshots = await firestore.getAll(...references);
+    const nowMillis = Date.now();
+    const expiredDocuments = snapshots.filter((document) => (
+      shouldDeleteExpiredDocument(document, nowMillis)
+    ));
+    if (!expiredDocuments.length) {
+      return { deleted: 0, skipped: paths.length };
+    }
+
     const batch = firestore.batch();
-    paths.forEach((path) => batch.delete(firestore.doc(path)));
+    expiredDocuments.forEach((document) => batch.delete(document.ref));
     await batch.commit();
-    return { deleted: paths.length };
+    return {
+      deleted: expiredDocuments.length,
+      skipped: paths.length - expiredDocuments.length,
+    };
   },
 );
 
@@ -109,4 +131,4 @@ exports.scheduleFirebaseMaintenance = onSchedule(
 
 exports.TTL_COLLECTION_GROUPS = TTL_COLLECTION_GROUPS;
 exports.isAllowedDocumentPath = isAllowedDocumentPath;
-
+exports.shouldDeleteExpiredDocument = shouldDeleteExpiredDocument;
