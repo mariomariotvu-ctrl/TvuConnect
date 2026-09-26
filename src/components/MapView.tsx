@@ -1393,7 +1393,6 @@ export const MapView: React.FC<MapViewProps> = ({ currentUser, currentProfile = 
 
           {activeTab === 'food' && (
             <FoodNearby
-              places={places}
               userLocation={userLocation}
               locating={locating}
               onRequestLocation={requestCurrentLocation}

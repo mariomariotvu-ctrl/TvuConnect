@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User } from 'firebase/auth';
-import { collection, query, limit, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { RentalPost, RentalType } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
-import { Plus, X, Phone, MapPin, Wifi, Wind, Bath, Car, WashingMachine, Home, Search, Trash2, Building2, Users, Hotel, ChevronDown, ChevronUp, Info, LocateFixed, Copy, Star } from 'lucide-react';
-import { listenerRegistry } from '../utils/listenerRegistry';
+import { Plus, X, Phone, MapPin, Wifi, Wind, Bath, Car, WashingMachine, Home, Search, Trash2, Building2, Users, Hotel, Info, LocateFixed, Copy, Heart, SlidersHorizontal, ArrowUpDown, ShieldCheck, Image as ImageIcon } from 'lucide-react';
 import { calculateDistance, Coordinates, formatDistance } from '../utils/locationUtils';
 import { CommunityReviews } from './CommunityReviews';
 import { subscribeToNearbyRentals } from '../services/rentalSearchService';
@@ -54,6 +53,33 @@ const AMENITY_OPTIONS = [
 ];
 
 type PriceFilter = 'all' | 'duoi-1-5' | '1-5-den-2-5' | 'tren-2-5';
+type RentalSort = 'recommended' | 'nearest' | 'price-asc' | 'newest';
+
+const RENTAL_SORT_OPTIONS: Array<{ value: RentalSort; label: string }> = [
+  { value: 'recommended', label: 'Phù hợp nhất' },
+  { value: 'nearest', label: 'Gần nhất' },
+  { value: 'price-asc', label: 'Giá thấp trước' },
+  { value: 'newest', label: 'Tin mới nhất' },
+];
+
+const SAVED_RENTALS_KEY = 'tvu-connect:saved-rentals';
+
+const readSavedRentals = () => {
+  if (typeof window === 'undefined') return new Set<string>();
+  try {
+    const value = JSON.parse(window.localStorage.getItem(SAVED_RENTALS_KEY) || '[]');
+    return new Set<string>(Array.isArray(value) ? value : []);
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const timestampValue = (value: unknown) => {
+  if (!value || typeof value !== 'object') return 0;
+  if ('toMillis' in value && typeof value.toMillis === 'function') return value.toMillis();
+  if ('seconds' in value && typeof value.seconds === 'number') return value.seconds * 1000;
+  return 0;
+};
 
 const formatPrice = (price: number): string => {
   if (price >= 1_000_000) {
@@ -111,62 +137,25 @@ const GRADIENT_DARK = 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)';
 
 export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocation, locating, onRequestLocation }) => {
   const { theme } = useTheme();
-  const [posts, setPosts] = useState<RentalPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<RentalType | 'all'>('all');
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
   const [showModal, setShowModal] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sort, setSort] = useState<RentalSort>('recommended');
+  const [savedRentals, setSavedRentals] = useState<Set<string>>(readSavedRentals);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [form, setForm] = useState<PostFormState>(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Partial<PostFormState>>({});
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [radius, setRadius] = useState<'all' | 1 | 3 | 5 | 10>('all');
+  const [radius, setRadius] = useState<1 | 3 | 5 | 10>(5);
   const [selectedPost, setSelectedPost] = useState<(RentalPost & { distance?: number }) | null>(null);
   const [nearbyPosts, setNearbyPosts] = useState<RentalPost[] | null>(null);
   const [isNearbyLoading, setIsNearbyLoading] = useState(false);
 
-  // Fetch rental posts realtime
   useEffect(() => {
-    const q = query(
-      collection(db, 'rentalPosts'),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const data = snapshot.docs.map(d => ({
-          id: d.id,
-          ...d.data(),
-        })) as RentalPost[];
-        setPosts(data);
-        setIsLoading(false);
-      },
-      (err) => {
-        console.error('Error loading rentalPosts:', err);
-        setIsLoading(false);
-        toast.error('Không thể tải danh sách tin trọ');
-      }
-    );
-
-    const listenerId = listenerRegistry.register({
-      unsubscribe,
-      collection: 'rentalPosts',
-      query: 'orderBy(createdAt, desc), limit(100)',
-      priority: 5,
-      componentName: 'RentalList',
-    });
-
-    return () => {
-      listenerRegistry.unregister(listenerId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!userLocation || radius === 'all') {
+    if (!userLocation) {
       setNearbyPosts(null);
       setIsNearbyLoading(false);
       return;
@@ -191,18 +180,9 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
   }, [radius, userLocation]);
 
   const sourcePosts = useMemo(() => {
-    if (!userLocation || radius === 'all') return posts;
-
-    // Keep recent legacy listings visible until the one-time geohash migration
-    // has populated their index field.
-    const merged = new Map<string, RentalPost>();
-    (nearbyPosts || []).forEach((post) => post.id && merged.set(post.id, post));
-    posts
-      .filter((post) => !post.geohash && post.location)
-      .filter((post) => calculateDistance(userLocation, post.location!) <= radius)
-      .forEach((post) => post.id && merged.set(post.id, post));
-    return [...merged.values()];
-  }, [nearbyPosts, posts, radius, userLocation]);
+    if (!userLocation) return [];
+    return nearbyPosts || [];
+  }, [nearbyPosts, userLocation]);
 
   const filteredPosts = useMemo(() => sourcePosts
     .map((post) => ({
@@ -213,11 +193,12 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
     }))
     .filter((post) => {
       if (post.isAvailable === false) return false;
+      if (showSavedOnly && (!post.id || !savedRentals.has(post.id))) return false;
       if (typeFilter !== 'all' && post.type !== typeFilter) return false;
       if (priceFilter === 'duoi-1-5' && post.price >= 1_500_000) return false;
       if (priceFilter === '1-5-den-2-5' && (post.price < 1_500_000 || post.price > 2_500_000)) return false;
       if (priceFilter === 'tren-2-5' && post.price <= 2_500_000) return false;
-      if (radius !== 'all' && (post.distance === undefined || post.distance > radius)) return false;
+      if (post.distance === undefined || post.distance > radius) return false;
       if (searchQuery.trim()) {
         const keyword = searchQuery.toLocaleLowerCase('vi');
         return [post.title, post.address, post.district, post.description, post.utilitiesNote, post.genderPreference]
@@ -227,11 +208,20 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
       return true;
     })
     .sort((a, b) => {
-      if (!userLocation) return 0;
-      return (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY);
-    }), [priceFilter, radius, searchQuery, sourcePosts, typeFilter, userLocation]);
+      if (sort === 'price-asc') return a.price - b.price;
+      if (sort === 'newest') return timestampValue(b.createdAt) - timestampValue(a.createdAt);
+      if (sort === 'nearest') return (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY);
+      const completeness = (post: RentalPost) => Number(Boolean(post.images?.length)) * 3
+        + Number(Boolean(post.location)) * 2
+        + Math.min(post.amenities?.length || 0, 4)
+        + Number(Boolean(post.deposit))
+        + Number(Boolean(post.electricityPrice || post.waterPrice));
+      return completeness(b) - completeness(a)
+        || (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY)
+        || timestampValue(b.createdAt) - timestampValue(a.createdAt);
+    }), [priceFilter, radius, savedRentals, searchQuery, showSavedOnly, sort, sourcePosts, typeFilter, userLocation]);
 
-  const listLoading = isLoading || (radius !== 'all' && Boolean(userLocation) && isNearbyLoading);
+  const listLoading = Boolean(userLocation) && isNearbyLoading;
 
   const updateCurrentLocation = async (forListing = false) => {
     const coordinates = await onRequestLocation();
@@ -243,7 +233,6 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
       }));
       setLocationError(null);
     }
-    if (coordinates && !forListing && radius === 'all') setRadius(5);
   };
 
   const handleDelete = async (postId: string) => {
@@ -353,6 +342,17 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
     }
   };
 
+  const toggleSavedRental = (post: RentalPost) => {
+    if (!post.id) return;
+    setSavedRentals((current) => {
+      const next = new Set(current);
+      if (next.has(post.id!)) next.delete(post.id!);
+      else next.add(post.id!);
+      window.localStorage.setItem(SAVED_RENTALS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
   const isDark = theme === 'dark';
   const gradient = isDark ? GRADIENT_DARK : GRADIENT_MAIN;
   const cardBg = isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100';
@@ -363,198 +363,58 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
       ? 'bg-gray-700/60 border-gray-600 text-white placeholder-gray-400 focus:border-purple-400 focus:ring-1 focus:ring-purple-400/30'
       : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20'
   }`;
+  const activeFilterCount = Number(typeFilter !== 'all') + Number(priceFilter !== 'all') + Number(radius !== 5) + Number(showSavedOnly);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
 
-      {/* ── Hero Banner + Filters ── */}
-      <div className="flex-shrink-0">
-        {/* Hero */}
-        <div
-          className="px-3 sm:px-4 pt-3 pb-3"
-          style={{ background: isDark
-            ? 'linear-gradient(135deg, rgba(139,92,246,0.18) 0%, rgba(6,182,212,0.12) 100%)'
-            : 'linear-gradient(135deg, rgba(147,51,234,0.07) 0%, rgba(14,165,233,0.07) 100%)' }}
-        >
-          <div className="flex items-center justify-between gap-2">
-            {/* Left: icon + title + subtitle */}
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
-                style={{ background: 'linear-gradient(135deg, #f97316 0%, #ec4899 100%)' }}
-              >
-                <Home className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <h1 className={`text-sm sm:text-base font-black tracking-tight leading-tight ${textPrimary}`}>Tìm Trọ</h1>
-                <p className={`text-[11px] sm:text-xs mt-0.5 ${textSecondary}`}>Trọ quanh bạn tại Trà Vinh · có review sinh viên</p>
-              </div>
-            </div>
-
-            {/* Right: guide toggle + count */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button
-                onClick={() => setShowGuide(v => !v)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
-                  showGuide
-                    ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
-                    : `${isDark ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-black/5 text-gray-500 hover:bg-black/10'}`
-                }`}
-              >
-                <Info className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="hidden sm:inline">Hướng dẫn</span>
-                {showGuide ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-              <div
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl"
-                style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}
-              >
-                <span className={`text-sm font-black ${textPrimary}`}>{filteredPosts.length}</span>
-                <span className={`text-[11px] font-medium ${textSecondary}`}>tin</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Guide panel — collapsible, 1 col mobile / 2 col desktop */}
-          {showGuide && (
-            <div
-              className="mt-2 rounded-2xl overflow-hidden"
-              style={{
-                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.75)',
-                border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
-              }}
-            >
-              <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                {[
-                  { icon: <LocateFixed className="h-4 w-4" />, title: 'Tìm quanh đây', desc: 'Cấp vị trí và lọc phòng trong bán kính 1–10 km' },
-                  { icon: <Star className="h-4 w-4" />, title: 'Review thật', desc: 'Xem và viết đánh giá ngay trong TVU Connect' },
-                  { icon: <Plus className="h-4 w-4" />, title: 'Đăng tin cho thuê', desc: 'Nhấn nút + ở góc phải màn hình để đăng tin mới' },
-                  { icon: <Trash2 className="h-4 w-4" />, title: 'Quản lý tin của bạn', desc: 'Nhấn biểu tượng thùng rác để xóa tin đã đăng' },
-                ].map(({ icon, title, desc }) => (
-                  <div
-                    key={title}
-                    className="flex items-start gap-2.5 px-3 py-2 rounded-xl"
-                    style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)' }}
-                  >
-                    <span className="mt-0.5 flex-shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden="true">{icon}</span>
-                    <div>
-                      <p className={`text-xs font-bold leading-tight ${textPrimary}`}>{title}</p>
-                      <p className={`text-[11px] leading-tight mt-0.5 ${textSecondary}`}>{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Tìm theo tiêu đề, địa chỉ..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className={`${inputClass} pl-9 pr-8`}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filter chips */}
-        <div
-          className="px-3 sm:px-4 py-2 space-y-1.5"
-          style={{
-            backgroundColor: isDark ? 'rgba(17,24,39,0.95)' : '#f8f7ff',
-            borderBottom: `1px solid ${isDark ? '#374151' : '#e9e8ff'}`,
-          }}
-        >
-          {/* Type chips */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {(['all', 'nha-tro', 'o-ghep', 'nha-nghi', 'khach-san', 'khac'] as const).map(t => {
-              const isActive = typeFilter === t;
-              return (
-                <button
-                  key={t}
-                  onClick={() => setTypeFilter(t)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'text-white shadow-md'
-                      : isDark
-                        ? 'bg-gray-700/80 text-gray-300 hover:bg-gray-600'
-                        : 'bg-white text-gray-600 hover:bg-indigo-50 border border-gray-200'
-                  }`}
-                  style={isActive ? { background: gradient } : {}}
-                >
-                  {RENTAL_TYPE_ICONS[t]}
-                  {t === 'all' ? 'Tất cả' : RENTAL_TYPE_LABELS[t as RentalType]}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Price chips */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {([
-              { key: 'all',         label: 'Mọi giá' },
-              { key: 'duoi-1-5',    label: '< 1.5tr' },
-              { key: '1-5-den-2-5', label: '1.5–2.5tr' },
-              { key: 'tren-2-5',    label: '> 2.5tr' },
-            ] as const).map(p => {
-              const isActive = priceFilter === p.key;
-              return (
-                <button
-                  key={p.key}
-                  onClick={() => setPriceFilter(p.key)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : isDark
-                        ? 'bg-gray-700/80 text-gray-300 hover:bg-gray-600'
-                        : 'bg-white text-gray-600 hover:bg-indigo-50 border border-gray-200'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Nearby location controls */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <button
-              type="button"
-              disabled={locating}
-              onClick={() => void updateCurrentLocation(false)}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-600 text-white inline-flex items-center gap-1.5 disabled:opacity-60"
-            >
-              <LocateFixed className={`w-3.5 h-3.5 ${locating ? 'animate-pulse' : ''}`} />
-              {userLocation ? 'Cập nhật vị trí' : 'Tìm trọ quanh tôi'}
+      <header className={`flex-shrink-0 border-b px-3 pb-3 pt-3 sm:px-5 ${isDark ? 'border-gray-800 bg-gray-900' : 'border-slate-200 bg-white'}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className={`text-xl font-black tracking-tight ${textPrimary}`}>Tìm trọ</h1>
+            <button type="button" disabled={locating} onClick={() => void updateCurrentLocation(false)} className={`mt-0.5 flex max-w-full items-center gap-1 text-left text-xs font-bold disabled:opacity-60 ${textSecondary}`}>
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-violet-600" />
+              <span className="truncate">{userLocation ? 'Đang ưu tiên phòng gần bạn' : 'Bật vị trí để xem phòng gần nhất'}</span>
             </button>
-            {(['all', 1, 3, 5, 10] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                disabled={value !== 'all' && !userLocation}
-                onClick={() => setRadius(value)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-40 ${radius === value ? 'bg-indigo-600 text-white' : isDark ? 'bg-gray-700 text-gray-300' : 'bg-white border border-gray-200 text-gray-600'}`}
-              >
-                {value === 'all' ? 'Mọi khoảng cách' : `≤ ${value} km`}
-              </button>
-            ))}
           </div>
+          <button type="button" onClick={() => setShowModal(true)} className="hidden min-h-10 items-center gap-2 rounded-xl bg-violet-600 px-3 text-sm font-black text-white sm:inline-flex"><Plus className="h-4 w-4" /> Đăng tin</button>
         </div>
-      </div>
+
+        <div className="mt-3 flex gap-2">
+          <label className="relative min-w-0 flex-1">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input type="text" placeholder="Tìm tên trọ hoặc khu vực" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className={`min-h-12 w-full rounded-2xl border-0 pl-10 pr-9 text-sm font-medium outline-none ring-violet-500 focus:ring-2 ${isDark ? 'bg-gray-800 text-white placeholder-gray-500' : 'bg-slate-100 text-slate-900 placeholder-slate-400'}`} />
+            {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Xóa nội dung tìm kiếm" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><X className="h-4 w-4" /></button>}
+          </label>
+          <button type="button" onClick={() => setFiltersOpen(true)} className={`relative inline-flex min-h-12 shrink-0 items-center gap-2 rounded-2xl border px-3.5 text-sm font-black shadow-sm ${isDark ? 'border-gray-700 bg-gray-800 text-gray-200' : 'border-slate-200 bg-white text-slate-700'}`}>
+            <SlidersHorizontal className="h-4 w-4" />
+            <span className="hidden sm:inline">Bộ lọc</span>
+            {activeFilterCount > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-violet-600 px-1 text-[10px] text-white">{activeFilterCount}</span>}
+          </button>
+        </div>
+
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+          {(['all', 'nha-tro', 'o-ghep', 'nha-nghi', 'khach-san', 'khac'] as const).map(t => {
+            const isActive = typeFilter === t;
+            return <button key={t} type="button" onClick={() => setTypeFilter(t)} className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-extrabold ${isActive ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : isDark ? 'border border-gray-700 bg-gray-800 text-gray-300' : 'border border-slate-200 bg-white text-slate-600'}`}>{RENTAL_TYPE_ICONS[t]} {t === 'all' ? 'Tất cả' : RENTAL_TYPE_LABELS[t as RentalType]}</button>;
+          })}
+          <button type="button" onClick={() => setShowSavedOnly((value) => !value)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-extrabold ${showSavedOnly ? 'bg-rose-500 text-white' : isDark ? 'border border-gray-700 bg-gray-800 text-gray-300' : 'border border-slate-200 bg-white text-slate-600'}`}><Heart className={`h-3.5 w-3.5 ${showSavedOnly ? 'fill-current' : ''}`} /> Đã lưu</button>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className={`text-xs font-bold ${textSecondary}`}>{filteredPosts.length} chỗ ở phù hợp</p>
+          <button type="button" onClick={() => setFiltersOpen(true)} className={`inline-flex items-center gap-1 text-xs font-black ${textPrimary}`}><ArrowUpDown className="h-3.5 w-3.5" /> {RENTAL_SORT_OPTIONS.find((option) => option.value === sort)?.label}</button>
+        </div>
+      </header>
 
       {/* ── Posts list ── */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 pb-20">
+      <div className={`flex-1 overflow-y-auto p-3 pb-24 ${isDark ? 'bg-gray-950' : 'bg-[#f6f7f9]'}`}>
+        <div className="mx-auto w-full max-w-5xl space-y-3">
+
+        <div className={`flex items-start gap-2 rounded-2xl px-3.5 py-3 text-xs leading-relaxed ${isDark ? 'bg-amber-950/30 text-amber-200' : 'bg-amber-50 text-amber-900'}`}>
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Không chuyển cọc trước khi xem phòng và xác minh người đăng. Giá điện, nước và tiền cọc nên được ghi rõ.</span>
+        </div>
 
         {/* Loading skeleton */}
         {listLoading && (
@@ -582,153 +442,114 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
               <Home className="w-8 h-8 text-indigo-500" />
             </div>
             <h3 className={`text-base font-bold mb-2 ${textPrimary}`}>
-              {searchQuery || typeFilter !== 'all' || priceFilter !== 'all' || radius !== 'all'
+              {!userLocation ? 'Bật vị trí để tìm trọ quanh bạn' : searchQuery || typeFilter !== 'all' || priceFilter !== 'all' || radius !== 5
                 ? 'Không tìm thấy tin phù hợp'
                 : 'Chưa có tin trọ nào'}
             </h3>
             <p className={`text-sm ${textSecondary}`}>
-              {searchQuery || typeFilter !== 'all' || priceFilter !== 'all' || radius !== 'all'
+              {!userLocation ? 'TVU Connect không hiển thị toàn bộ kho tin khi chưa có vị trí của bạn.' : searchQuery || typeFilter !== 'all' || priceFilter !== 'all' || radius !== 5
                 ? 'Thử thay đổi bộ lọc để tìm kết quả khác'
                 : 'Hãy là người đầu tiên đăng tin tìm trọ!'}
             </p>
+            {!userLocation && <button type="button" disabled={locating} onClick={() => void updateCurrentLocation(false)} className="mt-4 min-h-11 rounded-xl bg-violet-600 px-5 text-sm font-black text-white disabled:opacity-60">{locating ? 'Đang lấy vị trí…' : 'Dùng vị trí hiện tại'}</button>}
           </div>
         )}
 
         {/* Rental cards */}
-        {!listLoading && filteredPosts.map(post => (
-          <div
-            key={post.id}
-            className={`${cardBg} border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow`}
-          >
-            {/* Card header with gradient background */}
-            <div
-              className="px-4 pt-3.5 pb-3 relative"
-              style={{
-                background: isDark
-                  ? 'linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(6,182,212,0.1) 100%)'
-                  : 'linear-gradient(135deg, rgba(147,51,234,0.06) 0%, rgba(14,165,233,0.06) 100%)',
-              }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <h3 className={`font-bold text-sm leading-snug mb-1.5 ${textPrimary}`}>
-                    {post.title}
-                  </h3>
-                  <span
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                    style={{
-                      background: isDark ? 'rgba(139,92,246,0.2)' : 'rgba(99,102,241,0.1)',
-                      color: isDark ? '#a78bfa' : '#4f46e5',
-                    }}
-                  >
-                    {RENTAL_TYPE_LABELS[post.type]}
-                  </span>
-                </div>
-                {post.createdBy === currentUser.uid && (
-                  <button
-                    onClick={() => handleDelete(post.id!)}
-                    className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    title="Xóa tin"
-                  >
-                    <Trash2 className="w-4 h-4" />
+        {!listLoading && filteredPosts.map(post => {
+          const saved = Boolean(post.id && savedRentals.has(post.id));
+          const primaryImage = post.images?.[0];
+          return (
+            <article key={post.id} className={`${cardBg} flex overflow-hidden rounded-3xl border shadow-[0_8px_30px_rgba(15,23,42,.05)] transition hover:-translate-y-0.5 hover:shadow-lg`}>
+              <div className={`relative w-[34%] min-w-[118px] sm:w-52 ${isDark ? 'bg-gray-700' : 'bg-slate-100'}`}>
+                {primaryImage ? <img src={primaryImage} alt={`Ảnh ${post.title}`} className="h-full min-h-52 w-full object-cover" /> : (
+                  <div className="flex h-full min-h-52 flex-col items-center justify-center px-3 text-center">
+                    <ImageIcon className={`h-8 w-8 ${isDark ? 'text-gray-500' : 'text-slate-300'}`} />
+                    <span className={`mt-2 text-[10px] font-bold ${textSecondary}`}>Chưa có ảnh</span>
+                  </div>
+                )}
+                <span className="absolute left-2 top-2 rounded-full bg-slate-950/75 px-2 py-1 text-[10px] font-black text-white backdrop-blur">{RENTAL_TYPE_LABELS[post.type]}</span>
+              </div>
+
+              <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-4">
+                <div className="flex items-start gap-2">
+                  <button type="button" onClick={() => setSelectedPost(post)} className="min-w-0 flex-1 text-left">
+                    <h3 className={`line-clamp-2 text-[15px] font-black leading-snug sm:text-base ${textPrimary}`}>{post.title}</h3>
                   </button>
-                )}
-              </div>
-            </div>
-
-            {/* Card body */}
-            <div className="px-4 pb-4 pt-2 space-y-2.5">
-              {/* Price & area */}
-              <div className="flex items-center gap-3">
-                <span
-                  className="font-extrabold text-lg"
-                  style={{
-                    background: gradient,
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                  }}
-                >
-                  {formatPrice(post.price)}
-                </span>
-                {post.area && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
-                    {post.area} m²
-                  </span>
-                )}
-                {post.distance !== undefined && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
-                    <LocateFixed className="w-3 h-3 inline mr-1" />{formatDistance(post.distance)}
-                  </span>
-                )}
-              </div>
-
-              {/* Address */}
-              <div className={`flex items-start gap-1.5 text-xs ${textSecondary}`}>
-                <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-purple-400" />
-                <span className="line-clamp-2">{post.address}</span>
-              </div>
-
-              {post.description && (
-                <p className={`text-xs leading-relaxed line-clamp-3 ${textSecondary}`}>{post.description}</p>
-              )}
-
-              {(post.deposit || post.electricityPrice || post.waterPrice || post.availableFrom || post.genderPreference && post.genderPreference !== 'any') && (
-                <div className={`rounded-xl p-2.5 text-xs grid grid-cols-1 sm:grid-cols-2 gap-1.5 ${isDark ? 'bg-gray-700/50 text-gray-300' : 'bg-slate-50 text-slate-600'}`}>
-                  {post.deposit ? <span>Tiền cọc: <strong>{formatVnd(post.deposit)}</strong></span> : null}
-                  {post.electricityPrice ? <span>Điện: <strong>{formatVnd(post.electricityPrice)}/kWh</strong></span> : null}
-                  {post.waterPrice ? <span>Nước: <strong>{formatVnd(post.waterPrice)}</strong></span> : null}
-                  {post.availableFrom ? <span>Nhận phòng: <strong>{new Date(`${post.availableFrom}T00:00:00`).toLocaleDateString('vi-VN')}</strong></span> : null}
-                  {post.genderPreference && post.genderPreference !== 'any' ? <span>Phù hợp: <strong>{post.genderPreference === 'male' ? 'Nam' : 'Nữ'}</strong></span> : null}
+                  <button type="button" onClick={() => toggleSavedRental(post)} aria-label={saved ? `Bỏ lưu ${post.title}` : `Lưu ${post.title}`} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-slate-100 text-slate-500'}`}><Heart className={`h-4 w-4 ${saved ? 'fill-rose-500 text-rose-500' : ''}`} /></button>
+                  {post.createdBy === currentUser.uid && <button type="button" onClick={() => handleDelete(post.id!)} aria-label={`Xóa ${post.title}`} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950"><Trash2 className="h-4 w-4" /></button>}
                 </div>
-              )}
 
-              {post.utilitiesNote && (
-                <p className={`text-xs leading-relaxed ${textSecondary}`}><Info className="w-3.5 h-3.5 inline mr-1 text-indigo-400" />{post.utilitiesNote}</p>
-              )}
+                <p className="mt-2 text-lg font-black text-violet-700 dark:text-violet-300">{formatPrice(post.price)}</p>
+                <div className={`mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed ${textSecondary}`}><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" /><span className="line-clamp-2">{post.address}</span></div>
 
-              {/* Amenities */}
-              {post.amenities?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {post.amenities.map(a =>
-                    AMENITY_ICONS[a] ? (
-                      <span
-                        key={a}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                        style={{
-                          background: isDark ? 'rgba(139,92,246,0.12)' : 'rgba(99,102,241,0.08)',
-                          color: isDark ? '#a78bfa' : '#4f46e5',
-                        }}
-                      >
-                        {AMENITY_ICONS[a].icon}
-                        {AMENITY_ICONS[a].label}
-                      </span>
-                    ) : null
-                  )}
+                <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-bold">
+                  {post.area && <span className={`rounded-md px-2 py-1 ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-slate-100 text-slate-600'}`}>{post.area} m²</span>}
+                  {post.distance !== undefined && <span className="rounded-md bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><LocateFixed className="mr-1 inline h-3 w-3" />{formatDistance(post.distance)}</span>}
+                  {post.deposit ? <span className={`rounded-md px-2 py-1 ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-slate-100 text-slate-600'}`}>Cọc {formatVnd(post.deposit)}</span> : null}
+                  {post.genderPreference && post.genderPreference !== 'any' ? <span className={`rounded-md px-2 py-1 ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-slate-100 text-slate-600'}`}>{post.genderPreference === 'male' ? 'Nam' : 'Nữ'}</span> : null}
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedPost(post)}
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: gradient }}
-                >
-                  <Star className="w-4 h-4" /> Chi tiết, bản đồ & review
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void copyPhone(post.contactPhone)}
-                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border ${isDark ? 'border-gray-600 text-gray-200' : 'border-gray-200 text-gray-700'}`}
-                >
-                  <Copy className="w-4 h-4" /> Sao chép SĐT
-                </button>
+                {post.amenities?.length > 0 && <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1">{post.amenities.slice(0, 3).map((amenity) => AMENITY_ICONS[amenity] ? <span key={amenity} className={`inline-flex items-center gap-1 text-[10px] font-bold ${textSecondary}`}>{AMENITY_ICONS[amenity].icon}{AMENITY_ICONS[amenity].label}</span> : null)}{post.amenities.length > 3 && <span className={`text-[10px] font-bold ${textSecondary}`}>+{post.amenities.length - 3}</span>}</div>}
+
+                <div className="mt-auto grid grid-cols-[1fr_auto] gap-2 pt-3">
+                  <button type="button" onClick={() => setSelectedPost(post)} className="min-h-10 rounded-xl bg-violet-600 px-3 text-xs font-black text-white">Xem chi tiết</button>
+                  <a href={`tel:${post.contactPhone}`} aria-label={`Gọi ${post.contactName || post.title}`} className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black ${isDark ? 'border-gray-600 text-gray-200' : 'border-slate-200 text-slate-700'}`}><Phone className="h-4 w-4" /><span className="hidden sm:inline">Gọi</span></a>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            </article>
+          );
+        })}
+        </div>
       </div>
+
+      {filtersOpen && (
+        <div className="fixed inset-0 z-[10030] flex items-end justify-center bg-slate-950/55 sm:items-center sm:p-4" onClick={(event) => { if (event.target === event.currentTarget) setFiltersOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-label="Bộ lọc tìm trọ" className={`max-h-[90dvh] w-full overflow-y-auto rounded-t-[2rem] p-5 shadow-2xl sm:max-w-lg sm:rounded-[2rem] ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700" />
+            <div className="flex items-center justify-between gap-3">
+              <h2 className={`text-xl font-black ${textPrimary}`}>Lọc chỗ ở</h2>
+              <button type="button" onClick={() => { setTypeFilter('all'); setPriceFilter('all'); setRadius(5); setSort('recommended'); setShowSavedOnly(false); }} className="text-sm font-bold text-violet-700 dark:text-violet-300">Đặt lại</button>
+            </div>
+
+            <div className="mt-5">
+              <p className={`text-sm font-black ${textPrimary}`}>Sắp xếp</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {RENTAL_SORT_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => setSort(option.value)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold ${sort === option.value ? 'border-violet-600 bg-violet-50 text-violet-800 dark:bg-violet-950 dark:text-violet-200' : isDark ? 'border-gray-700 text-gray-300' : 'border-slate-200 text-slate-600'}`}>{option.label}</button>)}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <p className={`text-sm font-black ${textPrimary}`}>Mức giá mỗi tháng</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {([
+                  { key: 'all', label: 'Mọi mức giá' },
+                  { key: 'duoi-1-5', label: 'Dưới 1,5 triệu' },
+                  { key: '1-5-den-2-5', label: '1,5–2,5 triệu' },
+                  { key: 'tren-2-5', label: 'Trên 2,5 triệu' },
+                ] as const).map((option) => <button key={option.key} type="button" onClick={() => setPriceFilter(option.key)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold ${priceFilter === option.key ? 'border-violet-600 bg-violet-50 text-violet-800 dark:bg-violet-950 dark:text-violet-200' : isDark ? 'border-gray-700 text-gray-300' : 'border-slate-200 text-slate-600'}`}>{option.label}</button>)}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-3">
+                <p className={`text-sm font-black ${textPrimary}`}>Khoảng cách</p>
+                <button type="button" disabled={locating} onClick={() => void updateCurrentLocation(false)} className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 disabled:opacity-50 dark:text-emerald-300"><LocateFixed className={`h-3.5 w-3.5 ${locating ? 'animate-pulse' : ''}`} /> {userLocation ? 'Cập nhật vị trí' : 'Bật vị trí'}</button>
+              </div>
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                {([1, 3, 5, 10] as const).map((value) => <button key={value} type="button" disabled={!userLocation} onClick={() => setRadius(value)} className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold disabled:opacity-35 ${radius === value ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : isDark ? 'bg-gray-800 text-gray-300' : 'bg-slate-100 text-slate-600'}`}>{value} km</button>)}
+              </div>
+            </div>
+
+            <label className={`mt-5 flex cursor-pointer items-center justify-between rounded-2xl px-4 py-3 ${isDark ? 'bg-gray-800' : 'bg-slate-100'}`}>
+              <span className={`inline-flex items-center gap-2 font-bold ${textPrimary}`}><Heart className="h-4 w-4 text-rose-500" /> Chỉ tin đã lưu</span>
+              <input type="checkbox" checked={showSavedOnly} onChange={(event) => setShowSavedOnly(event.target.checked)} className="h-5 w-5 accent-violet-600" />
+            </label>
+
+            <button type="button" onClick={() => setFiltersOpen(false)} className="mt-6 min-h-12 w-full rounded-2xl bg-violet-600 font-black text-white">Xem {filteredPosts.length} chỗ ở</button>
+          </section>
+        </div>
+      )}
 
       {/* Chi tiết và đánh giá đều hiển thị nội bộ, không điều hướng sang web khác. */}
       {selectedPost && (
@@ -780,8 +601,7 @@ export const RentalList: React.FC<RentalListProps> = ({ currentUser, userLocatio
       {/* ── FAB ── */}
       <button
         onClick={() => setShowModal(true)}
-        className="absolute bottom-5 right-5 flex items-center gap-2 px-4 py-3 rounded-full text-white font-semibold shadow-lg transition-all hover:opacity-90 active:scale-95 z-10"
-        style={{ background: gradient, boxShadow: '0 4px 20px rgba(147,51,234,0.4)' }}
+        className="absolute bottom-5 right-5 z-10 flex items-center gap-2 rounded-full bg-violet-600 px-4 py-3 font-semibold text-white shadow-lg transition-all hover:opacity-90 active:scale-95 sm:hidden"
       >
         <Plus className="w-5 h-5" />
         <span className="text-sm">Đăng tin</span>

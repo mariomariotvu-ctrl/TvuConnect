@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FoodNearby } from './FoodNearby';
 
 const discoverFoodPlaces = vi.fn();
+const currentLocation = { lat: 9.9345, lng: 106.3461 };
 
 vi.mock('../services/foodDiscoveryService', () => ({
   discoverFoodPlaces: (...args: unknown[]) => discoverFoodPlaces(...args),
@@ -41,6 +42,7 @@ const providerPlaces = [
 
 describe('FoodNearby', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     discoverFoodPlaces.mockReset();
     discoverFoodPlaces.mockResolvedValue({
       places: providerPlaces,
@@ -50,12 +52,26 @@ describe('FoodNearby', () => {
     });
   });
 
+  it('waits for the current location instead of using a fixed fallback center', async () => {
+    render(
+      <FoodNearby
+        userLocation={null}
+        locating={false}
+        onRequestLocation={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Dùng vị trí hiện tại' })).toBeInTheDocument();
+    expect(screen.queryByText('Cà phê Sinh Viên')).not.toBeInTheDocument();
+    await waitFor(() => expect(discoverFoodPlaces).not.toHaveBeenCalled());
+  });
+
   it('shows transient Google Places results with visible attribution inside the app', async () => {
     const onSelect = vi.fn();
     const { container } = render(
       <FoodNearby
-        places={[]}
-        userLocation={null}
+        userLocation={currentLocation}
         locating={false}
         onRequestLocation={vi.fn()}
         onSelect={onSelect}
@@ -72,8 +88,7 @@ describe('FoodNearby', () => {
   it('filters provider results into Gen Z-friendly food groups', async () => {
     render(
       <FoodNearby
-        places={[]}
-        userLocation={null}
+        userLocation={currentLocation}
         locating={false}
         onRequestLocation={vi.fn()}
         onSelect={vi.fn()}
@@ -84,5 +99,24 @@ describe('FoodNearby', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cà phê & trà' }));
     await waitFor(() => expect(screen.queryByText('Cơm Nhà TVU')).not.toBeInTheDocument());
     expect(screen.getByText('Cà phê Sinh Viên')).toBeInTheDocument();
+  });
+
+  it('saves a place and can show only saved results', async () => {
+    render(
+      <FoodNearby
+        userLocation={currentLocation}
+        locating={false}
+        onRequestLocation={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    await screen.findByText('Cơm Nhà TVU');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu Cà phê Sinh Viên' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đã lưu' }));
+
+    await waitFor(() => expect(screen.queryByText('Cơm Nhà TVU')).not.toBeInTheDocument());
+    expect(screen.getByText('Cà phê Sinh Viên')).toBeInTheDocument();
+    expect(window.localStorage.getItem('tvu-connect:saved-food-places')).toContain('google:cafe-1');
   });
 });
