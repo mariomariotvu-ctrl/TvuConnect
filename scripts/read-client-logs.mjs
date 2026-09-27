@@ -28,6 +28,7 @@ Cách dùng:
   npm run logs:client -- --zalo --errors
   npm run logs:client -- --handoff=<mã-handoff> --details
   npm run logs:client -- --session=<mã-session> --event=auth.handoff_failed
+  npm run logs:client -- --code=<mã-hỗ-trợ> --details
 
 Tuỳ chọn:
   --since=6h       Khoảng thời gian: m, h hoặc d (mặc định 24h)
@@ -35,6 +36,7 @@ Tuỳ chọn:
   --zalo           Chỉ thiết bị mở bằng Zalo
   --errors         Chỉ WARNING/ERROR/CRITICAL
   --session=...    Lọc theo phiên thiết bị
+  --code=...       Lọc theo mã hỗ trợ người dùng gửi
   --handoff=...    Theo dõi một lần chuyển Zalo → Safari
   --event=...      Lọc loại sự kiện
   --details        In context và stack đầy đủ
@@ -54,6 +56,7 @@ const filters = [
 if (hasFlag('zalo')) filters.push('jsonPayload.browserContext="zalo-webview"');
 if (hasFlag('errors')) filters.push('severity>=WARNING');
 if (option('session')) filters.push(`jsonPayload.sessionId="${escapeFilter(option('session'))}"`);
+if (option('code')) filters.push(`jsonPayload.context.supportCode="${escapeFilter(option('code').toUpperCase())}"`);
 if (option('handoff')) filters.push(`jsonPayload.handoffId="${escapeFilter(option('handoff'))}"`);
 if (option('event')) filters.push(`jsonPayload.eventType="${escapeFilter(option('event'))}"`);
 

@@ -10,7 +10,7 @@ import {
   isRestrictedAuthWebView,
   shouldStartExternalGoogleLogin,
 } from '@/utils/authBrowser';
-import { logError, trackClientEvent } from '@/utils/errorTracking';
+import { getDiagnosticSupportCode, logError, trackClientEvent } from '@/utils/errorTracking';
 
 interface AuthProps {
   user: User | null;
@@ -321,9 +321,12 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
 
       {/* Error message */}
       {error && (
-        <div className="flex items-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-xl text-[10px] text-red-600 dark:text-red-400 font-bold border border-red-100 dark:border-red-800/50 w-full text-center justify-center">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>{error}</span>
+        <div className="flex items-start gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-xl text-[10px] text-red-600 dark:text-red-400 font-bold border border-red-100 dark:border-red-800/50 w-full text-left">
+          <AlertCircle className="mt-0.5 w-3.5 h-3.5 shrink-0" />
+          <span className="min-w-0">
+            <span className="block">{error}</span>
+            <span className="mt-1 block font-mono opacity-80">Mã hỗ trợ: {getDiagnosticSupportCode()}</span>
+          </span>
         </div>
       )}
     </div>

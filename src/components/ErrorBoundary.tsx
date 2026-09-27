@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { logError } from '@/utils/errorTracking';
+import { getDiagnosticSupportCode, logError } from '@/utils/errorTracking';
 
 interface Props {
   children: ReactNode;
@@ -76,6 +76,10 @@ export class ErrorBoundary extends Component<Props, State> {
             
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               Xin lỗi, có lỗi xảy ra. Vui lòng thử lại hoặc tải lại trang.
+            </p>
+
+            <p className="mb-4 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              Mã hỗ trợ: <span className="font-mono text-gray-800 dark:text-gray-200">{getDiagnosticSupportCode()}</span>
             </p>
             
             {this.state.error && (

@@ -214,6 +214,7 @@ class ErrorTracker {
       connection?: { effectiveType?: string; saveData?: boolean };
     }).connection;
     const context = sanitizeContext({
+      supportCode: this.getSupportCode(),
       language: navigator.language,
       platform: navigator.platform,
       maxTouchPoints: navigator.maxTouchPoints,
@@ -313,6 +314,10 @@ class ErrorTracker {
     return this.sessionId;
   }
 
+  getSupportCode(): string {
+    return this.sessionId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toUpperCase();
+  }
+
   getErrors(): ErrorLog[] {
     return [...this.errors];
   }
@@ -333,6 +338,8 @@ class ErrorTracker {
 }
 
 export const errorTracker = new ErrorTracker();
+
+export const getDiagnosticSupportCode = (): string => errorTracker.getSupportCode();
 
 export const trackClientEvent = (eventType: string, context?: Record<string, unknown>) => {
   errorTracker.trackEvent(eventType, context);
