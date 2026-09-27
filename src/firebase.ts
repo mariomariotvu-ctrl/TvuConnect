@@ -109,9 +109,6 @@ export const functions = getFunctions(
   import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION || 'us-central1',
 );
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
 
 export { 
   signInWithPopup, 

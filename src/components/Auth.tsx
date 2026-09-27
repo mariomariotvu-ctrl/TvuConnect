@@ -52,7 +52,10 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
           return;
         }
 
-        googleProvider.setCustomParameters({ prompt: 'select_account' });
+        // Let Safari reuse an existing Google/Firebase session. Forcing the
+        // account picker here makes a browser handoff look like a second login
+        // even when the user is already signed in on the device.
+        googleProvider.setCustomParameters({});
         await signInWithRedirect(auth, googleProvider);
       }).catch((redirectError) => {
         console.error('External browser login error:', redirectError);
@@ -98,7 +101,11 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
       const link = document.createElement('a');
       link.href = target;
       link.target = '_blank';
-      link.rel = 'noopener noreferrer external';
+      // `rel=external` is interpreted by some iOS in-app browsers (notably
+      // Zalo) as a request to launch a native application. TVU Connect is a
+      // web/PWA, so that path produces the misleading "App not found" toast.
+      // A plain HTTPS link is the only supported Safari handoff on iOS.
+      link.rel = 'noopener noreferrer';
       document.body.appendChild(link);
       link.click();
       link.remove();
