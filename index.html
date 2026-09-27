@@ -59,12 +59,15 @@
         }
         
         // Check if user has manually set theme
-        const themeMode = localStorage.getItem('tvu-connect-theme-mode');
+        const readPreference = function (key) {
+          try { return localStorage.getItem(key); } catch (_) { return null; }
+        };
+        const themeMode = readPreference('tvu-connect-theme-mode');
         let theme;
         
         if (themeMode === 'manual') {
           // User has manually chosen, use their preference
-          theme = localStorage.getItem('tvu-connect-theme') || 'light';
+          theme = readPreference('tvu-connect-theme') || 'light';
         } else {
           // Auto mode: determine by time
           theme = getAutoTheme();

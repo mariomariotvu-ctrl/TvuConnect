@@ -16,6 +16,9 @@ import { MobileMoreMenu } from './components/MobileMoreMenu';
 import { NotificationBell } from './components/NotificationBell';
 import { toast } from 'sonner';
 import { quotaManager } from './utils/quotaManager';
+import { isRestrictedAuthWebView, shouldShowStartupSplash } from './utils/authBrowser';
+import { logError, trackClientEvent } from './utils/errorTracking';
+import { safeLocalStorage } from './utils/browserStorage';
 
 import { ProfileCompletionBanner } from './components/ProfileCompletionBanner';
 import { CallDialog } from './components/CallDialog';
@@ -84,6 +87,7 @@ export default function App() {
   const exploreTab = route.exploreTab ?? 'list';
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restrictedWebView] = useState(() => isRestrictedAuthWebView());
   const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [matchedProfile, setMatchedProfile] = useState<StudentProfile | null>(null);
@@ -121,6 +125,13 @@ export default function App() {
     const timeout = window.setTimeout(() => setMinimumSplashElapsed(true), 2_200);
     return () => window.clearTimeout(timeout);
   }, []);
+
+  const readyReported = useRef(false);
+  useEffect(() => {
+    if (readyReported.current || shouldShowStartupSplash(restrictedWebView, loading, minimumSplashElapsed)) return;
+    readyReported.current = true;
+    trackClientEvent('app.startup_ready', { restrictedWebView, authPending: loading });
+  }, [restrictedWebView, loading, minimumSplashElapsed]);
 
   useEffect(() => {
     if (route.chatUid) setChatReceiverUid(route.chatUid);
@@ -342,7 +353,6 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      sessionStorage.removeItem('has_reloaded_login');
       // Use window.location.reload() for a clean state
       window.location.reload();
     } catch (error) {
@@ -382,7 +392,6 @@ export default function App() {
     // Log out user
     try {
       await signOut(auth);
-      sessionStorage.removeItem('has_reloaded_login');
       setShowTermsModal(false);
       window.location.reload();
     } catch (error) {
@@ -390,7 +399,6 @@ export default function App() {
     }
   };
 
-  const prevUserRef = useRef<User | null>(null);
   const viewRef = useRef<View>(view);
   const chatReceiverUidRef = useRef<string | null>(chatReceiverUid);
 
@@ -411,6 +419,9 @@ export default function App() {
     const loadingTimeout = setTimeout(() => {
       if (loading) {
         logger.warn('Loading timeout - forcing load completion');
+        logError('Authentication state has not resolved during startup', {
+          eventType: 'auth.startup_timeout', severity: 'medium', context: { restrictedWebView },
+        });
         setLoading(false);
       }
     }, 8000); // 8 seconds max loading time
@@ -420,34 +431,25 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // Check if this is a fresh login transition
-      if (user && !prevUserRef.current) {
-        // Use sessionStorage to mark that we've already reloaded for this auth event
-        const loginToken = sessionStorage.getItem('has_reloaded_login');
-        if (loginToken !== user.uid) {
-          sessionStorage.setItem('has_reloaded_login', user.uid);
-          setUser(user);
-          setLoading(false);
-
-          // FOR MOBILE: We must wait a bit longer to ensure Persistence is saved before reloading
-          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-          const delay = isMobile ? 1200 : 200;
-
-          setTimeout(() => {
-            window.location.reload();
-          }, delay);
-          return;
+      // Firebase restores persistence itself. Reloading here can replay startup
+      // repeatedly when an in-app browser partitions/discards sessionStorage.
+      trackClientEvent('auth.state_ready', { signedIn: Boolean(user) });
+      if (user && !restrictedWebView) {
+        const currentUrl = new URL(window.location.href);
+        const handoffId = currentUrl.searchParams.get('handoffId');
+        if (currentUrl.searchParams.get('externalAuth') === 'google' || handoffId) {
+          trackClientEvent('auth.handoff_session_ready', { handoffId });
+          currentUrl.searchParams.delete('externalAuth');
+          currentUrl.searchParams.delete('handoffId');
+          window.history.replaceState(window.history.state, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
         }
       }
-
-      prevUserRef.current = user;
       setUser(user);
       setLoading(false);
 
       if (!user) {
         setHasProfile(false);
         setIsLoadingProfile(false); // No user = not loading
-        sessionStorage.removeItem('has_reloaded_login');
         initialLoadRef.current = true;
       } else {
         initialLoadRef.current = false;
@@ -455,7 +457,7 @@ export default function App() {
         
         // Read the local terms flag before making a network request.
         // This shows TermsModal immediately without waiting for Firestore
-        const termsAcceptedEarly = localStorage.getItem(`terms_accepted_${user.uid}`);
+        const termsAcceptedEarly = safeLocalStorage.getItem(`terms_accepted_${user.uid}`);
         if (!termsAcceptedEarly) {
           // Show terms modal instantly - profile fetch runs in background
           setShowTermsModal(true);
@@ -498,7 +500,7 @@ export default function App() {
               try { setCachedData(cacheConfig, mergedProfile); } catch (_) {}
               
               // Terms already checked above via localStorage - skip duplicate check
-              const termsAccepted = localStorage.getItem(`terms_accepted_${user.uid}`);
+              const termsAccepted = safeLocalStorage.getItem(`terms_accepted_${user.uid}`);
               if (!termsAccepted) {
                 setIsLoadingProfile(false);
                 return; // Terms modal already shown, wait for user to accept
@@ -519,7 +521,7 @@ export default function App() {
               }
             } else {
               // No profile yet
-              const termsAccepted = localStorage.getItem(`terms_accepted_${user.uid}`);
+              const termsAccepted = safeLocalStorage.getItem(`terms_accepted_${user.uid}`);
               if (!termsAccepted) {
                 setIsLoadingProfile(false);
                 return; // Terms modal already shown
@@ -537,6 +539,13 @@ export default function App() {
         };
         checkProfile();
       }
+    }, (error) => {
+      setLoading(false);
+      setIsLoadingProfile(false);
+      logError('Authentication state could not be restored', {
+        eventType: 'auth.startup_failed', severity: 'high',
+        context: { code: (error as Error & { code?: string }).code || 'unknown' },
+      });
     });
     return () => unsubscribe();
   }, []);
@@ -1397,7 +1406,7 @@ export default function App() {
     };
   }, [handleStartChat, navigate, setView]);
 
-  if (loading || !minimumSplashElapsed) return <CinematicSplash />;
+  if (shouldShowStartupSplash(restrictedWebView, loading, minimumSplashElapsed)) return <CinematicSplash />;
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">
@@ -1643,7 +1652,7 @@ export default function App() {
           onClose={handleCloseStudyRoom}
         />
       )}
-      <InstallPrompt />
+      {user && !restrictedWebView && <InstallPrompt />}
       {user && !(view === 'explore' && exploreTab === 'ai') && (
         <AIFloatingButton avoidChatComposer={view === 'chat'} />
       )}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildExternalAuthBrowserUrl,
+  buildExternalAuthWebUrl,
+  shouldShowStartupSplash,
   createAuthHandoffId,
   isAppleMobileBrowser,
   isRestrictedAuthWebView,
@@ -60,5 +62,17 @@ describe('auth browser detection', () => {
     expect(shouldStartExternalGoogleLogin('google', true)).toBe(false);
     expect(shouldStartExternalGoogleLogin('google', false)).toBe(true);
     expect(shouldStartExternalGoogleLogin(null, false)).toBe(false);
+  });
+
+  it('strips old OAuth/tracking parameters before copying a browser login link', () => {
+    expect(buildExternalAuthWebUrl('https://tvuconnect.vercel.app/library?state=secret&code=secret#credential', 'new-id'))
+      .toBe('https://tvuconnect.vercel.app/library?externalAuth=google&handoffId=new-id');
+  });
+
+  it('never blocks the Facebook/Zalo landing behind Firebase startup or an animation', () => {
+    expect(shouldShowStartupSplash(true, true, false)).toBe(false);
+    expect(shouldShowStartupSplash(false, true, true)).toBe(true);
+    expect(shouldShowStartupSplash(false, false, false)).toBe(true);
+    expect(shouldShowStartupSplash(false, false, true)).toBe(false);
   });
 });

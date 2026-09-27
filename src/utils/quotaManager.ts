@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { safeLocalStorage } from './browserStorage';
 // Quota Manager - Prevent quota exceeded errors
 
 class QuotaManager {
@@ -17,20 +18,20 @@ class QuotaManager {
     this.retryAfter = Date.now() + (retryAfterHours * 60 * 60 * 1000);
     
     // Store in localStorage
-    localStorage.setItem('quota_exceeded', 'true');
-    localStorage.setItem('retry_after', this.retryAfter.toString());
+    safeLocalStorage.setItem('quota_exceeded', 'true');
+    safeLocalStorage.setItem('retry_after', this.retryAfter.toString());
   }
 
   clearQuotaExceeded() {
     this.quotaExceeded = false;
     this.retryAfter = null;
-    localStorage.removeItem('quota_exceeded');
-    localStorage.removeItem('retry_after');
+    safeLocalStorage.removeItem('quota_exceeded');
+    safeLocalStorage.removeItem('retry_after');
   }
 
   checkStoredQuota() {
-    const stored = localStorage.getItem('quota_exceeded');
-    const retryAfter = localStorage.getItem('retry_after');
+    const stored = safeLocalStorage.getItem('quota_exceeded');
+    const retryAfter = safeLocalStorage.getItem('retry_after');
     
     if (stored === 'true' && retryAfter) {
       const retryTime = parseInt(retryAfter);

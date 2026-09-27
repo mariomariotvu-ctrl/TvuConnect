@@ -1,16 +1,13 @@
 import React from 'react';
 import { auth, googleProvider, signInWithPopup, signInWithRedirect, signOut } from '../firebase';
-import { LogIn, LogOut, AlertCircle, UserRound, ExternalLink } from 'lucide-react';
+import { LogIn, LogOut, AlertCircle, UserRound } from 'lucide-react';
 import { User, getRedirectResult } from 'firebase/auth';
 import { logger } from '@/utils/logger';
 import {
-  buildExternalAuthBrowserUrl,
-  createAuthHandoffId,
-  isAppleMobileBrowser,
   isRestrictedAuthWebView,
-  shouldStartExternalGoogleLogin,
 } from '@/utils/authBrowser';
 import { getDiagnosticSupportCode, logError, trackClientEvent } from '@/utils/errorTracking';
+import { ExternalBrowserLogin } from './ExternalBrowserLogin';
 
 interface AuthProps {
   user: User | null;
@@ -23,6 +20,7 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
   const [error, setError] = React.useState<string | null>(null);
   const [isWebView] = React.useState(() => isRestrictedAuthWebView());
   const [localLoading, setLocalLoading] = React.useState(false);
+  const loginPending = React.useRef(false);
 
   // Use profile photo if available, otherwise fall back to Firebase Auth photo
   const displayPhoto = userProfile?.photoURL || user?.photoURL;
@@ -46,51 +44,11 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
 
     if (externalAuthRequest === 'google') {
       trackClientEvent('auth.handoff_arrived', { handoffId });
-      setLocalLoading(true);
-      void auth.authStateReady().then(async () => {
-        currentUrl.searchParams.delete('externalAuth');
-
-        if (!shouldStartExternalGoogleLogin(externalAuthRequest, Boolean(auth.currentUser))) {
-          currentUrl.searchParams.delete('handoffId');
-          window.history.replaceState(
-            {},
-            '',
-            `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
-          );
-          trackClientEvent('auth.handoff_reused_session', { handoffId });
-          setLocalLoading(false);
-          return;
-        }
-
-        // Keep handoffId in the URL during Firebase's round trip so the return
-        // can be correlated with the original tap inside Zalo.
-        window.history.replaceState(
-          {},
-          '',
-          `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
-        );
-        // Let Safari reuse an existing Google/Firebase session. Forcing the
-        // account picker here makes a browser handoff look like a second login
-        // even when the user is already signed in on the device.
-        googleProvider.setCustomParameters({});
-        trackClientEvent('auth.redirect_started', { handoffId, provider: 'google' });
-        await signInWithRedirect(auth, googleProvider);
-      }).catch((redirectError) => {
-        console.error('External browser login error:', redirectError);
-        const authError = redirectError as { message?: string; stack?: string; code?: string };
-        logError(authError.message || 'External browser login failed', {
-          eventType: 'auth.handoff_failed',
-          stack: authError.stack,
-          severity: 'high',
-          context: { handoffId, code: authError.code || 'unknown' },
-        });
-        currentUrl.searchParams.delete('externalAuth');
-        currentUrl.searchParams.delete('handoffId');
-        window.history.replaceState({}, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
-        setLocalLoading(false);
-        setError('Không thể mở đăng nhập Google lúc này. Vui lòng thử lại.');
-      });
-      return undefined;
+      currentUrl.searchParams.delete('externalAuth');
+      window.history.replaceState({}, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
+      // Never auto-start another OAuth round trip on arrival. App's auth observer
+      // restores an existing user; otherwise the button starts login from a tap.
+      if (auth.currentUser) trackClientEvent('auth.handoff_reused_session', { handoffId });
     }
 
     // Handle the redirect result when the component mounts
@@ -99,7 +57,7 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
       if (result && isMounted) {
         logger.log('Successfully logged in via redirect');
         trackClientEvent('auth.redirect_completed', { handoffId, provider: 'google' });
-      } else if (handoffId && isMounted) {
+      } else if (handoffId && externalAuthRequest !== 'google' && isMounted) {
         trackClientEvent('auth.redirect_no_result', { handoffId, provider: 'google' });
       }
     }).catch((error) => {
@@ -125,56 +83,21 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
         }
       }
     }).finally(() => {
-      if (handoffId) {
-        const cleanedUrl = new URL(window.location.href);
-        cleanedUrl.searchParams.delete('handoffId');
-        window.history.replaceState(
-          {},
-          '',
-          `${cleanedUrl.pathname}${cleanedUrl.search}${cleanedUrl.hash}`,
-        );
-      }
+      // Keep handoffId until login succeeds so a later button tap is correlated.
       if (isMounted) setLocalLoading(false);
     });
 
     return () => { isMounted = false; };
   }, [isWebView]);
 
-  const openExternalBrowserForLogin = () => {
-    const handoffId = createAuthHandoffId();
-    const target = buildExternalAuthBrowserUrl(window.location.href, undefined, handoffId);
-    trackClientEvent('auth.handoff_requested', {
-      handoffId,
-      targetBrowser: isAppleMobileBrowser() ? 'safari' : 'chrome',
-    });
-
-    if (isAppleMobileBrowser()) {
-      const link = document.createElement('a');
-      link.href = target;
-      link.target = '_blank';
-      // `rel=external` is interpreted by some iOS in-app browsers (notably
-      // Zalo) as a request to launch a native application. TVU Connect is a
-      // web/PWA, so that path produces the misleading "App not found" toast.
-      // A plain HTTPS link is the only supported Safari handoff on iOS.
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      return;
-    }
-
-    window.location.assign(target);
-  };
-
   const handleLogin = async () => {
     setError(null);
 
-    if (isWebView) {
-      openExternalBrowserForLogin();
-      return;
-    }
+    if (isWebView || loginPending.current || auth.currentUser) return;
 
+    loginPending.current = true;
     setLocalLoading(true);
+    const handoffId = new URL(window.location.href).searchParams.get('handoffId') || undefined;
     
     const hostname = window.location.hostname;
     const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname);
@@ -182,22 +105,23 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
     if (isIP && hostname !== '127.0.0.1' && hostname !== 'localhost') {
       setError(`Google cấm đăng nhập từ địa chỉ IP (${hostname}). Hãy thêm IP này vào 'Authorized Domains' trong Firebase Console.`);
       setLocalLoading(false);
+      loginPending.current = false;
       return;
     }
 
     try {
       // Step 1: Always try Popup first (Most stable for session management)
       googleProvider.setCustomParameters({ prompt: 'select_account' });
-      trackClientEvent('auth.popup_started', { provider: 'google' });
+      trackClientEvent('auth.popup_started', { provider: 'google', handoffId });
       
       try {
         await signInWithPopup(auth, googleProvider);
-        trackClientEvent('auth.popup_completed', { provider: 'google' });
+        trackClientEvent('auth.popup_completed', { provider: 'google', handoffId });
       } catch (error: any) {
         // Step 2: Fallback to Redirect if Popup is blocked or restricted
-        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        if (error.code === 'auth/popup-blocked') {
           logger.log('Popup restricted, falling back to redirect...');
-          trackClientEvent('auth.popup_fallback_redirect', { code: error.code });
+          trackClientEvent('auth.popup_fallback_redirect', { code: error.code, handoffId });
           await signInWithRedirect(auth, googleProvider);
         } else {
           throw error;
@@ -210,7 +134,7 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
         eventType: 'auth.login_failed',
         stack: error?.stack,
         severity: 'high',
-        context: { code: error?.code || 'unknown' },
+        context: { code: error?.code || 'unknown', handoffId },
       });
       
       if (error.code === 'auth/unauthorized-domain') {
@@ -227,6 +151,9 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
       } else {
         setError('Không thể đăng nhập lúc này. Vui lòng thử lại bằng Safari hoặc Chrome.');
       }
+    } finally {
+      loginPending.current = false;
+      setLocalLoading(false);
     }
   };
 
@@ -241,7 +168,7 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
     }
   };
 
-  if (loading) {
+  if (loading && !isWebView) {
     return (
       <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-full animate-pulse transition-all">
         <div className="w-5 h-5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
@@ -294,6 +221,8 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
   }
 
   // === LOGIN SCREEN ===
+  if (isWebView) return <ExternalBrowserLogin />;
+
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-[320px]">
       <div className="w-full">
@@ -304,17 +233,13 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
         >
           {localLoading ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true"></div>
-          ) : isWebView ? (
-            <ExternalLink className="h-5 w-5 text-white" aria-hidden="true" />
           ) : (
             <LogIn className="h-5 w-5 text-white" aria-hidden="true" />
           )}
           <span>
             {localLoading
               ? 'Đang xử lý...'
-              : isWebView
-                ? 'Mở TVU Connect để đăng nhập'
-                : 'Đăng nhập bằng Google'}
+              : 'Đăng nhập bằng Google'}
           </span>
         </button>
       </div>

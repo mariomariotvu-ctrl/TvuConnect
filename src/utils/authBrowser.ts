@@ -12,15 +12,17 @@ export function isAppleMobileBrowser(userAgent?: string): boolean {
   return /iPhone|iPad|iPod/i.test(resolvedUserAgent);
 }
 
+export function shouldShowStartupSplash(restrictedWebView: boolean, authLoading: boolean, minimumElapsed: boolean): boolean {
+  return !restrictedWebView && (authLoading || !minimumElapsed);
+}
+
 export function buildExternalAuthBrowserUrl(
   currentUrl: string,
   userAgent?: string,
   handoffId?: string,
 ): string {
-  const url = new URL(currentUrl);
-  url.searchParams.set('externalAuth', 'google');
-  if (handoffId) url.searchParams.set('handoffId', handoffId);
-  const httpsUrl = url.toString();
+  const httpsUrl = buildExternalAuthWebUrl(currentUrl, handoffId);
+  const url = new URL(httpsUrl);
   const resolvedUserAgent = userAgent
     ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
 
@@ -32,9 +34,27 @@ export function buildExternalAuthBrowserUrl(
   // iOS does not expose a supported "open Safari" URL scheme. Prefixes such
   // as x-safari-https:// make iOS look for a separate installed application
   // and show "App not found" on devices where that private scheme is absent.
-  // A normal HTTPS link opened with target=_blank lets the host webview hand
-  // the navigation to Safari without inventing a custom application scheme.
+  // target=_blank is NOT a Safari handoff guarantee: Facebook can open another
+  // internal WebView. The UI must offer a copy/menu fallback, not an endless retry.
   return httpsUrl;
+}
+
+export function buildExternalAuthWebUrl(currentUrl: string, handoffId?: string): string {
+  const url = new URL(currentUrl);
+  // Copy only our navigation request, never OAuth state, credentials or arbitrary query parameters.
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('externalAuth', 'google');
+  if (handoffId) url.searchParams.set('handoffId', handoffId);
+  return url.toString();
+}
+
+export function authWebViewName(userAgent = navigator.userAgent): string {
+  if (/FBAN|FBAV/i.test(userAgent)) return 'Facebook / Messenger';
+  if (/Zalo/i.test(userAgent)) return 'Zalo';
+  if (/Instagram/i.test(userAgent)) return 'Instagram';
+  if (/TikTok/i.test(userAgent)) return 'TikTok';
+  return 'ứng dụng này';
 }
 
 export function createAuthHandoffId(): string {

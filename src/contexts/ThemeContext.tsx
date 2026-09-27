@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { logger } from '@/utils/logger';
+import { safeLocalStorage } from '@/utils/browserStorage';
 
 type Theme = 'light' | 'dark';
 type ThemeMode = 'auto' | 'manual';
@@ -23,11 +24,11 @@ const getAutoTheme = (): Theme => {
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
     // Check if user has manually set theme
-    const themeMode = localStorage.getItem('tvu-connect-theme-mode') as ThemeMode;
+    const themeMode = safeLocalStorage.getItem('tvu-connect-theme-mode') as ThemeMode;
     
     if (themeMode === 'manual') {
       // User has manually chosen, use their preference
-      const savedTheme = localStorage.getItem('tvu-connect-theme') as Theme;
+      const savedTheme = safeLocalStorage.getItem('tvu-connect-theme') as Theme;
       return savedTheme || 'light';
     }
     
@@ -36,7 +37,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [isAutoMode, setIsAutoMode] = useState<boolean>(() => {
-    const themeMode = localStorage.getItem('tvu-connect-theme-mode') as ThemeMode;
+    const themeMode = safeLocalStorage.getItem('tvu-connect-theme-mode') as ThemeMode;
     return themeMode !== 'manual';
   });
 
@@ -71,7 +72,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     // Save to localStorage
-    localStorage.setItem('tvu-connect-theme', theme);
+    safeLocalStorage.setItem('tvu-connect-theme', theme);
     
     // Debug log for mobile testing
     logger.log('[Theme Applied]', {
@@ -84,7 +85,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleTheme = () => {
     // When user manually toggles, switch to manual mode
     setIsAutoMode(false);
-    localStorage.setItem('tvu-connect-theme-mode', 'manual');
+    safeLocalStorage.setItem('tvu-connect-theme-mode', 'manual');
     
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };

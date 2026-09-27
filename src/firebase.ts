@@ -100,7 +100,11 @@ const initializeOfflineFirestore = () => {
 export const db = initializeOfflineFirestore();
 
 export const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence);
+void setPersistence(auth, browserLocalPersistence).catch((error) => {
+  // getAuth already has an SDK persistence fallback; do not throw an unhandled
+  // rejection or reset a valid user when WebView storage is unavailable.
+  logger.warn('Browser auth persistence is unavailable:', error?.code || 'unknown');
+});
 export const storage = getStorage(app, firebaseConfig.storageBucket);
 export const realtimeDb = getDatabase(app);
 // Callable functions keep provider keys and abuse controls on the server.
