@@ -12,6 +12,11 @@ const option = (name, fallback = '') => {
 };
 const hasFlag = (name) => args.includes(`--${name}`);
 const escapeFilter = (value) => String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+const normalizeSupportCode = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-zA-Z0-9]/g, '')
+  .toUpperCase();
 
 const durationMs = (value) => {
   const match = /^(\d+)(m|h|d)$/.exec(value);
@@ -48,6 +53,18 @@ const project = option('project', 'tvu-connect-1dc97');
 const since = option('since', '24h');
 const limit = Math.min(Math.max(Number(option('limit', '100')) || 100, 1), 1_000);
 const timestamp = new Date(Date.now() - durationMs(since)).toISOString();
+const supportCode = normalizeSupportCode(option('code'));
+
+if (supportCode === 'MAHOTRO') {
+  console.error('“MÃ_HỖ_TRỢ” chỉ là chữ mẫu. Hãy thay bằng mã thật hiển thị trên thiết bị, ví dụ: --code=AB12CD34EF');
+  process.exit(1);
+}
+
+if (supportCode && !/^[A-Z0-9]{10}$/.test(supportCode)) {
+  console.error('Mã hỗ trợ phải gồm đúng 10 chữ/số, ví dụ: --code=AB12CD34EF');
+  process.exit(1);
+}
+
 const filters = [
   'jsonPayload.telemetrySource="tvu-connect-web"',
   `timestamp>="${timestamp}"`,
@@ -56,7 +73,7 @@ const filters = [
 if (hasFlag('zalo')) filters.push('jsonPayload.browserContext="zalo-webview"');
 if (hasFlag('errors')) filters.push('severity>=WARNING');
 if (option('session')) filters.push(`jsonPayload.sessionId="${escapeFilter(option('session'))}"`);
-if (option('code')) filters.push(`jsonPayload.context.supportCode="${escapeFilter(option('code').toUpperCase())}"`);
+if (supportCode) filters.push(`jsonPayload.context.supportCode="${escapeFilter(supportCode)}"`);
 if (option('handoff')) filters.push(`jsonPayload.handoffId="${escapeFilter(option('handoff'))}"`);
 if (option('event')) filters.push(`jsonPayload.eventType="${escapeFilter(option('event'))}"`);
 
@@ -79,6 +96,9 @@ try {
 const entries = JSON.parse(raw || '[]');
 if (!entries.length) {
   console.log(`Không có log phù hợp trong ${since} gần nhất.`);
+  if (hasFlag('errors')) {
+    console.log('Lưu ý: luồng Zalo bị ngắt thường là sự kiện INFO, không phải lỗi JavaScript. Hãy dùng: npm run logs:client -- --zalo --since=6h');
+  }
   process.exit(0);
 }
 
@@ -98,6 +118,31 @@ const rows = entries.map((entry) => {
 });
 
 console.table(rows);
+
+const events = new Set(entries.map((entry) => entry.jsonPayload?.eventType).filter(Boolean));
+if (hasFlag('zalo')) {
+  console.log('\nNhận định tự động:');
+  if (events.has('auth.handoff_failed')) {
+    console.log('- TVU Connect đã ghi nhận thao tác chuyển khỏi Zalo bị lỗi ngay trên trang.');
+  } else if (events.has('auth.handoff_arrived')) {
+    if (events.has('auth.redirect_completed') || events.has('auth.handoff_reused_session')) {
+      console.log('- Thiết bị đã ra trình duyệt ngoài và hoàn tất/khôi phục phiên đăng nhập.');
+    } else if (events.has('auth.redirect_started')) {
+      console.log('- Thiết bị đã đến trình duyệt ngoài và bắt đầu Firebase Auth, nhưng chưa thấy bước hoàn tất đăng nhập.');
+    } else {
+      console.log('- Thiết bị đã đến trình duyệt ngoài, nhưng chưa bắt đầu được Firebase Auth.');
+    }
+  } else if (events.has('auth.handoff_requested')) {
+    console.log('- Zalo đã yêu cầu mở trình duyệt ngoài, nhưng chưa thấy Safari/Chrome tải URL chuyển tiếp.');
+    console.log('- Đây là luồng chuyển ứng dụng bị ngắt hoặc quay lại Zalo, không phải lỗi JavaScript nên --errors có thể trống.');
+  } else if (events.has('browser.restricted_webview_loaded')) {
+    console.log('- Trang đang chạy trong Zalo WebView nhưng chưa ghi nhận thao tác mở trình duyệt ngoài.');
+  }
+
+  if (events.has('auth.handoff_stayed_in_webview')) {
+    console.log('- Có ít nhất một lần thao tác vẫn ở lại Zalo WebView sau khi yêu cầu chuyển.');
+  }
+}
 
 if (hasFlag('details')) {
   for (const entry of entries) {
