@@ -27,11 +27,11 @@ export function buildExternalAuthBrowserUrl(
     return `intent://${intentTarget}#Intent;scheme=${url.protocol.replace(':', '')};package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(httpsUrl)};end`;
   }
 
-  if (isAppleMobileBrowser(resolvedUserAgent)) {
-    const safariScheme = url.protocol === 'http:' ? 'x-safari-http://' : 'x-safari-https://';
-    return httpsUrl.replace(/^https?:\/\//, safariScheme);
-  }
-
+  // iOS does not expose a supported "open Safari" URL scheme. Prefixes such
+  // as x-safari-https:// make iOS look for a separate installed application
+  // and show "App not found" on devices where that private scheme is absent.
+  // A normal HTTPS link opened with target=_blank lets the host webview hand
+  // the navigation to Safari without inventing a custom application scheme.
   return httpsUrl;
 }
 

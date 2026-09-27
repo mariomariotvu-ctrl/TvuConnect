@@ -5,6 +5,7 @@ import { User, getRedirectResult } from 'firebase/auth';
 import { logger } from '@/utils/logger';
 import {
   buildExternalAuthBrowserUrl,
+  isAppleMobileBrowser,
   isRestrictedAuthWebView,
   shouldStartExternalGoogleLogin,
 } from '@/utils/authBrowser';
@@ -91,7 +92,20 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
   }, [isWebView]);
 
   const openExternalBrowserForLogin = () => {
-    window.location.assign(buildExternalAuthBrowserUrl(window.location.href));
+    const target = buildExternalAuthBrowserUrl(window.location.href);
+
+    if (isAppleMobileBrowser()) {
+      const link = document.createElement('a');
+      link.href = target;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer external';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      return;
+    }
+
+    window.location.assign(target);
   };
 
   const handleLogin = async () => {

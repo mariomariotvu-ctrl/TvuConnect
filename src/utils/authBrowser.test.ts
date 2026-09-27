@@ -30,11 +30,11 @@ describe('auth browser detection', () => {
     expect(isAppleMobileBrowser('Mozilla/5.0 (Linux; Android 15) Chrome/140')).toBe(false);
   });
 
-  it('launches Safari directly from an iPhone webview', () => {
+  it('uses a regular HTTPS link from an iPhone webview', () => {
     expect(buildExternalAuthBrowserUrl(
       'https://tvuconnect.vercel.app/explore/people',
       'Mozilla/5.0 iPhone Zalo/25.09',
-    )).toBe('x-safari-https://tvuconnect.vercel.app/explore/people?externalAuth=google');
+    )).toBe('https://tvuconnect.vercel.app/explore/people?externalAuth=google');
   });
 
   it('launches Chrome directly from an Android webview', () => {
