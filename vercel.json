@@ -3,6 +3,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/join",
+      "destination": "/marketing/facebook-join.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
