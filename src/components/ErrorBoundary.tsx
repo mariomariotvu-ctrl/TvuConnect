@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { logError } from '@/utils/errorTracking';
 
 interface Props {
   children: ReactNode;
@@ -35,13 +36,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    logError(error.message, {
+      eventType: 'react.render_failed',
+      stack: error.stack,
+      severity: 'critical',
+      context: { componentStack: errorInfo.componentStack || '' },
+    });
     
     this.setState({
       errorInfo,
     });
     
-    // TODO: Log to error tracking service (e.g., Sentry)
-    // logErrorToService(error, errorInfo);
   }
 
   handleReset = () => {

@@ -7,6 +7,8 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { Toaster } from 'sonner';
 import { logger } from '@/utils/logger';
 import { initializeRuntimeConfig } from '@/config/runtimeConfig';
+import '@/utils/errorTracking';
+import { app } from './firebase.ts';
 import './index.css';
 import 'leaflet/dist/leaflet.css';
 import './styles/leaflet-custom.css';
@@ -50,6 +52,14 @@ createRoot(document.getElementById('root')!).render(
 // Operational switches load in the background. Checked-in defaults keep the
 // first paint fast and make the app resilient when Remote Config is unreachable.
 void initializeRuntimeConfig();
+
+// Firebase Performance complements client error telemetry with real-user page
+// load and HTTP request timing. It does not replace JavaScript error logging.
+if (import.meta.env.PROD && app) {
+  void import('firebase/performance')
+    .then(({ getPerformance }) => getPerformance(app))
+    .catch(() => undefined);
+}
 
 // Register Service Worker for Push Notifications
 if ('serviceWorker' in navigator) {

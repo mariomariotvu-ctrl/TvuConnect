@@ -5,10 +5,12 @@ import { User, getRedirectResult } from 'firebase/auth';
 import { logger } from '@/utils/logger';
 import {
   buildExternalAuthBrowserUrl,
+  createAuthHandoffId,
   isAppleMobileBrowser,
   isRestrictedAuthWebView,
   shouldStartExternalGoogleLogin,
 } from '@/utils/authBrowser';
+import { logError, trackClientEvent } from '@/utils/errorTracking';
 
 interface AuthProps {
   user: User | null;
@@ -27,38 +29,64 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
   const displayName = userProfile?.fullName || user?.displayName;
 
   React.useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+    const externalAuthRequest = currentUrl.searchParams.get('externalAuth');
+    const handoffId = currentUrl.searchParams.get('handoffId') || undefined;
+
     // Redirect login cannot preserve Firebase's initial state inside Zalo and
     // similar storage-partitioned webviews. Never try to recover a redirect in
     // those browsers; the login card below directs users to Safari/Chrome.
     if (isWebView) {
+      if (externalAuthRequest === 'google') {
+        trackClientEvent('auth.handoff_stayed_in_webview', { handoffId });
+      }
       setLocalLoading(false);
       return undefined;
     }
 
-    const currentUrl = new URL(window.location.href);
-    if (currentUrl.searchParams.get('externalAuth') === 'google') {
+    if (externalAuthRequest === 'google') {
+      trackClientEvent('auth.handoff_arrived', { handoffId });
       setLocalLoading(true);
       void auth.authStateReady().then(async () => {
-        const externalAuthRequest = currentUrl.searchParams.get('externalAuth');
         currentUrl.searchParams.delete('externalAuth');
+
+        if (!shouldStartExternalGoogleLogin(externalAuthRequest, Boolean(auth.currentUser))) {
+          currentUrl.searchParams.delete('handoffId');
+          window.history.replaceState(
+            {},
+            '',
+            `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+          );
+          trackClientEvent('auth.handoff_reused_session', { handoffId });
+          setLocalLoading(false);
+          return;
+        }
+
+        // Keep handoffId in the URL during Firebase's round trip so the return
+        // can be correlated with the original tap inside Zalo.
         window.history.replaceState(
           {},
           '',
           `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
         );
-
-        if (!shouldStartExternalGoogleLogin(externalAuthRequest, Boolean(auth.currentUser))) {
-          setLocalLoading(false);
-          return;
-        }
-
         // Let Safari reuse an existing Google/Firebase session. Forcing the
         // account picker here makes a browser handoff look like a second login
         // even when the user is already signed in on the device.
         googleProvider.setCustomParameters({});
+        trackClientEvent('auth.redirect_started', { handoffId, provider: 'google' });
         await signInWithRedirect(auth, googleProvider);
       }).catch((redirectError) => {
         console.error('External browser login error:', redirectError);
+        const authError = redirectError as { message?: string; stack?: string; code?: string };
+        logError(authError.message || 'External browser login failed', {
+          eventType: 'auth.handoff_failed',
+          stack: authError.stack,
+          severity: 'high',
+          context: { handoffId, code: authError.code || 'unknown' },
+        });
+        currentUrl.searchParams.delete('externalAuth');
+        currentUrl.searchParams.delete('handoffId');
+        window.history.replaceState({}, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
         setLocalLoading(false);
         setError('Không thể mở đăng nhập Google lúc này. Vui lòng thử lại.');
       });
@@ -70,10 +98,19 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
     getRedirectResult(auth).then((result) => {
       if (result && isMounted) {
         logger.log('Successfully logged in via redirect');
+        trackClientEvent('auth.redirect_completed', { handoffId, provider: 'google' });
+      } else if (handoffId && isMounted) {
+        trackClientEvent('auth.redirect_no_result', { handoffId, provider: 'google' });
       }
     }).catch((error) => {
       if (!isMounted) return;
       console.error('Redirect login error:', error);
+      logError(error?.message || 'Firebase redirect login failed', {
+        eventType: 'auth.redirect_failed',
+        stack: error?.stack,
+        severity: 'high',
+        context: { handoffId, code: error?.code || 'unknown' },
+      });
       if (error.code === 'auth/unauthorized-domain') {
         setError('Tên miền này chưa được cấp phép trong Firebase Console.');
       } else if (error.code === 'auth/operation-not-allowed') {
@@ -88,6 +125,15 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
         }
       }
     }).finally(() => {
+      if (handoffId) {
+        const cleanedUrl = new URL(window.location.href);
+        cleanedUrl.searchParams.delete('handoffId');
+        window.history.replaceState(
+          {},
+          '',
+          `${cleanedUrl.pathname}${cleanedUrl.search}${cleanedUrl.hash}`,
+        );
+      }
       if (isMounted) setLocalLoading(false);
     });
 
@@ -95,7 +141,12 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
   }, [isWebView]);
 
   const openExternalBrowserForLogin = () => {
-    const target = buildExternalAuthBrowserUrl(window.location.href);
+    const handoffId = createAuthHandoffId();
+    const target = buildExternalAuthBrowserUrl(window.location.href, undefined, handoffId);
+    trackClientEvent('auth.handoff_requested', {
+      handoffId,
+      targetBrowser: isAppleMobileBrowser() ? 'safari' : 'chrome',
+    });
 
     if (isAppleMobileBrowser()) {
       const link = document.createElement('a');
@@ -137,13 +188,16 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
     try {
       // Step 1: Always try Popup first (Most stable for session management)
       googleProvider.setCustomParameters({ prompt: 'select_account' });
+      trackClientEvent('auth.popup_started', { provider: 'google' });
       
       try {
         await signInWithPopup(auth, googleProvider);
+        trackClientEvent('auth.popup_completed', { provider: 'google' });
       } catch (error: any) {
         // Step 2: Fallback to Redirect if Popup is blocked or restricted
         if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
           logger.log('Popup restricted, falling back to redirect...');
+          trackClientEvent('auth.popup_fallback_redirect', { code: error.code });
           await signInWithRedirect(auth, googleProvider);
         } else {
           throw error;
@@ -152,6 +206,12 @@ export const Auth: React.FC<AuthProps> = ({ user, loading, onProfileClick, userP
     } catch (error: any) {
       setLocalLoading(false);
       console.error('Login error:', error);
+      logError(error?.message || 'Google login failed', {
+        eventType: 'auth.login_failed',
+        stack: error?.stack,
+        severity: 'high',
+        context: { code: error?.code || 'unknown' },
+      });
       
       if (error.code === 'auth/unauthorized-domain') {
         setError(`Tên miền '${hostname}' chưa được cấp phép trong Firebase (Authentication -> Settings -> Authorized domains).`);

@@ -90,6 +90,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
   plugins: [react(), tailwindcss(), localLocationInspector(env.VITE_FIREBASE_PROJECT_ID || '')],
+  define: {
+    'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(
+      env.VITE_APP_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA || '',
+    ),
+  },
   test: {
     globals: true,
     environment: 'jsdom',

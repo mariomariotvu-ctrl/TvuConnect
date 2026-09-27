@@ -15,9 +15,11 @@ export function isAppleMobileBrowser(userAgent?: string): boolean {
 export function buildExternalAuthBrowserUrl(
   currentUrl: string,
   userAgent?: string,
+  handoffId?: string,
 ): string {
   const url = new URL(currentUrl);
   url.searchParams.set('externalAuth', 'google');
+  if (handoffId) url.searchParams.set('handoffId', handoffId);
   const httpsUrl = url.toString();
   const resolvedUserAgent = userAgent
     ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
@@ -33,6 +35,11 @@ export function buildExternalAuthBrowserUrl(
   // A normal HTTPS link opened with target=_blank lets the host webview hand
   // the navigation to Safari without inventing a custom application scheme.
   return httpsUrl;
+}
+
+export function createAuthHandoffId(): string {
+  return globalThis.crypto?.randomUUID?.()
+    || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 export function shouldStartExternalGoogleLogin(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildExternalAuthBrowserUrl,
+  createAuthHandoffId,
   isAppleMobileBrowser,
   isRestrictedAuthWebView,
   shouldStartExternalGoogleLogin,
@@ -44,6 +45,15 @@ describe('auth browser detection', () => {
     );
     expect(target).toContain('intent://tvuconnect.vercel.app/?externalAuth=google#Intent;scheme=https;');
     expect(target).toContain('package=com.android.chrome');
+  });
+
+  it('carries a correlation id from Zalo to the external browser', () => {
+    expect(buildExternalAuthBrowserUrl(
+      'https://tvuconnect.vercel.app/',
+      'Mozilla/5.0 iPhone Zalo/25.09',
+      'handoff-123',
+    )).toBe('https://tvuconnect.vercel.app/?externalAuth=google&handoffId=handoff-123');
+    expect(createAuthHandoffId()).toMatch(/^[a-zA-Z0-9-]{10,}$/);
   });
 
   it('does not restart Google login when the external browser already has a session', () => {

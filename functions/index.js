@@ -26,6 +26,7 @@ const deleteStudentAccount = require('./deleteStudentAccount');
 const getTurnIceServers = require('./getTurnIceServers');
 const searchAcademicMaterials = require('./searchAcademicMaterials');
 const maintenanceTasks = require('./maintenanceTasks');
+const reportClientTelemetry = require('./reportClientTelemetry');
 
 exports.sendMessageNotification = sendMessageNotification.sendMessageNotification;
 exports.sendCallNotification = sendCallNotification.sendCallNotification;
@@ -54,3 +55,4 @@ exports.getTurnIceServers = getTurnIceServers.getTurnIceServers;
 exports.searchAcademicMaterials = searchAcademicMaterials.searchAcademicMaterials;
 exports.deleteExpiredDocumentsTask = maintenanceTasks.deleteExpiredDocumentsTask;
 exports.scheduleFirebaseMaintenance = maintenanceTasks.scheduleFirebaseMaintenance;
+exports.reportClientTelemetry = reportClientTelemetry.reportClientTelemetry;
