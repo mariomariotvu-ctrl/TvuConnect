@@ -25,6 +25,7 @@ const querySpecsFor = (uid) => [
   ['calls', 'participantUids', 'array-contains', uid],
   ['checkIns', 'userId', '==', uid],
   ['comments', 'userId', '==', uid],
+  ['communityNotifications', 'actorUid', '==', uid],
   ['communityReviews', 'userId', '==', uid],
   ['conversations', 'participants', 'array-contains', uid],
   ['datingDecisions', 'fromUid', '==', uid],

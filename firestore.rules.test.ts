@@ -87,6 +87,26 @@ describeWithEmulator('Firestore security rules for social features', () => {
     }, { merge: true }));
   });
 
+  it('thông báo thành viên mới do server tạo, dấu đã đọc chỉ thuộc từng người', async () => {
+    const alice = environment.authenticatedContext('alice').firestore();
+    const bob = environment.authenticatedContext('bob').firestore();
+    const guest = environment.unauthenticatedContext().firestore();
+    const eventPath = 'communityNotifications/new_profile_c';
+    await seed([[eventPath, { type: 'new_profile', actorUid: 'c', createdAt: new Date() }]]);
+    await assertSucceeds(getDoc(doc(alice, eventPath)));
+    await assertSucceeds(getDocs(query(collection(alice, 'communityNotifications'))));
+    await assertFails(getDoc(doc(guest, eventPath)));
+    await assertFails(setDoc(doc(alice, eventPath), { type: 'system' }));
+    await assertFails(deleteDoc(doc(alice, eventPath)));
+    const receiptPath = 'users/alice/communityNotificationReads/new_profile_c';
+    await assertSucceeds(setDoc(doc(alice, receiptPath), { readAt: serverTimestamp() }));
+    await assertSucceeds(getDoc(doc(alice, receiptPath)));
+    await assertFails(getDoc(doc(bob, receiptPath)));
+    await assertFails(setDoc(doc(bob, receiptPath), { readAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(alice, receiptPath), { readAt: serverTimestamp(), title: 'fake' }));
+    await assertFails(setDoc(doc(alice, receiptPath), { readAt: new Date(0) }));
+  });
+
   it('giữ danh sách hồ sơ đã lưu riêng cho từng người dùng', async () => {
     const studentA = environment.authenticatedContext('student-a').firestore();
     const studentB = environment.authenticatedContext('student-b').firestore();

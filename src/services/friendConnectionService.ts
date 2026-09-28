@@ -29,13 +29,12 @@ export function subscribeFriendConnections(
   const request = query(
     collection(db, 'friendships'),
     where('participantUids', 'array-contains', uid),
-    limit(250),
   );
   return onSnapshot(request, (snapshot) => {
     onChange(snapshot.docs.map((friendship) => ({
       id: friendship.id,
       ...friendship.data(),
-    } as Friendship)));
+    } as Friendship)).filter(friendship => friendship.status === 'accepted'));
   }, (error) => onError?.(error));
 }
 

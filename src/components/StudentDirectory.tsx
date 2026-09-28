@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
 import {
-  Compass,
   Check,
   Clock3,
+  Compass,
   GraduationCap,
   Loader2,
   MapPin,
   MessageCircle,
+  RefreshCw,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -16,28 +16,35 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
-import { FriendRequest, Friendship, StudentProfile } from '../types';
-import {
-  disableNearbyDiscovery,
-  DiscoveredStudent,
-  enableNearbyDiscovery,
-  searchStudents,
-  StudentSearchFilters,
-} from '../services/studentDirectoryService';
-import { formatDistance } from '../utils/locationUtils';
-import { requestBrowserLocation } from '../utils/proximity';
-import { isMajorMatch } from '../utils/matchingUtils';
-import { useTheme } from '../contexts/ThemeContext';
 import { useBlockedUsers } from '../hooks/useBlockedUsers';
 import {
   connectionStateFor,
+  FriendAction,
   manageFriendConnection,
   subscribeFriendConnections,
   subscribeIncomingFriendRequests,
   subscribeOutgoingFriendRequests,
 } from '../services/friendConnectionService';
+import {
+  disableNearbyDiscovery,
+  DiscoveredStudent,
+  enableNearbyDiscovery,
+  getStudentProfilesByIds,
+  isNewStudent,
+  profileMatches,
+  searchStudentPage,
+  sortDiscoveredStudents,
+  StudentPageCursor,
+  StudentSearchFilters,
+} from '../services/studentDirectoryService';
+import { FriendRequest, Friendship, StudentProfile } from '../types';
 import { playAppSound } from '../utils/appSounds';
+import { formatDistance } from '../utils/locationUtils';
+import { isMajorMatch } from '../utils/matchingUtils';
+import { requestBrowserLocation } from '../utils/proximity';
 
 interface StudentDirectoryProps {
   currentUser: User;
@@ -65,10 +72,23 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   currentProfile,
   onStartChat,
 }) => {
-  const { theme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTab = searchParams.get('tab');
+  const tab = selectedTab === 'friends' || selectedTab === 'requests' ? selectedTab : 'new';
+  const [requestDirection, setRequestDirection] = useState<'incoming' | 'outgoing'>('incoming');
   const [filters, setFilters] = useState<StudentSearchFilters>(EMPTY_FILTERS);
   const [students, setStudents] = useState<DiscoveredStudent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<StudentPageCursor>();
+  const [loadError, setLoadError] = useState(false);
+  const [relatedProfiles, setRelatedProfiles] = useState<StudentProfile[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+  const [relatedError, setRelatedError] = useState(false);
+  const [connectionsReady, setConnectionsReady] = useState({ friends: false, incoming: false, outgoing: false });
+  const [connectionsError, setConnectionsError] = useState(false);
+  const [reload, setReload] = useState(0);
+  const requestSequence = useRef(0);
   const [sharingLocation, setSharingLocation] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | undefined>();
   const [showFilters, setShowFilters] = useState(false);
@@ -79,23 +99,30 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   const [connectionBusyUid, setConnectionBusyUid] = useState<string | null>(null);
   const incomingRequestsReadyRef = useRef(false);
   const seenIncomingRequestIdsRef = useRef(new Set<string>());
-  const { blockedSet } = useBlockedUsers(currentUser.uid);
+  const { blockedSet, isLoading: blocksLoading, error: blocksError } = useBlockedUsers(currentUser.uid);
 
-  const isDark = theme === 'dark';
-  const hasNearbyPresence = nearbyEnabled;
 
   useEffect(() => {
     setNearbyEnabled(currentProfile?.nearbyOptIn === true);
   }, [currentProfile?.nearbyOptIn]);
 
   useEffect(() => {
+    setConnectionsReady({ friends: false, incoming: false, outgoing: false });
+    setConnectionsError(false);
+    incomingRequestsReadyRef.current = false;
+    seenIncomingRequestIdsRef.current.clear();
     const reportError = (error: Error) => {
       console.error('Could not load friend connections:', error);
+      setConnectionsError(true);
       toast.error('Chưa thể đồng bộ lời mời kết bạn. Vui lòng thử lại.');
     };
-    const unsubscribeFriendships = subscribeFriendConnections(currentUser.uid, setFriendships, reportError);
+    const unsubscribeFriendships = subscribeFriendConnections(currentUser.uid, (items) => {
+      setFriendships(items);
+      setConnectionsReady(previous => ({ ...previous, friends: true }));
+    }, reportError);
     const unsubscribeIncoming = subscribeIncomingFriendRequests(currentUser.uid, (requests) => {
       setIncomingRequests(requests);
+      setConnectionsReady(previous => ({ ...previous, incoming: true }));
       if (!incomingRequestsReadyRef.current) {
         requests.forEach((request) => seenIncomingRequestIdsRef.current.add(request.id));
         incomingRequestsReadyRef.current = true;
@@ -106,15 +133,46 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
       requests.forEach((request) => seenIncomingRequestIdsRef.current.add(request.id));
       if (hasNewRequest) void playAppSound('friend-request', { cooldownMs: 1_000 });
     }, reportError);
-    const unsubscribeOutgoing = subscribeOutgoingFriendRequests(currentUser.uid, setOutgoingRequests, reportError);
+    const unsubscribeOutgoing = subscribeOutgoingFriendRequests(currentUser.uid, (requests) => {
+      setOutgoingRequests(requests);
+      setConnectionsReady(previous => ({ ...previous, outgoing: true }));
+    }, reportError);
     return () => {
       unsubscribeFriendships();
       unsubscribeIncoming();
       unsubscribeOutgoing();
     };
-  }, [currentUser.uid]);
+  }, [currentUser.uid, reload]);
+
+  const friendUids = useMemo(() => [...new Set(friendships.flatMap(friendship => friendship.participantUids))]
+    .filter(uid => uid !== currentUser.uid && !blockedSet.has(uid)), [friendships, currentUser.uid, blockedSet]);
+  const incomingUids = useMemo(() => incomingRequests.map(request => request.fromUid)
+    .filter(uid => !blockedSet.has(uid)), [incomingRequests, blockedSet]);
+  const outgoingUids = useMemo(() => outgoingRequests.map(request => request.toUid)
+    .filter(uid => !blockedSet.has(uid)), [outgoingRequests, blockedSet]);
+  const relatedIdsKey = JSON.stringify(tab === 'friends' ? friendUids : tab === 'requests'
+    ? (requestDirection === 'incoming' ? incomingUids : outgoingUids) : []);
+
+  useEffect(() => {
+    let active = true;
+    const ids: string[] = JSON.parse(relatedIdsKey);
+    setRelatedError(false);
+    setRelatedProfiles([]);
+    if (!ids.length) { setRelatedLoading(false); return; }
+    setRelatedLoading(true);
+    void getStudentProfilesByIds(ids).then(profiles => {
+      if (active) setRelatedProfiles(profiles);
+    }).catch(error => {
+      console.error('Could not load connected profiles:', error);
+      if (active) setRelatedError(true);
+    }).finally(() => { if (active) setRelatedLoading(false); });
+    return () => { active = false; };
+  }, [relatedIdsKey, reload]);
 
   const loadStudents = useCallback(async (nextFilters = filters, location = currentLocation) => {
+    const sequence = ++requestSequence.current;
+    setNextCursor(undefined);
+    setLoadError(false);
     if (nextFilters.nearbyOnly && !location) {
       setStudents([]);
       setLoading(false);
@@ -123,23 +181,46 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
 
     setLoading(true);
     try {
-      const results = await searchStudents(currentUser.uid, nextFilters, location);
-      setStudents(results.filter(({ profile }) => !blockedSet.has(profile.uid)));
+      const result = await searchStudentPage(currentUser.uid, nextFilters, location);
+      if (sequence !== requestSequence.current) return;
+      setStudents(result.students);
+      setNextCursor(result.nextCursor);
     } catch (error) {
       console.error('Could not load student directory:', error);
-      toast.error('Chưa thể tải danh sách sinh viên. Vui lòng thử lại.');
+      if (sequence === requestSequence.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [blockedSet, currentLocation, currentUser.uid, filters]);
+  }, [currentLocation, currentUser.uid, filters]);
 
   useEffect(() => {
+    if (tab !== 'new') return;
     const timer = window.setTimeout(() => {
       void loadStudents();
     }, 250);
 
-    return () => window.clearTimeout(timer);
-  }, [loadStudents]);
+    return () => { window.clearTimeout(timer); requestSequence.current += 1; };
+  }, [loadStudents, tab, reload]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    const sequence = requestSequence.current;
+    setLoadingMore(true);
+    try {
+      const page = await searchStudentPage(currentUser.uid, filters, currentLocation, nextCursor);
+      if (sequence !== requestSequence.current) return;
+      setStudents(previous => sortDiscoveredStudents([...new Map([...previous, ...page.students].map(student => [student.profile.uid, student])).values()], filters.nearbyOnly));
+      setNextCursor(page.nextCursor);
+    } catch {
+      if (sequence === requestSequence.current) toast.error('Chưa tải được trang tiếp theo. Bạn có thể thử lại.');
+    } finally { setLoadingMore(false); }
+  };
+
+  const selectTab = (next: 'new' | 'friends' | 'requests') => {
+    requestSequence.current += 1;
+    setSearchParams({ tab: next });
+    setFilters(EMPTY_FILTERS);
+  };
 
   const updateFilters = (changes: Partial<StudentSearchFilters>) => {
     setFilters((previous) => ({ ...previous, ...changes }));
@@ -190,7 +271,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
     updateFilters({ nearbyOnly: !filters.nearbyOnly });
   };
 
-  const updateConnection = async (friendUid: string) => {
+  const updateConnection = async (friendUid: string, explicitAction?: FriendAction) => {
     const state = connectionStateFor(
       friendUid,
       currentUser.uid,
@@ -198,9 +279,9 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
       incomingRequests,
       outgoingRequests,
     );
-    if (state === 'accepted') return;
+    if (state === 'accepted' && !explicitAction) return;
 
-    const action = state === 'incoming' ? 'accept' : state === 'pending' ? 'cancel' : 'send';
+    const action = explicitAction || (state === 'incoming' ? 'accept' : state === 'pending' ? 'cancel' : 'send');
     setConnectionBusyUid(friendUid);
     try {
       await manageFriendConnection(friendUid, action);
@@ -210,6 +291,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
       }
       if (action === 'send') toast.success('Đã gửi lời mời kết bạn.');
       if (action === 'cancel') toast.success('Đã thu hồi lời mời.');
+      if (action === 'decline') toast.success('Đã từ chối lời mời.');
     } catch (connectionError) {
       console.error('Could not update friend connection:', connectionError);
       toast.error('Chưa thể cập nhật lời mời kết bạn. Vui lòng thử lại.');
@@ -225,65 +307,57 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
     filters.nearbyOnly ? 'nearby' : '',
   ].filter(Boolean).length, [filters]);
 
+  const visibleStudents = useMemo(() => {
+    const allowed = new Set(JSON.parse(relatedIdsKey) as string[]);
+    const list: DiscoveredStudent[] = tab === 'new' ? students : relatedProfiles
+      .filter(profile => allowed.has(profile.uid) && profileMatches(profile, filters))
+      .sort((left, right) => tab === 'friends'
+        ? left.fullName.localeCompare(right.fullName, 'vi')
+        : [...allowed].indexOf(left.uid) - [...allowed].indexOf(right.uid))
+      .map(profile => ({ profile }));
+    return list.filter(({ profile }) => !blockedSet.has(profile.uid));
+  }, [tab, students, relatedProfiles, relatedIdsKey, filters, blockedSet]);
+  const listLoading = blocksLoading || (tab === 'new' ? loading : relatedLoading || (!connectionsError && !(
+    tab === 'friends' ? connectionsReady.friends : connectionsReady[requestDirection]
+  )));
+  const listError = Boolean(blocksError) || (tab === 'new' ? loadError : relatedError || connectionsError);
+
   return (
     <section className="max-w-5xl mx-auto pb-8">
-      <div
-        className="rounded-[2rem] p-5 md:p-7 mb-5 border overflow-hidden relative"
-        style={{
-          background: isDark
-            ? 'linear-gradient(135deg, rgba(49,46,129,.45), rgba(30,64,175,.25))'
-            : 'linear-gradient(135deg, #eef2ff, #eff6ff)',
-          borderColor: isDark ? 'rgba(129,140,248,.35)' : '#c7d2fe',
-        }}
-      >
-        <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-indigo-300/20 blur-2xl pointer-events-none" />
-        <div className="relative flex flex-col md:flex-row md:items-center gap-4 md:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-lg flex-shrink-0">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-indigo-600 dark:text-indigo-300">Cộng đồng sinh viên TVU</p>
-              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Tìm bạn học, bạn cùng ngành</h1>
-              <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300 max-w-2xl">
-                Tìm theo tên, lớp, ngành hoặc xem các bạn đang ở gần bạn. Không hiển thị vị trí chính xác của bất kỳ ai.
-              </p>
-            </div>
-          </div>
+      <header className="mb-5 px-1">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Tìm bạn & giữ kết nối</h1>
+        <p className="mt-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+          Làm quen bạn mới, giữ liên lạc với bạn bè tại TVU.
+        </p>
+      </header>
 
-          {hasNearbyPresence ? (
-            <button
-              onClick={() => void disableNearby()}
-              disabled={sharingLocation}
-              className="shrink-0 px-4 py-3 rounded-xl text-sm font-bold border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 disabled:opacity-60"
-            >
-              {sharingLocation ? 'Đang cập nhật…' : 'Dừng chia sẻ vị trí'}
-            </button>
-          ) : (
-            <button
-              onClick={() => void enableNearby()}
-              disabled={sharingLocation}
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg hover:opacity-90 disabled:opacity-60"
-            >
-              {sharingLocation ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-              Chia sẻ vị trí gần đúng
-            </button>
-          )}
-        </div>
+      <nav aria-label="Danh sách kết nối" className="mb-5 grid grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
+        {([
+          { id: 'new', label: 'Bạn mới', count: 0 },
+          { id: 'friends', label: 'Bạn bè', count: friendUids.length },
+          { id: 'requests', label: 'Lời mời', count: incomingUids.length },
+        ] as const).map(item => (
+          <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined} onClick={() => selectTab(item.id)}
+            className={`flex min-h-12 items-center justify-center gap-1.5 rounded-xl px-1 text-sm font-bold ${tab === item.id ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+            {item.label}{' '}{item.count > 0 && <span className={`rounded-full px-1.5 text-xs ${tab === item.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>{item.count}</span>}
+          </button>
+        ))}
+      </nav>
 
-        <div className="relative mt-4 flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
-          <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
-          <span>Chỉ dùng ô vị trí khoảng 1–2 km để xếp hạng kết quả. Bạn có thể tắt bất cứ lúc nào.</span>
-        </div>
-      </div>
+      {tab !== 'requests' && incomingUids.length > 0 && (
+        <button type="button" onClick={() => selectTab('requests')} className="mb-4 flex min-h-12 w-full items-center gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-left text-sm text-indigo-800 dark:bg-indigo-950/35 dark:text-indigo-200">
+          <UserPlus className="h-4 w-4 shrink-0" />
+          <span className="flex-1 font-semibold">Bạn có {incomingUids.length} lời mời kết bạn</span>
+          <span className="shrink-0 underline underline-offset-4">Xem lời mời</span>
+        </button>
+      )}
 
-      {incomingRequests.length > 0 && (
-        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/35 dark:text-indigo-100">
-          <UserPlus className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="text-sm font-black">Bạn có {incomingRequests.length} lời mời kết bạn</p>
-            <p className="mt-0.5 text-xs opacity-80">Người gửi sẽ có nút “Chấp nhận” trong danh sách bên dưới.</p>
-          </div>
+      {tab === 'requests' && (
+        <div className="mb-4 flex gap-2" aria-label="Loại lời mời">
+          {(['incoming', 'outgoing'] as const).map(direction => <button key={direction} type="button" aria-pressed={requestDirection === direction}
+            onClick={() => setRequestDirection(direction)} className={`min-h-11 rounded-full px-4 text-sm font-semibold ${requestDirection === direction ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200' : 'text-slate-500'}`}>
+            {direction === 'incoming' ? `Đã nhận (${incomingUids.length})` : `Đã gửi (${outgoingUids.length})`}
+          </button>)}
         </div>
       )}
 
@@ -292,6 +366,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
           <label className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
+              aria-label="Tìm tên, lớp, ngành học"
               value={filters.keyword}
               onChange={(event) => updateFilters({ keyword: event.target.value })}
               placeholder="Tìm tên, lớp, ngành học…"
@@ -310,6 +385,8 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
           </label>
           <button
             type="button"
+            aria-label="Bộ lọc danh sách"
+            aria-expanded={showFilters}
             onClick={() => setShowFilters((visible) => !visible)}
             className={`min-h-12 px-3 rounded-xl border font-bold text-sm inline-flex items-center gap-2 ${
               showFilters || activeFilters > 0
@@ -347,7 +424,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
         )}
 
         <div className="flex flex-wrap gap-2 mt-3">
-          <button
+          {tab === 'new' && <button
             type="button"
             onClick={() => void showNearbyResults()}
             disabled={sharingLocation}
@@ -358,7 +435,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
             }`}
           >
             <Compass className="w-4 h-4" /> Quanh đây
-          </button>
+          </button>}
           {currentProfile?.major && (
             <button
               type="button"
@@ -395,27 +472,47 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
             </button>
           )}
         </div>
+
+        {tab === 'new' && (filters.nearbyOnly || nearbyEnabled) && <div className="mt-3 flex items-start gap-2 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500 dark:border-slate-700 dark:text-slate-400">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+          <div>
+            <p>Chỉ chia sẻ khu vực gần đúng khoảng 1–2 km, không công khai vị trí chính xác.</p>
+            {nearbyEnabled && <button type="button" onClick={() => void disableNearby()} disabled={sharingLocation} className="min-h-9 font-semibold text-emerald-700 underline dark:text-emerald-300 disabled:opacity-60">
+              {sharingLocation ? 'Đang cập nhật…' : 'Dừng chia sẻ vị trí'}
+            </button>}
+          </div>
+        </div>}
       </div>
 
-      {loading ? (
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-sm text-slate-500 dark:text-slate-400">{tab === 'new' ? (filters.nearbyOnly ? 'Ưu tiên gần bạn trong các kết quả đã tải' : 'Mới tham gia trước · Nhãn Bạn mới trong 7 ngày') : tab === 'friends' ? 'Những người đã chấp nhận kết bạn với bạn' : 'Chấp nhận, từ chối hoặc thu hồi lời mời'}</p>
+        <button type="button" onClick={() => setReload(value => value + 1)} aria-label="Làm mới danh sách" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 dark:border-slate-700"><RefreshCw size={17} /></button>
+      </div>
+
+      {listError ? (
+        <div role="alert" className="rounded-2xl border border-rose-200 p-6 text-center text-sm text-rose-700">
+          Chưa tải được danh sách. <button type="button" onClick={() => setReload(value => value + 1)} className="min-h-11 font-bold underline">Thử lại</button>
+        </div>
+      ) : listLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="h-52 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 animate-pulse" />
           ))}
         </div>
-      ) : students.length === 0 ? (
+      ) : visibleStudents.length === 0 ? (
         <div className="rounded-[2rem] border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center bg-slate-50 dark:bg-slate-800/40">
           <Users className="w-12 h-12 mx-auto mb-3 text-indigo-400" />
-          <h2 className="font-black text-lg text-slate-900 dark:text-white">Chưa tìm thấy bạn phù hợp</h2>
+          <h2 className="font-black text-lg text-slate-900 dark:text-white">{tab === 'friends' && !activeFilters ? 'Bạn chưa kết nối với ai' : tab === 'requests' && !activeFilters ? 'Chưa có lời mời trong mục này' : 'Chưa tìm thấy bạn phù hợp'}</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Thử đổi từ khóa, ngành học hoặc mở rộng phạm vi tìm kiếm.
+            {tab === 'friends' && !activeFilters ? 'Qua mục Bạn mới để làm quen. Sau khi lời mời được chấp nhận, bạn bè sẽ xuất hiện ở đây.' : tab === 'requests' && !activeFilters ? 'Lời mời mới sẽ tự xuất hiện tại đây khi được gửi.' : 'Thử đổi từ khóa, ngành học hoặc xem thêm kết quả.'}
           </p>
+          {tab === 'friends' && <button type="button" onClick={() => selectTab('new')} className="mt-4 min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white">Khám phá bạn mới</button>}
         </div>
       ) : (
         <>
-          <p className="mb-3 text-sm font-semibold text-slate-500 dark:text-slate-400">Tìm thấy {students.length} sinh viên</p>
+          <p className="mb-3 text-sm font-semibold text-slate-500 dark:text-slate-400">Đang hiển thị {visibleStudents.length} {tab === 'friends' ? 'bạn bè' : 'sinh viên'}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {students.map(({ profile, distanceKm }) => {
+            {visibleStudents.map(({ profile, distanceKm }) => {
               const isSameMajor = currentProfile && isMajorMatch(currentProfile.major, profile.major);
               const connectionState = connectionStateFor(
                 profile.uid,
@@ -443,10 +540,10 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                     )}
                     <div className="min-w-0 flex-1">
                       <h2 className="font-black text-slate-900 dark:text-white truncate">{profile.fullName}</h2>
+                      {isNewStudent(profile) && <span className="mt-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Bạn mới</span>}
                       <p className="mt-0.5 text-sm font-semibold text-indigo-600 dark:text-indigo-300 truncate">{profile.major || 'Chưa cập nhật ngành'}</p>
                     </div>
                   </div>
-
                   <div className="mt-3 flex flex-wrap gap-1.5 min-h-6">
                     {profile.className && <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300">{profile.className}</span>}
                     {profile.academicYear && <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300">{profile.academicYear}</span>}
@@ -475,12 +572,20 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                       <MessageCircle className="h-4 w-4" /> Nhắn tin
                     </button>
                   </div>
+                  {tab === 'requests' && connectionState === 'incoming' && <button type="button" disabled={connectionBusyUid === profile.uid}
+                    onClick={() => void updateConnection(profile.uid, 'decline')} className="mt-2 min-h-10 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900">Từ chối lời mời</button>}
                 </article>
               );
             })}
           </div>
         </>
       )}
+
+      {tab === 'new' && nextCursor && !loading && !loadError && <div className="mt-5 text-center">
+        <button type="button" disabled={loadingMore} onClick={() => void loadMore()} className="min-h-11 rounded-xl border border-slate-200 bg-white px-6 text-sm font-bold text-indigo-600 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-indigo-300">
+          {loadingMore ? 'Đang tải…' : 'Xem thêm bạn'}
+        </button>
+      </div>}
 
       <div className="mt-6 flex gap-2 text-xs text-slate-500 dark:text-slate-400">
         <GraduationCap className="w-4 h-4 flex-shrink-0" />

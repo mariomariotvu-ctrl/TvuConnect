@@ -92,6 +92,8 @@ export interface AppNotification {
   reason?: string | null;
   readAt?: Timestamp | null;
   createdAt?: Timestamp | null;
+  expiresAt?: Timestamp | null;
+  source?: 'personal' | 'community';
 }
 
 export interface Message {

@@ -1,6 +1,6 @@
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { getApps, initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { deliverNotification } = require('./notificationHelpers');
 
 if (!getApps().length) initializeApp();
@@ -8,6 +8,47 @@ if (!getApps().length) initializeApp();
 const MAX_RECIPIENTS = 80;
 const MAX_INTEREST_QUERY_VALUES = 10;
 const NEW_PROFILE_WINDOW_MS = 6 * 60 * 60 * 1000;
+const COMMUNITY_FEED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function shouldAnnounceProfile(before, profile, eventMillis = Date.now()) {
+  const createdAt = profile?.createdAt?.toMillis?.() || 0;
+  const alreadyHadProfile = typeof before?.fullName === 'string' && Boolean(before.fullName.trim() && before.createdAt?.toMillis?.());
+  return !alreadyHadProfile && typeof profile?.fullName === 'string' && Boolean(profile.fullName.trim()) && createdAt > 0
+    && eventMillis - createdAt >= -60_000
+    && eventMillis - createdAt <= NEW_PROFILE_WINDOW_MS;
+}
+
+function communityNotification(uid, profile) {
+  const name = String(profile.fullName || '').trim().slice(0, 120);
+  return {
+    type: 'new_profile',
+    title: `${name} vừa tham gia TVU Connect`,
+    body: 'Cùng chào đón bạn mới! Ghé Tìm bạn để làm quen và gửi lời mời kết bạn.',
+    actorUid: uid,
+    actorName: name,
+    actorPhotoURL: typeof profile.photoURL === 'string' && /^https:\/\//i.test(profile.photoURL)
+      ? profile.photoURL.slice(0, 2048) : null,
+    entityId: uid,
+    route: '/friends?tab=new',
+    reason: 'community_joined',
+    createdAt: profile.createdAt,
+    expiresAt: Timestamp.fromMillis(profile.createdAt.toMillis() + COMMUNITY_FEED_WINDOW_MS),
+  };
+}
+
+async function publishCommunityNotification(firestore, uid, profile) {
+  const reference = firestore.collection('communityNotifications').doc(`new_profile_${uid}`);
+  return firestore.runTransaction(async transaction => {
+    const [current, existing] = await Promise.all([
+      transaction.get(firestore.collection('profiles').doc(uid)),
+      transaction.get(reference),
+    ]);
+    // A delayed/retried event must not resurrect a deleted account or duplicate a notice.
+    if (!current.exists || existing.exists) return false;
+    transaction.create(reference, communityNotification(uid, profile));
+    return true;
+  });
+}
 
 const normalizeInterest = (value) => String(value || '')
   .normalize('NFD')
@@ -67,14 +108,22 @@ function notificationCopy(name, reason) {
  */
 exports.announceNewProfile = onDocumentWritten({
   document: 'profiles/{uid}',
+  region: 'asia-southeast1',
   timeoutSeconds: 120,
   maxInstances: 5,
+  retry: true,
 }, async (event) => {
   const snapshot = event.data?.after;
-  if (!snapshot?.exists) return null;
-
   const uid = event.params.uid;
+  const firestore = getFirestore();
+  if (!snapshot?.exists) {
+    await firestore.collection('communityNotifications').doc(`new_profile_${uid}`).delete();
+    return null;
+  }
   const profile = snapshot.data() || {};
+  if (!shouldAnnounceProfile(event.data?.before?.data(), profile, Date.parse(event.time) || Date.now())) return null;
+  // One shared event, not a write/push to every account. Read state is private.
+  await publishCommunityNotification(firestore, uid, profile);
   const name = typeof profile.fullName === 'string' ? profile.fullName.trim() : '';
   const interests = Array.isArray(profile.interests)
     ? profile.interests.filter((interest) => typeof interest === 'string' && interest.trim())
@@ -83,12 +132,7 @@ exports.announceNewProfile = onDocumentWritten({
     && typeof profile.nearbyCell === 'string'
     && profile.nearbyCell.length > 0;
 
-  const createdAtMillis = profile.createdAt?.toMillis?.() || 0;
-  const isRecentlyCreated = createdAtMillis > 0
-    && Math.abs(Date.now() - createdAtMillis) <= NEW_PROFILE_WINDOW_MS;
-  if (!name || !isRecentlyCreated || (!interests.length && !canMatchNearby)) return null;
-
-  const firestore = getFirestore();
+  if (!interests.length && !canMatchNearby) return null;
   const candidateDocuments = new Map();
   const queries = [];
 
@@ -163,7 +207,7 @@ exports.announceNewProfile = onDocumentWritten({
         actorName: name,
         actorPhotoURL: profile.photoURL || null,
         entityId: uid,
-        route: '/friends',
+        route: '/friends?tab=new',
         reason: reasonLabel,
         pushData: {
           sharedInterests: recipient.reason.interests.join(', '),
@@ -191,3 +235,6 @@ exports.normalizeInterest = normalizeInterest;
 exports.nearbyCellIds = nearbyCellIds;
 exports.notificationCopy = notificationCopy;
 exports.sharedInterests = sharedInterests;
+exports.shouldAnnounceProfile = shouldAnnounceProfile;
+exports.communityNotification = communityNotification;
+exports.publishCommunityNotification = publishCommunityNotification;

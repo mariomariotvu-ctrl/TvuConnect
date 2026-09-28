@@ -185,7 +185,7 @@ exports.manageFriendConnection = onCall(async (request) => {
           actorName,
           actorPhotoURL: actor.photoURL || null,
           entityId: pairId,
-          route: '/friends',
+          route: accepted ? '/friends?tab=friends' : '/friends?tab=requests',
         },
       );
     } catch (error) {

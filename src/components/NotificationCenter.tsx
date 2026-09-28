@@ -32,7 +32,7 @@ interface NotificationCenterProps {
   onOpenRoute: (route: string) => void;
 }
 
-type NotificationFilter = 'all' | 'unread' | 'connections' | 'activity' | 'nearby';
+type NotificationFilter = 'all' | 'unread' | 'connections' | 'new' | 'activity' | 'nearby';
 
 const CONNECTION_TYPES = new Set<AppNotificationType>([
   'friend_request',
@@ -108,6 +108,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
   const visibleNotifications = useMemo(() => notifications.filter((notification) => {
     if (filter === 'unread') return !notification.readAt;
     if (filter === 'connections') return CONNECTION_TYPES.has(notification.type);
+    if (filter === 'new') return notification.type === 'new_profile';
     if (filter === 'activity') return ACTIVITY_TYPES.has(notification.type);
     if (filter === 'nearby') return notification.type === 'encounter';
     return true;
@@ -116,7 +117,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
   const openNotification = async (notification: AppNotification) => {
     if (!notification.readAt) {
       try {
-        await markNotificationRead(currentUser.uid, notification.id);
+        await markNotificationRead(currentUser.uid, notification.id, notification.type, notification.source);
       } catch (error) {
         console.error('Could not mark notification read:', error);
       }
@@ -141,6 +142,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
     { id: 'all', label: 'Tất cả' },
     { id: 'unread', label: `Chưa đọc${unreadCount ? ` (${unreadCount})` : ''}` },
     { id: 'connections', label: 'Kết nối' },
+    { id: 'new', label: 'Bạn mới' },
     { id: 'activity', label: 'Hoạt động' },
     { id: 'nearby', label: 'Gần bạn' },
   ];
@@ -181,7 +183,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ currentU
         <div>
           <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Trung tâm thông báo</p>
           <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Kết nối và hoạt động mới</h1>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Lời mời kết bạn, tương tác cộng đồng, người phù hợp và những phát hiện quanh bạn.</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Lời mời kết bạn, thành viên vừa tham gia, tương tác cộng đồng và những phát hiện quanh bạn.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <button

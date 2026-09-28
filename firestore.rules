@@ -58,6 +58,15 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // Read state for a shared community event is private to its viewer.
+      match /communityNotificationReads/{notificationId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['readAt'])
+          && request.resource.data.readAt == request.time;
+        allow delete: if false;
+      }
+
       // Students control which push categories they receive. The in-app feed
       // remains server-owned so browser clients cannot forge notifications.
       match /notificationPreferences/{preferenceId} {
@@ -96,6 +105,12 @@ service cloud.firestore {
     }
     
     // ===============================================================
+    // Shared, server-owned events include public identity only, not location.
+    match /communityNotifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
     // Messages Collection Rules
     // FIX: read chỉ cho participants của tin nhắn đó
     // FIX: update mark-as-read cho cả receiver (để đánh dấu đã đọc)
