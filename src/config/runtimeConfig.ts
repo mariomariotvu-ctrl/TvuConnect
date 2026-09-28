@@ -1,5 +1,6 @@
 import {
   activate,
+  ensureInitialized,
   fetchAndActivate,
   getBoolean,
   getNumber,
@@ -22,6 +23,10 @@ export interface RuntimeConfigValues {
   focusedLocationRefreshMs: number;
   routeRefreshMs: number;
   uploadMaxMb: number;
+  communityAnnouncementEnabled: boolean;
+  communityAnnouncementId: string;
+  communityAnnouncementTitle: string;
+  communityAnnouncementBody: string;
 }
 
 const DEFAULTS: RuntimeConfigValues = {
@@ -35,6 +40,11 @@ const DEFAULTS: RuntimeConfigValues = {
   focusedLocationRefreshMs: 4_000,
   routeRefreshMs: 20_000,
   uploadMaxMb: 10,
+  // Only a successfully activated Firebase campaign can broadcast a toast.
+  communityAnnouncementEnabled: false,
+  communityAnnouncementId: '',
+  communityAnnouncementTitle: '',
+  communityAnnouncementBody: '',
 };
 
 const REMOTE_DEFAULTS: Record<string, string | number | boolean> = {
@@ -48,6 +58,10 @@ const REMOTE_DEFAULTS: Record<string, string | number | boolean> = {
   gps_focused_refresh_ms: DEFAULTS.focusedLocationRefreshMs,
   gps_route_refresh_ms: DEFAULTS.routeRefreshMs,
   upload_max_mb: DEFAULTS.uploadMaxMb,
+  community_announcement_enabled: DEFAULTS.communityAnnouncementEnabled,
+  community_announcement_id: DEFAULTS.communityAnnouncementId,
+  community_announcement_title: DEFAULTS.communityAnnouncementTitle,
+  community_announcement_body: DEFAULTS.communityAnnouncementBody,
 };
 
 type Listener = (config: RuntimeConfigValues) => void;
@@ -68,6 +82,10 @@ function readRemoteValues(config: RemoteConfig): RuntimeConfigValues {
     mapEnabled: getBoolean(config, 'feature_map_enabled'),
     callsEnabled: getBoolean(config, 'feature_calls_enabled'),
     notificationsEnabled: getBoolean(config, 'feature_notifications_enabled'),
+    communityAnnouncementEnabled: getBoolean(config, 'community_announcement_enabled'),
+    communityAnnouncementId: getString(config, 'community_announcement_id').trim(),
+    communityAnnouncementTitle: getString(config, 'community_announcement_title').trim().slice(0, 100),
+    communityAnnouncementBody: getString(config, 'community_announcement_body').trim().slice(0, 600),
     aiModel: getString(config, 'ai_model').trim() || DEFAULTS.aiModel,
     locationRefreshMs: boundedNumber(
       getNumber(config, 'gps_location_refresh_ms'),
@@ -119,6 +137,9 @@ export function initializeRuntimeConfig(): Promise<RuntimeConfigValues> {
         ? 60_000
         : 12 * 60 * 60 * 1000;
 
+      // Restore the last activated switches even if the next fetch is offline.
+      await ensureInitialized(remoteConfig);
+      publish(readRemoteValues(remoteConfig));
       await fetchAndActivate(remoteConfig);
       publish(readRemoteValues(remoteConfig));
 

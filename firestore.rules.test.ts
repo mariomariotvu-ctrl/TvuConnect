@@ -52,6 +52,23 @@ describeWithEmulator('Firestore security rules for social features', () => {
     });
   };
 
+  it('giữ dấu nhận thông báo riêng tư, chỉ chủ tài khoản được tạo một lần', async () => {
+    const studentA = environment.authenticatedContext('student-a').firestore();
+    const studentB = environment.authenticatedContext('student-b').firestore();
+    const guest = environment.unauthenticatedContext().firestore();
+    const path = 'users/student-a/announcementReceipts/welcome-v1';
+    await assertSucceeds(getDoc(doc(studentA, path)));
+    await assertFails(getDoc(doc(studentB, path)));
+    await assertFails(getDoc(doc(guest, path)));
+    await assertFails(setDoc(doc(studentB, path), { receivedAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(studentA, path), { receivedAt: new Date(0) }));
+    await assertFails(setDoc(doc(studentA, path), { receivedAt: serverTimestamp(), injected: true }));
+    await assertSucceeds(setDoc(doc(studentA, path), { receivedAt: serverTimestamp() }));
+    await assertSucceeds(getDoc(doc(studentA, path)));
+    await assertFails(updateDoc(doc(studentA, path), { receivedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(studentA, path)));
+  });
+
   it('chỉ cho chủ hồ sơ cập nhật dữ liệu cá nhân', async () => {
     const studentA = environment.authenticatedContext('student-a').firestore();
     const studentB = environment.authenticatedContext('student-b').firestore();

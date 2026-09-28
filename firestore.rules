@@ -48,6 +48,16 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Private, immutable campaign receipts: never exposed through profiles.
+      match /announcementReceipts/{announcementId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && announcementId.matches('^[a-zA-Z0-9_-]{1,100}$')
+          && request.resource.data.keys().hasOnly(['receivedAt'])
+          && request.resource.data.receivedAt == request.time;
+        allow update, delete: if false;
+      }
+
       // Students control which push categories they receive. The in-app feed
       // remains server-owned so browser clients cannot forge notifications.
       match /notificationPreferences/{preferenceId} {

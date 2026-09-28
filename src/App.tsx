@@ -24,6 +24,7 @@ import { ProfileCompletionBanner } from './components/ProfileCompletionBanner';
 import { CallDialog } from './components/CallDialog';
 import { LiveLocationTracker } from './components/LiveLocationTracker';
 import { InstallPrompt } from './components/InstallPrompt';
+import { CommunityAnnouncement } from './components/CommunityAnnouncement';
 import { CinematicSplash } from './components/CinematicSplash';
 import { QuotaExceededBanner } from './components/QuotaExceededBanner';
 import { validateProfile, RESTRICTED_FEATURES, PUBLIC_FEATURES } from './utils/profileValidation';
@@ -1653,6 +1654,18 @@ export default function App() {
         />
       )}
       {user && !restrictedWebView && <InstallPrompt />}
+      {user && (
+        <CommunityAnnouncement
+          key={user.uid}
+          uid={user.uid}
+          paused={loading || isLoadingProfile || !hasAcceptedTerms || !profileComplete
+            || showTermsModal || showOnboarding || showMobileMenu
+            || Boolean(activeCall || activeStudyRoom || currentMatch)
+            || Boolean(currentProfile?.onboardingPending
+              && !currentProfile?.onboardingCompletedAt
+              && !safeLocalStorage.getItem(`onboarding_seen_${user.uid}`))}
+        />
+      )}
       {user && !(view === 'explore' && exploreTab === 'ai') && (
         <AIFloatingButton avoidChatComposer={view === 'chat'} />
       )}

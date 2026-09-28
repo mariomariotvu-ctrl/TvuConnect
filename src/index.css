@@ -470,7 +470,7 @@ a {
 }
 
 /* Dark mode toast notifications */
-.dark [data-sonner-toast] {
+.dark [data-sonner-toast][data-styled='true'] {
   background: rgba(30, 30, 30, 0.9) !important;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(79, 70, 229, 0.3) !important;
